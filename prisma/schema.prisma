@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
+  district     String
+  profileImage String?
+  slogan       String?
+  bio          String?
+  phone        String?
+  party        String   @default("개혁신당")
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  pledges      Pledge[]
+}
+
+model Pledge {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  budget      String?
+  imageUrl    String?
+  latitude    Float
+  longitude   Float
+  address     String?
+  visible     Boolean   @default(true)
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model District {
+  id        String @id @default(cuid())
+  name      String
+  code      String @unique
+  centerLat Float
+  centerLng Float
+}

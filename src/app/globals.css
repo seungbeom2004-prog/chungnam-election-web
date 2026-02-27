@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #FF5A00;
+  --color-primary-hover: #E65100;
+  --color-primary-light: #FFF3E0;
+  --color-secondary: #1A1A2E;
+  --color-secondary-light: #16213E;
+  --color-background: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-foreground: #1A1A2E;
+  --color-muted: #6B7280;
+  --color-border: #E5E7EB;
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+.kakao-map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.bottom-sheet-enter {
+  transform: translateY(100%);
+}
+
+.bottom-sheet-enter-active {
+  transform: translateY(0);
+  transition: transform 300ms ease-out;
+}
+
+.bottom-sheet-exit-active {
+  transform: translateY(100%);
+  transition: transform 200ms ease-in;
+}
+
+.sidebar-enter {
+  transform: translateX(-100%);
+}
+
+.sidebar-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-out;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
