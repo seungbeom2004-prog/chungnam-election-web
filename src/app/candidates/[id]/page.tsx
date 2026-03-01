@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!candidate) return { title: "후보를 찾을 수 없습니다" };
 
   return {
-    title: `${candidate.name} - ${candidate.district} | 개혁신당 충남도당`,
+    title: `${candidate.name} - ${candidate.district} | 개혁 충남`,
     description: candidate.slogan || `${candidate.name} 후보의 공약을 확인하세요`,
     openGraph: {
       title: `${candidate.name} - ${candidate.district}`,

@@ -75,7 +75,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-muted text-center mt-6">
-          계정이 없으신가요? 도당 사무국에 문의하세요.
+          계정이 없으신가요? 사무국에 문의하세요.
         </p>
       </div>
     </div>

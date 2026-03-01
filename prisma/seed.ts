@@ -22,20 +22,37 @@ const DISTRICTS = [
 ];
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("🌱 Seeding database...\n");
 
   // Seed districts
   for (const district of DISTRICTS) {
     await prisma.district.upsert({
       where: { code: district.code },
-      update: {},
+      update: { centerLat: district.centerLat, centerLng: district.centerLng },
       create: district,
     });
   }
-  console.log(`Seeded ${DISTRICTS.length} districts`);
+  console.log(`✅ Seeded ${DISTRICTS.length} districts`);
+
+  // Create admin account
+  const adminPassword = await bcrypt.hash("admin1234", 12);
+  const admin = await prisma.candidate.upsert({
+    where: { email: "admin@reform.kr" },
+    update: {},
+    create: {
+      email: "admin@reform.kr",
+      password: adminPassword,
+      name: "관리자",
+      district: "천안시",
+      party: "개혁",
+      role: "admin",
+      verified: true,
+    },
+  });
+  console.log(`✅ Created admin: ${admin.email} / admin1234`);
 
   // Create demo candidate
-  const hashedPassword = await bcrypt.hash("demo1234", 10);
+  const hashedPassword = await bcrypt.hash("demo1234", 12);
   const candidate = await prisma.candidate.upsert({
     where: { email: "demo@reform.kr" },
     update: {},
@@ -46,11 +63,12 @@ async function main() {
       district: "천안시",
       slogan: "시민과 함께하는 새로운 천안",
       bio: "천안시에서 태어나고 자란 토박이로, 더 나은 천안을 위해 뛰겠습니다. 교통, 교육, 복지 분야에서 실질적인 변화를 만들어가겠습니다.",
-      party: "개혁신당",
+      party: "개혁",
+      role: "candidate",
       verified: true,
     },
   });
-  console.log(`Created demo candidate: ${candidate.name} (${candidate.email})`);
+  console.log(`✅ Created demo candidate: ${candidate.name} (${candidate.email})`);
 
   // Create demo pledges
   const demoPledges = [
@@ -100,10 +118,13 @@ async function main() {
       },
     });
   }
-  console.log(`Created ${demoPledges.length} demo pledges`);
+  console.log(`✅ Created ${demoPledges.length} demo pledges`);
 
-  console.log("\nSeed complete!");
-  console.log("Demo login: demo@reform.kr / demo1234");
+  console.log("\n🎉 Seed complete!");
+  console.log("─────────────────────────────────");
+  console.log("Admin login:     admin@reform.kr / admin1234");
+  console.log("Candidate login: demo@reform.kr  / demo1234");
+  console.log("─────────────────────────────────");
 }
 
 main()

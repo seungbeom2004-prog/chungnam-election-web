@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Candidate {
@@ -17,17 +18,21 @@ model Candidate {
   slogan       String?
   bio          String?
   phone        String?
-  party        String   @default("개혁신당")
+  party        String   @default("개혁")
+  role         String   @default("candidate") // "candidate" | "admin"
   verified     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   pledges      Pledge[]
+
+  @@index([district])
+  @@index([verified])
 }
 
 model Pledge {
   id          String    @id @default(cuid())
   title       String
-  description String
+  description String    @db.Text
   budget      String?
   imageUrl    String?
   latitude    Float
@@ -38,6 +43,9 @@ model Pledge {
   candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([candidateId])
+  @@index([visible])
 }
 
 model District {

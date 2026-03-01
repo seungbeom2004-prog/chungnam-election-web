@@ -23,7 +23,8 @@ export default function ProfilePage() {
     if (!candidateId) return;
     fetch(`/api/candidates/${candidateId}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((json) => {
+        const data = json.data ?? json;
         setForm({
           name: data.name || "",
           slogan: data.slogan || "",

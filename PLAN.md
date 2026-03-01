@@ -1,4 +1,4 @@
-# 개혁신당 충남도당 홈페이지 구현 계획
+# 개혁 충남 홈페이지 구현 계획
 
 ## Tech Stack
 - Next.js 14 (App Router) + TypeScript
@@ -87,7 +87,7 @@ model Candidate {
   slogan       String?
   bio          String?
   phone        String?
-  party        String   @default("개혁신당")
+  party        String   @default("개혁")
   verified     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

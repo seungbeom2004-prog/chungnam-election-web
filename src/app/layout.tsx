@@ -5,12 +5,12 @@ import Navbar from "@/components/layout/Navbar";
 import AuthProvider from "@/components/layout/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "개혁신당 충남도당 | 우리 동네 공약 지도",
+  title: "개혁 충남 | 우리 동네 공약 지도",
   description:
-    "개혁신당 충남도당 후보자들의 공약을 지도에서 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보세요.",
+    "충남 후보자들의 공약을 지도에서 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보세요.",
   openGraph: {
-    title: "개혁신당 충남도당 | 우리 동네 공약 지도",
-    description: "개혁신당 충남도당 후보자들의 공약을 지도에서 확인하세요.",
+    title: "개혁 충남 | 우리 동네 공약 지도",
+    description: "충남 후보자들의 공약을 지도에서 확인하세요.",
     type: "website",
   },
 };

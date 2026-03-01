@@ -23,8 +23,8 @@ export default function PledgesPage() {
   const fetchPledges = useCallback(async () => {
     if (!candidateId) return;
     const res = await fetch(`/api/pledges?candidateId=${candidateId}`);
-    const data = await res.json();
-    setPledges(data);
+    const json = await res.json();
+    setPledges(json.data ?? json);
   }, [candidateId]);
 
   useEffect(() => {
