@@ -1,5 +1,40 @@
 import type { NextConfig } from "next";
 
+const SECURITY_HEADERS = [
+  // Prevents click-jacking
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  // Prevents MIME-type sniffing
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  // Strict referrer – only send origin on cross-origin requests
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Disable browser features not used by this app
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=()",
+  },
+  // Force HTTPS for 2 years
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  // Content-Security-Policy: allow self + Naver Maps + Supabase
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://oapi.map.naver.com https://nrbe.map.naver.net",
+      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+      "font-src 'self' https://cdn.jsdelivr.net",
+      "img-src 'self' data: blob: https: http://static.naver.net http://nrbe.map.naver.net",
+      "connect-src 'self' https://*.supabase.co https://oapi.map.naver.com https://nrbe.map.naver.net http://nrbe.map.naver.net https://kr-col-ext.nelo.navercorp.com",
+      "worker-src 'self' blob:",
+      "frame-src 'none'",
+    ].join("; "),
+  },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+  { key: "X-DNS-Prefetch-Control", value: "on" },
+];
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -9,6 +44,22 @@ const nextConfig: NextConfig = {
       },
     ],
     unoptimized: false,
+  },
+
+  // Attach security headers to every response
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: SECURITY_HEADERS,
+      },
+    ];
+  },
+
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
   },
 };
 

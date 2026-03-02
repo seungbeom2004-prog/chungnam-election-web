@@ -3,10 +3,19 @@
 import { useState, useEffect } from "react";
 import { Button, Input, Card, Modal } from "@/components/ui";
 
+// Preset palette for quick color selection
+const COLOR_PRESETS = [
+  "#FF5A00", "#EF4444", "#F59E0B", "#22C55E",
+  "#3B82F6", "#8B5CF6", "#EC4899", "#6B7280",
+  "#10B981", "#14B8A6", "#F97316", "#06B6D4",
+];
+
 interface AdminCategory {
   id: string;
   name: string;
   description: string | null;
+  emoji: string | null;
+  color: string;
   visible: boolean;
   sortOrder: number;
   createdAt: string;
@@ -20,6 +29,8 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<AdminCategory | null>(null);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formEmoji, setFormEmoji] = useState("");
+  const [formColor, setFormColor] = useState("#FF5A00");
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [saving, setSaving] = useState(false);
   const [publishSaving, setPublishSaving] = useState(false);
@@ -47,6 +58,8 @@ export default function AdminCategoriesPage() {
     setEditing(null);
     setFormName("");
     setFormDescription("");
+    setFormEmoji("");
+    setFormColor("#FF5A00");
     setFormSortOrder(categories.length);
     setModalOpen(true);
   };
@@ -55,6 +68,8 @@ export default function AdminCategoriesPage() {
     setEditing(cat);
     setFormName(cat.name);
     setFormDescription(cat.description || "");
+    setFormEmoji(cat.emoji || "");
+    setFormColor(cat.color || "#FF5A00");
     setFormSortOrder(cat.sortOrder);
     setModalOpen(true);
   };
@@ -63,28 +78,25 @@ export default function AdminCategoriesPage() {
     if (!formName.trim()) return;
     setSaving(true);
     try {
+      const payload = {
+        name: formName,
+        description: formDescription || null,
+        emoji: formEmoji || null,
+        color: formColor,
+        sortOrder: formSortOrder,
+      };
+
       if (editing) {
-        // Update
         await fetch("/api/admin/categories", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            categoryId: editing.id,
-            name: formName,
-            description: formDescription || null,
-            sortOrder: formSortOrder,
-          }),
+          body: JSON.stringify({ categoryId: editing.id, ...payload }),
         });
       } else {
-        // Create
         await fetch("/api/admin/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formName,
-            description: formDescription || null,
-            sortOrder: formSortOrder,
-          }),
+          body: JSON.stringify(payload),
         });
       }
       setModalOpen(false);
@@ -114,7 +126,6 @@ export default function AdminCategoriesPage() {
     setPublished(false);
   };
 
-  // Check if visibility has changed
   const hasVisibilityChanges = categories.some((c) => {
     const orig = original.find((o) => o.id === c.id);
     return orig && orig.visible !== c.visible;
@@ -128,7 +139,6 @@ export default function AdminCategoriesPage() {
         const orig = original.find((o) => o.id === c.id);
         return orig && orig.visible !== c.visible;
       });
-
       await Promise.all(
         changed.map((c) =>
           fetch("/api/admin/categories", {
@@ -138,7 +148,6 @@ export default function AdminCategoriesPage() {
           })
         )
       );
-
       setOriginal([...categories]);
       setPublished(true);
     } catch {
@@ -172,8 +181,7 @@ export default function AdminCategoriesPage() {
       )}
 
       <p className="text-sm text-muted mb-4">
-        공약의 분류 카테고리를 관리합니다. 표시/숨김을 변경한 후
-        &quot;저장&quot; 버튼을 눌러주세요.
+        공약의 분류 카테고리를 관리합니다. 이모지와 색상은 지도 핀에 표시됩니다.
       </p>
 
       {loading ? (
@@ -194,20 +202,29 @@ export default function AdminCategoriesPage() {
                 key={cat.id}
                 className="flex items-center justify-between px-4 py-3"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">
-                      {cat.name}
-                    </span>
-                    <span className="text-xs text-muted">
-                      순서: {cat.sortOrder}
-                    </span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Emoji + color preview */}
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0 border-2"
+                    style={{ borderColor: cat.color || "#FF5A00", backgroundColor: (cat.color || "#FF5A00") + "20" }}
+                  >
+                    {cat.emoji || "📌"}
                   </div>
-                  {cat.description && (
-                    <p className="text-sm text-muted mt-0.5 truncate">
-                      {cat.description}
-                    </p>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {cat.name}
+                      </span>
+                      <span className="text-xs text-muted">
+                        순서: {cat.sortOrder}
+                      </span>
+                    </div>
+                    {cat.description && (
+                      <p className="text-sm text-muted mt-0.5 truncate">
+                        {cat.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
@@ -264,12 +281,79 @@ export default function AdminCategoriesPage() {
             onChange={(e) => setFormDescription(e.target.value)}
             placeholder="카테고리에 대한 설명"
           />
+
+          {/* Emoji */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              이모지 (선택)
+            </label>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl"
+                style={{ borderColor: formColor }}
+              >
+                {formEmoji || "📌"}
+              </div>
+              <input
+                type="text"
+                value={formEmoji}
+                onChange={(e) => setFormEmoji(e.target.value)}
+                placeholder="이모지 입력 (예: 📚)"
+                maxLength={4}
+                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {/* Color */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              색상 (지도 핀 테두리)
+            </label>
+            <div className="space-y-2">
+              {/* Preset colors */}
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setFormColor(c)}
+                    className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: c,
+                      borderColor: formColor === c ? "#000" : "transparent",
+                    }}
+                    title={c}
+                  />
+                ))}
+              </div>
+              {/* Custom color input */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={formColor}
+                  onChange={(e) => setFormColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-border"
+                />
+                <input
+                  type="text"
+                  value={formColor}
+                  onChange={(e) => setFormColor(e.target.value)}
+                  placeholder="#FF5A00"
+                  maxLength={7}
+                  className="flex-1 px-3 py-2 border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+
           <Input
             label="정렬 순서"
             type="number"
             value={formSortOrder.toString()}
             onChange={(e) => setFormSortOrder(parseInt(e.target.value) || 0)}
           />
+
           <div className="flex gap-2 pt-2">
             <Button
               className="flex-1"
