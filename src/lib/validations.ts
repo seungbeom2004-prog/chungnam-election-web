@@ -45,6 +45,9 @@ export const updateCandidateSchema = z.object({
   candidateStatus: z
     .enum(["출마예정자", "예비후보자", "후보자"])
     .optional(),
+  caucusStatus: z
+    .enum(["공천 미확정", "공천 확정"])
+    .optional(),
 });
 
 export const registerCandidateSchema = z.object({

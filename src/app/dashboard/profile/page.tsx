@@ -17,6 +17,7 @@ interface ElectionOption {
 }
 
 const CANDIDATE_STATUSES = ["출마예정자", "예비후보자", "후보자"] as const;
+const CAUCUS_STATUSES = ["공천 미확정", "공천 확정"] as const;
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -30,6 +31,7 @@ export default function ProfilePage() {
     district: "",
     electionId: "",
     candidateStatus: "출마예정자" as string,
+    caucusStatus: "공천 미확정" as string,
     profileImage: "",
   });
   const [districts, setDistricts] = useState<DistrictOption[]>([]);
@@ -63,6 +65,7 @@ export default function ProfilePage() {
           district: data.district || "",
           electionId: data.electionId || "",
           candidateStatus: data.candidateStatus || "출마예정자",
+          caucusStatus: data.caucusStatus || "공천 미확정",
           profileImage: data.profileImage || "",
         });
       });
@@ -108,6 +111,7 @@ export default function ProfilePage() {
         district: form.district,
         electionId: form.electionId || null,
         candidateStatus: form.candidateStatus,
+        caucusStatus: form.caucusStatus,
         profileImage: form.profileImage || null,
       }),
     });
@@ -179,19 +183,37 @@ export default function ProfilePage() {
           )}
 
           {/* Candidate status */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              후보 상태
-            </label>
-            <select
-              value={form.candidateStatus}
-              onChange={(e) => setForm({ ...form, candidateStatus: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-            >
-              {CANDIDATE_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                후보 상태
+              </label>
+              <select
+                value={form.candidateStatus}
+                onChange={(e) => setForm({ ...form, candidateStatus: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              >
+                {CANDIDATE_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Caucus status */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                공천 상태
+              </label>
+              <select
+                value={form.caucusStatus}
+                onChange={(e) => setForm({ ...form, caucusStatus: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              >
+                {CAUCUS_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <Input

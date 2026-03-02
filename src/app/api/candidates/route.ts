@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       .from("Candidate")
       .select("id, name, district, profileImage, slogan, party, candidateStatus, caucusStatus, electionId", { count: "exact" })
       .eq("verified", true)
-      .eq("caucusStatus", "공천 확정")
       .order("name", { ascending: true })
       .range(from, to);
 
