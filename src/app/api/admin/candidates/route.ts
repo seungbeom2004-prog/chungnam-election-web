@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 import { apiSuccess, apiError } from "@/lib/api-utils";
-
-// Verify admin access via session role or ADMIN_SECRET header
-async function isAdmin(request: NextRequest) {
-  // Method 1: Check session for admin role
-  const session = await getServerSession(authOptions);
-  if (session) {
-    const userId = (session.user as { id: string }).id;
-    const { data: user } = await supabase
-      .from("Candidate")
-      .select("role")
-      .eq("id", userId)
-      .single();
-    if (user?.role === "admin") return true;
-  }
-
-  // Method 2: Check ADMIN_SECRET header (for API/CLI access)
-  const secret = request.headers.get("x-admin-secret");
-  if (secret && secret === process.env.ADMIN_SECRET) return true;
-
-  return false;
-}
 
 // GET /api/admin/candidates — List all candidates (including unverified)
 export async function GET(request: NextRequest) {
@@ -37,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Candidate")
-      .select("id, email, name, district, party, phone, verified, role, createdAt")
+      .select("id, email, name, district, party, phone, verified, emailVerified, role, createdAt")
       .order("createdAt", { ascending: false });
 
     if (verified === "true") query = query.eq("verified", true);

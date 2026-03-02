@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
 import { useMapStore } from "@/store/useMapStore";
+
+interface DistrictItem {
+  name: string;
+  code: string;
+  centerLat: number;
+  centerLng: number;
+}
 
 const CITY_ZOOM = 6; // storeLevel 6 → naverZoom 15 ≈ 500m scale
 
@@ -13,10 +20,24 @@ export default function Navbar() {
   const { selectedDistrict, setCenter, setZoomLevel, setSelectedDistrict, reset } =
     useMapStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [districts, setDistricts] = useState<DistrictItem[]>([...CHUNGNAM_DISTRICTS]);
 
-  const handleSelectDistrict = (
-    district: (typeof CHUNGNAM_DISTRICTS)[number]
-  ) => {
+  // Fetch visible districts from API
+  useEffect(() => {
+    fetch("/api/districts")
+      .then((res) => res.json())
+      .then((json) => {
+        const data = json.data ?? json;
+        if (Array.isArray(data) && data.length > 0) {
+          setDistricts(data);
+        }
+      })
+      .catch(() => {
+        // Fallback to hardcoded districts
+      });
+  }, []);
+
+  const handleSelectDistrict = (district: DistrictItem) => {
     setCenter(district.centerLat, district.centerLng);
     setZoomLevel(CITY_ZOOM);
     setSelectedDistrict(district.name);
@@ -59,7 +80,7 @@ export default function Navbar() {
               전체
             </button>
 
-            {CHUNGNAM_DISTRICTS.map((district) => (
+            {districts.map((district) => (
               <button
                 key={district.code}
                 onClick={() => handleSelectDistrict(district)}
@@ -82,10 +103,10 @@ export default function Navbar() {
         {/* Auth Button */}
         {session ? (
           <Link
-            href="/dashboard"
+            href={session.user?.role === "admin" ? "/admin" : "/dashboard"}
             className="shrink-0 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
           >
-            대시보드
+            {session.user?.role === "admin" ? "관리자" : "대시보드"}
           </Link>
         ) : (
           <Link

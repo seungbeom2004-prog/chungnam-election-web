@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button, Input, Textarea } from "@/components/ui";
 import type { Pledge } from "@/types";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface PledgeFormProps {
   pledge: Pledge | null;
@@ -15,6 +21,7 @@ interface PledgeFormProps {
     latitude: number;
     longitude: number;
     address?: string;
+    categoryId?: string;
   }) => void;
   onClose: () => void;
 }
@@ -30,9 +37,19 @@ export default function PledgeForm({
   const [budget, setBudget] = useState(pledge?.budget || "");
   const [address, setAddress] = useState(pledge?.address || draftPin?.address || "");
   const [imageUrl, setImageUrl] = useState(pledge?.imageUrl || "");
+  const [categoryId, setCategoryId] = useState(pledge?.categoryId || "");
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch categories
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((json) => setCategories(json.data ?? []))
+      .catch(() => {});
+  }, []);
 
   const lat = pledge?.latitude ?? draftPin?.lat ?? 0;
   const lng = pledge?.longitude ?? draftPin?.lng ?? 0;
@@ -66,6 +83,7 @@ export default function PledgeForm({
       latitude: lat,
       longitude: lng,
       address: address || undefined,
+      categoryId: categoryId || undefined,
     });
     setSubmitting(false);
   };
@@ -123,6 +141,27 @@ export default function PledgeForm({
           onChange={(e) => setAddress(e.target.value)}
           placeholder="예: 천안시 서북구 ○○로"
         />
+
+        {/* Category select */}
+        {categories.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              카테고리 (선택)
+            </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            >
+              <option value="">카테고리 선택</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Image upload */}
         <div>

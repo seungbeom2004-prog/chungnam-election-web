@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button, Input } from "@/components/ui";
 
 export default function LoginPage() {
@@ -28,7 +29,18 @@ export default function LoginPage() {
     if (result?.error) {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     } else {
-      router.push("/dashboard/pledges");
+      // Check role to redirect admin vs candidate
+      try {
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        if (session?.user?.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard/pledges");
+        }
+      } catch {
+        router.push("/dashboard/pledges");
+      }
     }
   };
 
@@ -75,7 +87,10 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-muted text-center mt-6">
-          계정이 없으신가요? 사무국에 문의하세요.
+          계정이 없으신가요?{" "}
+          <Link href="/signup" className="text-primary hover:underline">
+            회원가입
+          </Link>
         </p>
       </div>
     </div>

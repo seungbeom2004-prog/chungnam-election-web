@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Pledge")
-      .select("*, candidate:Candidate!candidateId(id, name, district, profileImage)", { count: "exact" })
+      .select("*, candidate:Candidate!candidateId(id, name, district, profileImage), category:Category!categoryId(id, name)", { count: "exact" })
       .eq("visible", true)
       .order("createdAt", { ascending: false })
       .range(from, to);

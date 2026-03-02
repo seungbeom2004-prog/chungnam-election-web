@@ -16,6 +16,7 @@ export const createPledgeSchema = z.object({
   latitude: z.number().min(-90).max(90, "올바른 위도를 입력하세요"),
   longitude: z.number().min(-180).max(180, "올바른 경도를 입력하세요"),
   address: z.string().max(200).optional().nullable(),
+  categoryId: z.string().optional().nullable(),
 });
 
 export const updatePledgeSchema = createPledgeSchema.partial().extend({
@@ -64,6 +65,22 @@ export const registerCandidateSchema = z.object({
 export const verifyCandidateSchema = z.object({
   candidateId: z.string().min(1, "후보 ID가 필요합니다"),
   verified: z.boolean(),
+});
+
+// ── Category Schemas ────────────────────────────────────────
+
+export const createCategorySchema = z.object({
+  name: z.string().min(1, "카테고리명을 입력하세요").max(50),
+  description: z.string().max(200).optional().nullable(),
+  sortOrder: z.number().int().min(0).default(0),
+});
+
+export const updateCategorySchema = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().min(1).max(50).optional(),
+  description: z.string().max(200).optional().nullable(),
+  visible: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 // ── Pagination ──────────────────────────────────────────────

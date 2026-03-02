@@ -16,11 +16,13 @@ export const authOptions: NextAuthOptions = {
 
         const { data: candidate } = await supabase
           .from("Candidate")
-          .select("id, email, password, name, district, verified")
+          .select("id, email, password, name, district, verified, role")
           .eq("email", credentials.email)
           .single();
 
-        if (!candidate || !candidate.verified) return null;
+        if (!candidate) return null;
+        // Admin can always log in; candidates need verified=true
+        if (!candidate.verified && candidate.role !== "admin") return null;
 
         const isValid = await bcrypt.compare(
           credentials.password,
@@ -34,6 +36,7 @@ export const authOptions: NextAuthOptions = {
           email: candidate.email,
           name: candidate.name,
           district: candidate.district,
+          role: candidate.role,
         };
       },
     }),
@@ -45,15 +48,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.district = (user as unknown as { district: string }).district;
+        token.district = user.district;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id: string }).id = token.id as string;
-        (session.user as { district: string }).district =
-          token.district as string;
+        session.user.id = token.id as string;
+        session.user.district = token.district as string;
+        session.user.role = (token.role as string) || "candidate";
       }
       return session;
     },

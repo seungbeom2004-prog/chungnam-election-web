@@ -8,7 +8,9 @@ export interface Candidate {
   bio: string | null;
   phone: string | null;
   party: string;
+  role: string;
   verified: boolean;
+  emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
   pledges?: Pledge[];
@@ -25,7 +27,9 @@ export interface Pledge {
   address: string | null;
   visible: boolean;
   candidateId: string;
+  categoryId: string | null;
   candidate?: Candidate;
+  category?: Category;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +40,17 @@ export interface District {
   code: string;
   centerLat: number;
   centerLng: number;
+  visible: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string | null;
+  visible: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MapState {

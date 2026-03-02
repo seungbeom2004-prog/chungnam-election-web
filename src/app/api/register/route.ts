@@ -4,9 +4,16 @@ import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 import { registerCandidateSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 registrations per IP per hour
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    if (!rateLimit(`register:${ip}`, 5, 3600000)) {
+      return apiError("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", 429);
+    }
+
     const body = await request.json();
     const validated = registerCandidateSchema.parse(body);
 
