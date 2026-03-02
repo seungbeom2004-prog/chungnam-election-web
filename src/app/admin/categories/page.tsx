@@ -14,6 +14,7 @@ interface AdminCategory {
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [original, setOriginal] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AdminCategory | null>(null);
@@ -21,7 +22,8 @@ export default function AdminCategoriesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [toggling, setToggling] = useState<string | null>(null);
+  const [publishSaving, setPublishSaving] = useState(false);
+  const [published, setPublished] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -32,7 +34,9 @@ export default function AdminCategoriesPage() {
     try {
       const res = await fetch("/api/admin/categories");
       const json = await res.json();
-      setCategories(json.data ?? []);
+      const data = json.data ?? [];
+      setCategories(data);
+      setOriginal(data);
     } catch {
       console.error("Failed to fetch categories");
     }
@@ -101,35 +105,75 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleToggle = async (categoryId: string, visible: boolean) => {
-    setToggling(categoryId);
+  const handleToggle = (categoryId: string) => {
+    setCategories((prev) =>
+      prev.map((c) =>
+        c.id === categoryId ? { ...c, visible: !c.visible } : c
+      )
+    );
+    setPublished(false);
+  };
+
+  // Check if visibility has changed
+  const hasVisibilityChanges = categories.some((c) => {
+    const orig = original.find((o) => o.id === c.id);
+    return orig && orig.visible !== c.visible;
+  });
+
+  const handlePublish = async () => {
+    setPublishSaving(true);
+    setPublished(false);
     try {
-      await fetch("/api/admin/categories", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId, visible }),
+      const changed = categories.filter((c) => {
+        const orig = original.find((o) => o.id === c.id);
+        return orig && orig.visible !== c.visible;
       });
-      setCategories((prev) =>
-        prev.map((c) => (c.id === categoryId ? { ...c, visible } : c))
+
+      await Promise.all(
+        changed.map((c) =>
+          fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categoryId: c.id, visible: c.visible }),
+          })
+        )
       );
+
+      setOriginal([...categories]);
+      setPublished(true);
     } catch {
-      alert("변경에 실패했습니다.");
+      alert("저장에 실패했습니다.");
     }
-    setToggling(null);
+    setPublishSaving(false);
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-foreground">카테고리 관리</h1>
-        <Button size="sm" onClick={openCreate}>
-          + 추가
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={openCreate}>
+            + 추가
+          </Button>
+          <Button
+            size="sm"
+            onClick={handlePublish}
+            disabled={publishSaving || !hasVisibilityChanges}
+          >
+            {publishSaving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
       </div>
 
+      {published && (
+        <div className="mb-4 px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg">
+          변경 사항이 저장되었습니다.
+        </div>
+      )}
+
       <p className="text-sm text-muted mb-4">
-        공약의 분류 카테고리를 관리합니다. 후보가 공약을 등록할 때 카테고리를
-        선택할 수 있습니다.
+        공약의 분류 카테고리를 관리합니다. 표시/숨김을 변경한 후
+        &quot;저장&quot; 버튼을 눌러주세요.
       </p>
 
       {loading ? (
@@ -169,11 +213,10 @@ export default function AdminCategoriesPage() {
                 <div className="flex items-center gap-3 shrink-0">
                   {/* Toggle */}
                   <button
-                    onClick={() => handleToggle(cat.id, !cat.visible)}
-                    disabled={toggling === cat.id}
+                    onClick={() => handleToggle(cat.id)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       cat.visible ? "bg-primary" : "bg-gray-300"
-                    } ${toggling === cat.id ? "opacity-50" : ""}`}
+                    }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui";
+import { useState, useEffect, useCallback } from "react";
+import { Button, Card } from "@/components/ui";
 
 interface AdminDistrict {
   id: string;
@@ -14,40 +14,69 @@ interface AdminDistrict {
 
 export default function AdminDistrictsPage() {
   const [districts, setDistricts] = useState<AdminDistrict[]>([]);
+  const [original, setOriginal] = useState<AdminDistrict[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    fetchDistricts();
-  }, []);
-
-  const fetchDistricts = async () => {
+  const fetchDistricts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/districts");
       const json = await res.json();
-      setDistricts(json.data ?? []);
+      const data = json.data ?? [];
+      setDistricts(data);
+      setOriginal(data);
     } catch {
       console.error("Failed to fetch districts");
     }
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchDistricts();
+  }, [fetchDistricts]);
+
+  const handleToggle = (districtId: string) => {
+    setDistricts((prev) =>
+      prev.map((d) =>
+        d.id === districtId ? { ...d, visible: !d.visible } : d
+      )
+    );
+    setSaved(false);
   };
 
-  const handleToggle = async (districtId: string, visible: boolean) => {
-    setToggling(districtId);
+  // Check if there are unsaved changes
+  const hasChanges = districts.some((d) => {
+    const orig = original.find((o) => o.id === d.id);
+    return orig && orig.visible !== d.visible;
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
     try {
-      await fetch("/api/admin/districts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ districtId, visible }),
+      const changed = districts.filter((d) => {
+        const orig = original.find((o) => o.id === d.id);
+        return orig && orig.visible !== d.visible;
       });
-      setDistricts((prev) =>
-        prev.map((d) => (d.id === districtId ? { ...d, visible } : d))
+
+      await Promise.all(
+        changed.map((d) =>
+          fetch("/api/admin/districts", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ districtId: d.id, visible: d.visible }),
+          })
+        )
       );
+
+      setOriginal([...districts]);
+      setSaved(true);
     } catch {
-      alert("변경에 실패했습니다.");
+      alert("저장에 실패했습니다.");
     }
-    setToggling(null);
+    setSaving(false);
   };
 
   const visibleCount = districts.filter((d) => d.visible).length;
@@ -56,14 +85,29 @@ export default function AdminDistrictsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-foreground">지역 관리</h1>
-        <span className="text-sm text-muted">
-          {visibleCount}/{districts.length}개 표시 중
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted">
+            {visibleCount}/{districts.length}개 표시 중
+          </span>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !hasChanges}
+          >
+            {saving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
       </div>
 
+      {saved && (
+        <div className="mb-4 px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg">
+          변경 사항이 저장되었습니다.
+        </div>
+      )}
+
       <p className="text-sm text-muted mb-4">
-        메인 페이지 상단에 표시될 지역 탭을 관리합니다. 비활성화하면 해당 지역이
-        탭 목록에서 숨겨집니다.
+        메인 페이지 상단에 표시될 지역 탭을 관리합니다. 변경 후
+        &quot;저장&quot; 버튼을 눌러주세요.
       </p>
 
       {loading ? (
@@ -73,36 +117,46 @@ export default function AdminDistrictsPage() {
       ) : (
         <Card padding="none">
           <div className="divide-y divide-border">
-            {districts.map((district) => (
-              <div
-                key={district.id}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <div>
-                  <span className="font-medium text-foreground">
-                    {district.name}
-                  </span>
-                  <span className="text-xs text-muted ml-2">
-                    {district.code}
-                  </span>
-                </div>
+            {districts.map((district) => {
+              const orig = original.find((o) => o.id === district.id);
+              const isChanged = orig && orig.visible !== district.visible;
 
-                {/* Toggle switch */}
-                <button
-                  onClick={() => handleToggle(district.id, !district.visible)}
-                  disabled={toggling === district.id}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    district.visible ? "bg-primary" : "bg-gray-300"
-                  } ${toggling === district.id ? "opacity-50" : ""}`}
+              return (
+                <div
+                  key={district.id}
+                  className={`flex items-center justify-between px-4 py-3 ${
+                    isChanged ? "bg-primary-light/30" : ""
+                  }`}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      district.visible ? "translate-x-6" : "translate-x-1"
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground">
+                      {district.name}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {district.code}
+                    </span>
+                    {isChanged && (
+                      <span className="text-xs text-primary font-medium">
+                        (변경됨)
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleToggle(district.id)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      district.visible ? "bg-primary" : "bg-gray-300"
                     }`}
-                  />
-                </button>
-              </div>
-            ))}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        district.visible ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

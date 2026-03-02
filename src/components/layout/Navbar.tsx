@@ -67,19 +67,6 @@ export default function Navbar() {
             className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {/* All button */}
-            <button
-              onClick={handleReset}
-              className={`shrink-0 px-3 py-1 text-xs font-medium rounded-full transition-colors
-                ${
-                  !selectedDistrict
-                    ? "bg-primary text-white"
-                    : "bg-background text-muted hover:text-foreground hover:bg-border/50"
-                }`}
-            >
-              전체
-            </button>
-
             {districts.map((district) => (
               <button
                 key={district.code}

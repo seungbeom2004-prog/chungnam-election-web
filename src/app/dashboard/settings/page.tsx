@@ -26,14 +26,25 @@ export default function SettingsPage() {
     }
 
     setSaving(true);
-    // Password change would be implemented via API
-    setTimeout(() => {
-      setSaving(false);
-      setMessage("비밀번호가 변경되었습니다.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    }, 1000);
+    try {
+      const res = await fetch("/api/account/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMessage(json.error || "비밀번호 변경에 실패했습니다.");
+      } else {
+        setMessage("비밀번호가 변경되었습니다.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch {
+      setMessage("네트워크 오류가 발생했습니다.");
+    }
+    setSaving(false);
   };
 
   return (
