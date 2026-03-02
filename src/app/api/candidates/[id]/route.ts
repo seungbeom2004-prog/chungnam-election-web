@@ -15,7 +15,7 @@ export async function GET(
 
     const { data: candidate, error } = await supabase
       .from("Candidate")
-      .select("id, name, district, profileImage, slogan, bio, party")
+      .select("id, name, district, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, phone, election:Election!electionId(id, name, type)")
       .eq("id", id)
       .single();
 
@@ -23,10 +23,10 @@ export async function GET(
       return apiError("후보를 찾을 수 없습니다", 404);
     }
 
-    // Fetch pledges separately
+    // Fetch pledges with collaborators
     const { data: pledges } = await supabase
       .from("Pledge")
-      .select("*")
+      .select("*, collaborators:PledgeCollaboration(id, candidateId, candidate:Candidate!candidateId(id, name, district, profileImage))")
       .eq("candidateId", id)
       .eq("visible", true)
       .order("createdAt", { ascending: false });

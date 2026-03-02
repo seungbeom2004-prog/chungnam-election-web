@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Candidate")
-      .select("id, email, name, district, party, phone, verified, emailVerified, role, createdAt")
+      .select("id, email, name, district, party, phone, verified, emailVerified, role, electionId, candidateStatus, caucusStatus, createdAt, election:Election!electionId(id, name)")
       .order("createdAt", { ascending: false });
 
     if (verified === "true") query = query.eq("verified", true);
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH /api/admin/candidates — Verify/unverify a candidate
+// PATCH /api/admin/candidates — Update candidate (verify, role, status fields, district, election)
 export async function PATCH(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { candidateId, verified, role } = body;
+    const { candidateId, verified, role, candidateStatus, caucusStatus, district, electionId } = body;
 
     if (!candidateId) {
       return apiError("후보 ID가 필요합니다", 400);
@@ -62,12 +62,24 @@ export async function PATCH(request: NextRequest) {
     const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (typeof verified === "boolean") updateData.verified = verified;
     if (role === "admin" || role === "candidate") updateData.role = role;
+    if (["출마예정자", "예비후보자", "후보자"].includes(candidateStatus)) {
+      updateData.candidateStatus = candidateStatus;
+    }
+    if (["공천 미확정", "공천 확정"].includes(caucusStatus)) {
+      updateData.caucusStatus = caucusStatus;
+    }
+    if (typeof district === "string" && district.length > 0) {
+      updateData.district = district;
+    }
+    if (electionId !== undefined) {
+      updateData.electionId = electionId || null;
+    }
 
     const { data: updated, error } = await supabase
       .from("Candidate")
       .update(updateData)
       .eq("id", candidateId)
-      .select("id, email, name, district, verified, role")
+      .select("id, email, name, district, verified, role, candidateStatus, caucusStatus, electionId")
       .single();
 
     if (error) {

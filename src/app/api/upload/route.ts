@@ -1,9 +1,14 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { apiSuccess, apiError, validateImageFile } from "@/lib/api-utils";
+import { apiSuccess, apiError } from "@/lib/api-utils";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: "dk6hgmcsn",
+  api_key: "772544558569271",
+  api_secret: "-6qeFa3CbcrDHJHsYoyFgXtf8CI",
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,27 +24,39 @@ export async function POST(request: NextRequest) {
       return apiError("파일을 선택해주세요", 400);
     }
 
-    // Validate file type and size
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      return apiError(validationError, 400);
+    // Validate file type (images only)
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      return apiError("이미지 파일(JPG, PNG, WEBP, GIF)만 업로드할 수 있습니다", 400);
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return apiError("파일 크기는 5MB 이하여야 합니다", 400);
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Sanitize extension
-    const ext = path.extname(file.name).toLowerCase();
-    const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-    const safeExt = allowedExts.includes(ext) ? ext : ".jpg";
+    // Upload to Cloudinary
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: "reform-chungnam",
+          resource_type: "image",
+          transformation: [{ quality: "auto", fetch_format: "auto" }],
+        },
+        (error, result) => {
+          if (error || !result) {
+            reject(error || new Error("Upload failed"));
+          } else {
+            resolve(result as { secure_url: string });
+          }
+        }
+      ).end(buffer);
+    });
 
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
-
-    return apiSuccess({ url: `/uploads/${filename}` });
+    return apiSuccess({ url: result.secure_url });
   } catch (error) {
     console.error("[POST /api/upload]", error);
     return apiError("파일 업로드에 실패했습니다", 500);

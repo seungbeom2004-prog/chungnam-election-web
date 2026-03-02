@@ -10,6 +10,7 @@ interface PledgeListProps {
   onEdit: (pledge: Pledge) => void;
   onDelete: (pledgeId: string) => void;
   onToggleVisibility: (pledge: Pledge) => void;
+  onManageCollaboration?: (pledge: Pledge) => void;
 }
 
 export default function PledgeList({
@@ -17,6 +18,7 @@ export default function PledgeList({
   onEdit,
   onDelete,
   onToggleVisibility,
+  onManageCollaboration,
 }: PledgeListProps) {
   if (pledges.length === 0) {
     return (
@@ -75,6 +77,14 @@ export default function PledgeList({
             </div>
           </div>
 
+          {/* Collaborators badge */}
+          {pledge.collaborators && pledge.collaborators.length > 0 && (
+            <div className="mt-1.5 flex items-center gap-1">
+              <span className="text-xs text-primary font-medium">공약 작성자</span>
+              <span className="text-xs text-muted">+{pledge.collaborators.length}명 공동공약</span>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
             <button
@@ -89,6 +99,14 @@ export default function PledgeList({
             >
               {pledge.visible ? "숨기기" : "공개"}
             </button>
+            {onManageCollaboration && (
+              <button
+                onClick={() => onManageCollaboration(pledge)}
+                className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
+              >
+                공동공약
+              </button>
+            )}
             <button
               onClick={() => onDelete(pledge.id)}
               className="px-2.5 py-1 text-xs font-medium text-muted hover:text-red-500 hover:bg-red-50 rounded transition-colors"

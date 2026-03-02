@@ -6,9 +6,9 @@ export async function GET() {
   try {
     const { data: districts, error } = await supabase
       .from("District")
-      .select("id, name, code, centerLat, centerLng")
+      .select("id, name, code, centerLat, centerLng, sortOrder")
       .eq("visible", true)
-      .order("name");
+      .order("sortOrder", { ascending: true });
 
     if (error) {
       console.error("[GET /api/districts] Supabase error:", error);
