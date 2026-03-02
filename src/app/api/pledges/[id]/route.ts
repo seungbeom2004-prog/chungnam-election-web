@@ -2,16 +2,17 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { updatePledgeSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
 async function verifyOwnership(pledgeId: string, userId: string) {
-  const pledge = await prisma.pledge.findUnique({
-    where: { id: pledgeId },
-    select: { candidateId: true },
-  });
-  return pledge && pledge.candidateId === userId;
+  const { data } = await supabase
+    .from("Pledge")
+    .select("candidateId")
+    .eq("id", pledgeId)
+    .single();
+  return data && data.candidateId === userId;
 }
 
 export async function PUT(
@@ -34,10 +35,17 @@ export async function PUT(
     const body = await request.json();
     const validated = updatePledgeSchema.parse(body);
 
-    const updated = await prisma.pledge.update({
-      where: { id },
-      data: validated,
-    });
+    const { data: updated, error } = await supabase
+      .from("Pledge")
+      .update({ ...validated, updatedAt: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[PUT /api/pledges/:id] Supabase error:", error);
+      return apiError("공약 수정에 실패했습니다", 500);
+    }
 
     return apiSuccess(updated);
   } catch (error) {
@@ -64,7 +72,16 @@ export async function DELETE(
       return apiError("권한이 없습니다", 403);
     }
 
-    await prisma.pledge.delete({ where: { id } });
+    const { error } = await supabase
+      .from("Pledge")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("[DELETE /api/pledges/:id] Supabase error:", error);
+      return apiError("공약 삭제에 실패했습니다", 500);
+    }
+
     return apiSuccess({ deleted: true });
   } catch (error) {
     console.error("[DELETE /api/pledges/:id]", error);

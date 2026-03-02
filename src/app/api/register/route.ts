@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { registerCandidateSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
@@ -11,9 +11,11 @@ export async function POST(request: NextRequest) {
     const validated = registerCandidateSchema.parse(body);
 
     // Check if email already exists
-    const existing = await prisma.candidate.findUnique({
-      where: { email: validated.email },
-    });
+    const { data: existing } = await supabase
+      .from("Candidate")
+      .select("id")
+      .eq("email", validated.email)
+      .single();
 
     if (existing) {
       return apiError("이미 등록된 이메일입니다", 409);
@@ -23,25 +25,25 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(validated.password, 12);
 
     // Create candidate (unverified by default)
-    const candidate = await prisma.candidate.create({
-      data: {
+    const { data: candidate, error } = await supabase
+      .from("Candidate")
+      .insert({
         email: validated.email,
         password: hashedPassword,
         name: validated.name,
         district: validated.district,
-        phone: validated.phone,
+        phone: validated.phone ?? null,
         party: "개혁",
-        verified: false, // Must be verified by admin
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        district: true,
-        verified: true,
-        createdAt: true,
-      },
-    });
+        verified: false,
+        role: "candidate",
+      })
+      .select("id, email, name, district, verified, createdAt")
+      .single();
+
+    if (error) {
+      console.error("[POST /api/register] Supabase error:", error);
+      return apiError("회원가입에 실패했습니다", 500);
+    }
 
     return apiSuccess(
       {

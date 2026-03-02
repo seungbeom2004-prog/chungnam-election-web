@@ -1,8 +1,7 @@
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 import { paginationSchema } from "@/lib/validations";
 import { apiError, paginationMeta } from "@/lib/api-utils";
-import { NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,32 +13,29 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get("limit") ?? 20,
     });
 
-    const where: Record<string, unknown> = { verified: true };
-    if (district) where.district = district;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const [candidates, total] = await Promise.all([
-      prisma.candidate.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          district: true,
-          profileImage: true,
-          slogan: true,
-          party: true,
-          _count: { select: { pledges: { where: { visible: true } } } },
-        },
-        orderBy: { name: "asc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.candidate.count({ where }),
-    ]);
+    let query = supabase
+      .from("Candidate")
+      .select("id, name, district, profileImage, slogan, party", { count: "exact" })
+      .eq("verified", true)
+      .order("name", { ascending: true })
+      .range(from, to);
+
+    if (district) query = query.eq("district", district);
+
+    const { data: candidates, count, error } = await query;
+
+    if (error) {
+      console.error("[GET /api/candidates] Supabase error:", error);
+      return apiError("후보 목록을 불러올 수 없습니다", 500);
+    }
 
     return NextResponse.json({
       success: true,
-      data: candidates,
-      pagination: paginationMeta(total, page, limit),
+      data: candidates ?? [],
+      pagination: paginationMeta(count ?? 0, page, limit),
     });
   } catch (error) {
     console.error("[GET /api/candidates]", error);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
 // Verify admin access via session role or ADMIN_SECRET header
@@ -10,10 +10,11 @@ async function isAdmin(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (session) {
     const userId = (session.user as { id: string }).id;
-    const user = await prisma.candidate.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
+    const { data: user } = await supabase
+      .from("Candidate")
+      .select("role")
+      .eq("id", userId)
+      .single();
     if (user?.role === "admin") return true;
   }
 
@@ -34,28 +35,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const verified = searchParams.get("verified");
 
-    const where: Record<string, unknown> = {};
-    if (verified === "true") where.verified = true;
-    if (verified === "false") where.verified = false;
+    let query = supabase
+      .from("Candidate")
+      .select("id, email, name, district, party, phone, verified, role, createdAt")
+      .order("createdAt", { ascending: false });
 
-    const candidates = await prisma.candidate.findMany({
-      where,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        district: true,
-        party: true,
-        phone: true,
-        verified: true,
-        role: true,
-        createdAt: true,
-        _count: { select: { pledges: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    if (verified === "true") query = query.eq("verified", true);
+    if (verified === "false") query = query.eq("verified", false);
 
-    return apiSuccess(candidates);
+    const { data: candidates, error } = await query;
+
+    if (error) {
+      console.error("[GET /api/admin/candidates] Supabase error:", error);
+      return apiError("후보 목록을 불러올 수 없습니다", 500);
+    }
+
+    return apiSuccess(candidates ?? []);
   } catch (error) {
     console.error("[GET /api/admin/candidates]", error);
     return apiError("후보 목록을 불러올 수 없습니다", 500);
@@ -76,30 +71,31 @@ export async function PATCH(request: NextRequest) {
       return apiError("후보 ID가 필요합니다", 400);
     }
 
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
-    });
+    const { data: candidate } = await supabase
+      .from("Candidate")
+      .select("id")
+      .eq("id", candidateId)
+      .single();
 
     if (!candidate) {
       return apiError("후보를 찾을 수 없습니다", 404);
     }
 
-    const updateData: Record<string, unknown> = {};
+    const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (typeof verified === "boolean") updateData.verified = verified;
     if (role === "admin" || role === "candidate") updateData.role = role;
 
-    const updated = await prisma.candidate.update({
-      where: { id: candidateId },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        district: true,
-        verified: true,
-        role: true,
-      },
-    });
+    const { data: updated, error } = await supabase
+      .from("Candidate")
+      .update(updateData)
+      .eq("id", candidateId)
+      .select("id, email, name, district, verified, role")
+      .single();
+
+    if (error) {
+      console.error("[PATCH /api/admin/candidates] Supabase error:", error);
+      return apiError("후보 상태 변경에 실패했습니다", 500);
+    }
 
     return apiSuccess(updated);
   } catch (error) {
@@ -122,7 +118,15 @@ export async function DELETE(request: NextRequest) {
       return apiError("후보 ID가 필요합니다", 400);
     }
 
-    await prisma.candidate.delete({ where: { id: candidateId } });
+    const { error } = await supabase
+      .from("Candidate")
+      .delete()
+      .eq("id", candidateId);
+
+    if (error) {
+      console.error("[DELETE /api/admin/candidates] Supabase error:", error);
+      return apiError("후보 삭제에 실패했습니다", 500);
+    }
 
     return NextResponse.json({ success: true, data: { deleted: true } });
   } catch (error) {

@@ -1,28 +1,37 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   const checks: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     env: {
-      DATABASE_URL: process.env.DATABASE_URL ? "set" : "missing",
-      DIRECT_URL: process.env.DIRECT_URL ? "set" : "missing",
+      SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? "set" : "missing",
+      SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "set" : "missing",
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? "set" : "missing",
     },
   };
 
   try {
-    // Test database connection
-    const result = await prisma.$queryRaw`SELECT 1 as ok`;
-    checks.database = { connected: true, result };
-
-    // Count records
+    // Count records via Supabase REST API
     const [districts, candidates, pledges] = await Promise.all([
-      prisma.district.count(),
-      prisma.candidate.count(),
-      prisma.pledge.count(),
+      supabase.from("District").select("id", { count: "exact", head: true }),
+      supabase.from("Candidate").select("id", { count: "exact", head: true }),
+      supabase.from("Pledge").select("id", { count: "exact", head: true }),
     ]);
-    checks.counts = { districts, candidates, pledges };
+
+    if (districts.error || candidates.error || pledges.error) {
+      const err = districts.error || candidates.error || pledges.error;
+      checks.database = { connected: false, error: err?.message };
+      checks.status = "unhealthy";
+      return NextResponse.json(checks, { status: 500 });
+    }
+
+    checks.database = { connected: true };
+    checks.counts = {
+      districts: districts.count ?? 0,
+      candidates: candidates.count ?? 0,
+      pledges: pledges.count ?? 0,
+    };
     checks.status = "healthy";
 
     return NextResponse.json(checks);

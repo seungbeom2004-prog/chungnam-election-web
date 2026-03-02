@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import CandidateHero from "@/components/candidate/CandidateHero";
 import CandidateContent from "@/components/candidate/CandidateContent";
@@ -10,10 +10,11 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    select: { name: true, district: true, slogan: true },
-  });
+  const { data: candidate } = await supabase
+    .from("Candidate")
+    .select("name, district, slogan")
+    .eq("id", id)
+    .single();
 
   if (!candidate) return { title: "후보를 찾을 수 없습니다" };
 
@@ -29,17 +30,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CandidateProfilePage({ params }: Props) {
   const { id } = await params;
-  const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    include: {
-      pledges: {
-        where: { visible: true },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+
+  const { data: candidate } = await supabase
+    .from("Candidate")
+    .select("id, name, district, profileImage, slogan, bio, party")
+    .eq("id", id)
+    .single();
 
   if (!candidate) notFound();
+
+  const { data: pledges } = await supabase
+    .from("Pledge")
+    .select("id, title, description, budget, imageUrl, latitude, longitude, address, createdAt")
+    .eq("candidateId", id)
+    .eq("visible", true)
+    .order("createdAt", { ascending: false });
 
   const candidateData = {
     id: candidate.id,
@@ -49,7 +54,7 @@ export default async function CandidateProfilePage({ params }: Props) {
     slogan: candidate.slogan,
     bio: candidate.bio,
     party: candidate.party,
-    pledges: candidate.pledges.map((p) => ({
+    pledges: (pledges ?? []).map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -58,7 +63,7 @@ export default async function CandidateProfilePage({ params }: Props) {
       latitude: p.latitude,
       longitude: p.longitude,
       address: p.address,
-      createdAt: p.createdAt.toISOString(),
+      createdAt: p.createdAt,
     })),
   };
 

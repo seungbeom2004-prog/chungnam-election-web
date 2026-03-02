@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { createPledgeSchema, paginationSchema } from "@/lib/validations";
-import { apiSuccess, apiError, apiValidationError, paginate, paginationMeta } from "@/lib/api-utils";
+import { apiSuccess, apiError, apiValidationError, paginationMeta } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,28 +17,30 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get("limit") ?? 20,
     });
 
-    const where: Record<string, unknown> = { visible: true };
-    if (candidateId) where.candidateId = candidateId;
-    if (district) where.candidate = { district };
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const [pledges, total] = await Promise.all([
-      prisma.pledge.findMany({
-        where,
-        include: {
-          candidate: {
-            select: { id: true, name: true, district: true, profileImage: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        ...paginate(page, limit),
-      }),
-      prisma.pledge.count({ where }),
-    ]);
+    let query = supabase
+      .from("Pledge")
+      .select("*, candidate:Candidate!candidateId(id, name, district, profileImage)", { count: "exact" })
+      .eq("visible", true)
+      .order("createdAt", { ascending: false })
+      .range(from, to);
+
+    if (candidateId) query = query.eq("candidateId", candidateId);
+    if (district) query = query.eq("candidate.district", district);
+
+    const { data: pledges, count, error } = await query;
+
+    if (error) {
+      console.error("[GET /api/pledges] Supabase error:", error);
+      return apiError("공약 목록을 불러올 수 없습니다", 500);
+    }
 
     return NextResponse.json({
       success: true,
-      data: pledges,
-      pagination: paginationMeta(total, page, limit),
+      data: pledges ?? [],
+      pagination: paginationMeta(count ?? 0, page, limit),
     });
   } catch (error) {
     console.error("[GET /api/pledges]", error);
@@ -57,12 +59,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createPledgeSchema.parse(body);
 
-    const pledge = await prisma.pledge.create({
-      data: {
+    const { data: pledge, error } = await supabase
+      .from("Pledge")
+      .insert({
         ...validated,
         candidateId,
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[POST /api/pledges] Supabase error:", error);
+      return apiError("공약 생성에 실패했습니다", 500);
+    }
 
     return apiSuccess(pledge, 201);
   } catch (error) {
