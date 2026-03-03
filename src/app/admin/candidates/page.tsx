@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Button, Badge, Card } from "@/components/ui";
 
 interface DistrictOption {
-  id: string;
   name: string;
+  wOrder?: number;
 }
 
 interface ElectionOption {
@@ -72,14 +72,16 @@ export default function AdminCandidatesPage() {
       const [candidatesRes, electionsRes, districtsRes] = await Promise.all([
         fetch(`/api/admin/candidates?${params.toString()}`),
         fetch("/api/admin/elections"),
-        fetch("/api/admin/districts"),
+        fetch("/api/nec?type=districts"), // NEC-sourced exact districts
       ]);
       const candidatesJson = await candidatesRes.json();
       const electionsJson = await electionsRes.json();
       const districtsJson = await districtsRes.json();
       setCandidates(candidatesJson.data ?? candidatesJson ?? []);
       setElections(electionsJson.data ?? []);
-      setDistricts(districtsJson.data ?? []);
+      const dists: DistrictOption[] = districtsJson.data ?? [];
+      dists.sort((a, b) => (a.wOrder ?? 0) - (b.wOrder ?? 0));
+      setDistricts(dists);
     } catch {
       console.error("Failed to fetch data");
     }
@@ -360,36 +362,30 @@ export default function AdminCandidatesPage() {
                         </select>
                       </div>
 
-                      {/* District */}
+                      {/* District — from NEC API */}
                       <div>
                         <label className="block text-xs font-medium text-muted mb-1">
                           선거구
                         </label>
-                        {districts.length > 0 ? (
-                          <select
-                            value={candidate.district}
-                            onChange={(e) =>
-                              handleFieldChange(
-                                candidate.id,
-                                "district",
-                                e.target.value
-                              )
-                            }
-                            disabled={!!anyLoading}
-                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                          >
-                            <option value="">선거구 미지정</option>
-                            {districts.map((d) => (
-                              <option key={d.id} value={d.name}>
-                                {d.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="text-sm text-foreground px-2.5 py-1.5 border border-border rounded-lg bg-background">
-                            {candidate.district || "미지정"}
-                          </p>
-                        )}
+                        <select
+                          value={candidate.district}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              candidate.id,
+                              "district",
+                              e.target.value
+                            )
+                          }
+                          disabled={!!anyLoading}
+                          className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                        >
+                          <option value="">선거구 미지정</option>
+                          {districts.map((d) => (
+                            <option key={d.name} value={d.name}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Election */}

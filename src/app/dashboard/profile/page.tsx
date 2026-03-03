@@ -6,8 +6,8 @@ import { Button, Input, Textarea } from "@/components/ui";
 import Card from "@/components/ui/Card";
 
 interface DistrictOption {
-  id: string;
   name: string;
+  wOrder?: number;
 }
 
 interface ElectionOption {
@@ -42,11 +42,14 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Districts from NEC API, elections from Supabase
     Promise.all([
-      fetch("/api/districts").then((r) => r.json()),
+      fetch("/api/nec?type=districts").then((r) => r.json()),
       fetch("/api/elections").then((r) => r.json()),
     ]).then(([distJson, elecJson]) => {
-      setDistricts(distJson.data ?? []);
+      const dists: DistrictOption[] = distJson.data ?? [];
+      dists.sort((a, b) => (a.wOrder ?? 0) - (b.wOrder ?? 0));
+      setDistricts(dists);
       setElections(elecJson.data ?? []);
     });
   }, []);
@@ -138,27 +141,26 @@ export default function ProfilePage() {
             required
           />
 
-          {/* District selection */}
+          {/* District selection — from NEC API */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              선거구
+              선거구{" "}
+              <span className="text-xs text-muted font-normal">
+                (출처: 중앙선관위)
+              </span>
             </label>
-            {districts.length > 0 ? (
-              <select
-                value={form.district}
-                onChange={(e) => setForm({ ...form, district: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-              >
-                <option value="">선거구 선택</option>
-                {districts.map((d) => (
-                  <option key={d.id} value={d.name}>{d.name}</option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-muted bg-background rounded-lg px-3 py-2 border border-border">
-                {form.district || "미지정"}
-              </p>
-            )}
+            <select
+              value={form.district}
+              onChange={(e) => setForm({ ...form, district: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            >
+              <option value="">
+                {districts.length === 0 ? "불러오는 중..." : "선거구 선택"}
+              </option>
+              {districts.map((d) => (
+                <option key={d.name} value={d.name}>{d.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Election selection */}

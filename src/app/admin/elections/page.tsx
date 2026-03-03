@@ -17,7 +17,7 @@ export default function AdminElectionsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingElection, setEditingElection] = useState<Election | null>(null);
-  const [form, setForm] = useState({ name: "", type: "지방선거", description: "", sortOrder: 0 });
+  const [form, setForm] = useState({ name: "", type: "구·시·군의회의원선거", description: "", sortOrder: 0 });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -105,7 +105,7 @@ export default function AdminElectionsPage() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingElection(null);
-    setForm({ name: "", type: "지방선거", description: "", sortOrder: 0 });
+    setForm({ name: "", type: "구·시·군의회의원선거", description: "", sortOrder: 0 });
   };
 
   return (
@@ -131,17 +131,21 @@ export default function AdminElectionsPage() {
               placeholder="예: 제9회 전국동시지방선거"
             />
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">선거 유형</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">선거 종류</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               >
-                <option value="지방선거">지방선거</option>
-                <option value="국회의원선거">국회의원선거</option>
-                <option value="대통령선거">대통령선거</option>
-                <option value="기타">기타</option>
+                <option value="시·도지사선거">시·도지사선거</option>
+                <option value="구·시·군의 장선거">구·시·군의 장선거</option>
+                <option value="시·도의회의원선거">시·도의회의원선거</option>
+                <option value="구·시·군의회의원선거">구·시·군의회의원선거</option>
+                <option value="광역의원비례대표선거">광역의원비례대표선거</option>
+                <option value="기초의원비례대표선거">기초의원비례대표선거</option>
+                <option value="교육감선거">교육감선거</option>
               </select>
+              <p className="text-xs text-muted mt-1">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
             </div>
             <Input
               label="설명 (선택)"
