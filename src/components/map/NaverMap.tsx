@@ -3,7 +3,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
-import { PIN_ZOOM_THRESHOLD } from "@/lib/districts";
 
 interface NaverMapProps {
   pledges: Pledge[];
@@ -45,9 +44,6 @@ export default function NaverMap({ pledges, onPledgeClick }: NaverMapProps) {
   const addPledgeMarkers = useCallback(
     (map: naver.maps.Map) => {
       clearMarkers();
-
-      const currentZoom = map.getZoom();
-      if (currentZoom < toNaverZoom(PIN_ZOOM_THRESHOLD)) return;
 
       pledges.forEach((pledge) => {
         const position = new naver.maps.LatLng(
