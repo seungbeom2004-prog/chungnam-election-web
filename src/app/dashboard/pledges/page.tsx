@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import PledgeList from "@/components/dashboard/PledgeList";
 import MapEditor from "@/components/dashboard/MapEditor";
 import PledgeForm from "@/components/dashboard/PledgeForm";
+import CollaborationModal from "@/components/dashboard/CollaborationModal";
 import type { Pledge } from "@/types";
 
 export default function PledgesPage() {
@@ -17,6 +18,7 @@ export default function PledgesPage() {
     address?: string;
   } | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [collaborationPledge, setCollaborationPledge] = useState<Pledge | null>(null);
 
   const candidateId = (session?.user as { id?: string })?.id;
 
@@ -66,6 +68,7 @@ export default function PledgesPage() {
     latitude: number;
     longitude: number;
     address?: string;
+    categoryId?: string;
   }) => {
     if (editingPledge) {
       await fetch(`/api/pledges/${editingPledge.id}`, {
@@ -104,6 +107,7 @@ export default function PledgesPage() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onToggleVisibility={handleToggleVisibility}
+            onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
           />
         </div>
 
@@ -126,6 +130,18 @@ export default function PledgesPage() {
           )}
         </div>
       </div>
+
+      {/* Collaboration Modal */}
+      {collaborationPledge && candidateId && (
+        <CollaborationModal
+          pledge={collaborationPledge}
+          currentCandidateId={candidateId}
+          onClose={() => {
+            setCollaborationPledge(null);
+            fetchPledges();
+          }}
+        />
+      )}
     </div>
   );
 }

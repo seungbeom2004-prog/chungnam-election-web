@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Candidate")
-      .select("id, name, district, profileImage, slogan, party", { count: "exact" })
+      .select("id, name, district, profileImage, slogan, party, candidateStatus, caucusStatus, electionId", { count: "exact" })
       .eq("verified", true)
       .order("name", { ascending: true })
       .range(from, to);

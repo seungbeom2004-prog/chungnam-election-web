@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button, Input } from "@/components/ui";
-import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
+
+interface NecDistrict {
+  name: string;
+  wOrder: number;
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -15,12 +19,33 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [districts, setDistricts] = useState<NecDistrict[]>([]);
+  const [loadingDistricts, setLoadingDistricts] = useState(true);
+
+  // Load districts from NEC API
+  useEffect(() => {
+    fetch("/api/nec?type=districts")
+      .then((r) => r.json())
+      .then((json) => {
+        const data: NecDistrict[] = json.data ?? [];
+        data.sort((a, b) => a.wOrder - b.wOrder);
+        setDistricts(data);
+      })
+      .catch(() => {
+        // Fallback: static list
+        import("@/lib/districts").then(({ CHUNGNAM_DISTRICTS }) => {
+          setDistricts(
+            CHUNGNAM_DISTRICTS.map((d, i) => ({ name: d.name, wOrder: i + 1 }))
+          );
+        });
+      })
+      .finally(() => setLoadingDistricts(false));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Client-side validation
     if (password !== passwordConfirm) {
       setError("비밀번호가 일치하지 않습니다.");
       return;
@@ -146,24 +171,30 @@ export default function SignupPage() {
             required
           />
 
-          {/* District select */}
+          {/* District select — populated from NEC API */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              지역
+              지역 <span className="text-xs text-muted font-normal">(선거구)</span>
             </label>
             <select
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              disabled={loadingDistricts}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
             >
-              <option value="">지역을 선택하세요</option>
-              {CHUNGNAM_DISTRICTS.map((d) => (
-                <option key={d.code} value={d.name}>
+              <option value="">
+                {loadingDistricts ? "불러오는 중..." : "지역을 선택하세요"}
+              </option>
+              {districts.map((d) => (
+                <option key={d.name} value={d.name}>
                   {d.name}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted mt-1">
+              출처: 중앙선관위 · 제9회 전국동시지방선거
+            </p>
           </div>
 
           <Input

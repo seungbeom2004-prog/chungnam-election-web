@@ -40,6 +40,14 @@ export const updateCandidateSchema = z.object({
     .optional()
     .nullable(),
   profileImage: z.string().url().optional().nullable(),
+  district: z.string().min(2, "지역을 선택해주세요").optional(),
+  electionId: z.string().optional().nullable(),
+  candidateStatus: z
+    .enum(["출마예정자", "예비후보자", "후보자"])
+    .optional(),
+  caucusStatus: z
+    .enum(["공천 미확정", "공천 확정"])
+    .optional(),
 });
 
 export const registerCandidateSchema = z.object({
@@ -81,6 +89,39 @@ export const updateCategorySchema = z.object({
   description: z.string().max(200).optional().nullable(),
   visible: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
+});
+
+// ── Election Schemas ────────────────────────────────────────
+
+export const createElectionSchema = z.object({
+  name: z.string().min(1, "선거명을 입력하세요").max(100),
+  type: z.string().min(1).max(50).default("지방선거"),
+  description: z.string().max(500).optional().nullable(),
+  sortOrder: z.number().int().min(0).default(0),
+});
+
+export const updateElectionSchema = z.object({
+  electionId: z.string().min(1),
+  name: z.string().min(1).max(100).optional(),
+  type: z.string().min(1).max(50).optional(),
+  description: z.string().max(500).optional().nullable(),
+  visible: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+// ── Schedule Schemas ────────────────────────────────────────
+
+export const createScheduleSchema = z.object({
+  title: z.string().min(1, "일정 제목을 입력하세요").max(200),
+  description: z.string().max(2000).optional().nullable(),
+  startDate: z.string().min(1, "시작일을 입력하세요"),
+  endDate: z.string().optional().nullable(),
+  location: z.string().max(200).optional().nullable(),
+  isPublic: z.boolean().default(true),
+});
+
+export const updateScheduleSchema = createScheduleSchema.partial().omit({ startDate: true }).extend({
+  startDate: z.string().optional(),
 });
 
 // ── Pagination ──────────────────────────────────────────────

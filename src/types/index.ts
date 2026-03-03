@@ -11,9 +11,24 @@ export interface Candidate {
   role: string;
   verified: boolean;
   emailVerified: boolean;
+  electionId: string | null;
+  election?: Election | null;
+  candidateStatus: string; // '출마예정자' | '예비후보자' | '후보자'
+  caucusStatus: string;    // '공천 미확정' | '공천 확정'
   createdAt: string;
   updatedAt: string;
   pledges?: Pledge[];
+}
+
+export interface Election {
+  id: string;
+  name: string;
+  type: string;
+  description: string | null;
+  visible: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Pledge {
@@ -30,6 +45,28 @@ export interface Pledge {
   categoryId: string | null;
   candidate?: Candidate;
   category?: Category;
+  collaborators?: PledgeCollaboration[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PledgeCollaboration {
+  id: string;
+  pledgeId: string;
+  candidateId: string;
+  candidate?: Pick<Candidate, 'id' | 'name' | 'district' | 'profileImage'>;
+  createdAt: string;
+}
+
+export interface Schedule {
+  id: string;
+  candidateId: string;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string | null;
+  location: string | null;
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +78,7 @@ export interface District {
   centerLat: number;
   centerLng: number;
   visible: boolean;
+  sortOrder: number;
 }
 
 export interface Category {

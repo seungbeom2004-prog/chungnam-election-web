@@ -15,7 +15,7 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/pledges")
       .then((res) => res.json())
-      .then((json) => setPledges(json.data ?? json))
+      .then((json) => setPledges(Array.isArray(json.data) ? json.data : []))
       .catch(console.error);
   }, []);
 
