@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Button, Card } from "@/components/ui";
 
 interface SyncResult {
-  synced: { districts: number; elections: number };
+  synced: number;
+  total: number;
   errors?: string[];
   message: string;
 }
@@ -85,7 +86,7 @@ export default function NecSyncPage() {
           <h3 className="font-semibold text-foreground mb-2">동기화 대상</h3>
           <ul className="text-sm text-muted space-y-1">
             <li>• 충청남도 구시군 목록 (선거구)</li>
-            <li>• 제9회 전국동시지방선거 정보 (2026.06.03)</li>
+            <li>• 제9회 전국동시지방선거 (2026.06.03) 기준</li>
           </ul>
         </Card>
         <Card>

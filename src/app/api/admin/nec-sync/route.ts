@@ -16,13 +16,6 @@ interface NecGusigunItem {
   wiwCode: string;
 }
 
-interface NecElectionItem {
-  sgId: string;
-  sgName: string;
-  sgTypecode: string;
-  sgVotedate: string;
-}
-
 async function fetchAllChungnamDistricts(): Promise<NecGusigunItem[]> {
   const pageRequests = [1, 2, 3].map((pageNo) =>
     fetch(
@@ -40,93 +33,53 @@ async function fetchAllChungnamDistricts(): Promise<NecGusigunItem[]> {
   return allItems.filter((item) => item.sdName === "충청남도");
 }
 
-async function fetchElectionTypes(): Promise<NecElectionItem[]> {
-  const res = await fetch(
-    `${NEC_BASE_URL}/getCommonElectionCodeList?pageNo=1&numOfRows=100&resultType=json&serviceKey=${NEC_API_KEY}`,
-    { cache: "no-store" }
-  );
-  const json = await res.json();
-  const items = json?.response?.body?.items?.item;
-  return Array.isArray(items) ? items : items ? [items] : [];
-}
-
-// POST /api/admin/nec-sync — Fetch NEC data and store in DB
+// POST /api/admin/nec-sync — Fetch 충남 districts from NEC and store in DB
 export async function POST(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
       return apiError("관리자 권한이 필요합니다", 403);
     }
 
-    const results: { districts: number; elections: number } = {
-      districts: 0,
-      elections: 0,
-    };
+    let synced = 0;
     const errors: string[] = [];
 
-    // 1. Sync 충남 districts from NEC
-    try {
-      const chungnamItems = await fetchAllChungnamDistricts();
+    const chungnamItems = await fetchAllChungnamDistricts();
 
-      for (const item of chungnamItems) {
-        const code = item.wiwCode || item.wiwName;
-        const { error } = await supabase
-          .from("District")
-          .upsert(
-            {
-              name: item.wiwName,
-              code: code,
-              sortOrder: Number(item.wOrder) || 0,
-              // Keep existing centerLat/centerLng if already set
-              centerLat: 36.5, // default; admin can adjust
-              centerLng: 126.8,
-            },
-            {
-              onConflict: "code",
-              ignoreDuplicates: false,
-            }
-          );
+    for (const item of chungnamItems) {
+      const code = item.wiwCode || item.wiwName;
 
-        if (error && error.code !== "23505") {
-          errors.push(`District ${item.wiwName}: ${error.message}`);
-        } else {
-          results.districts++;
-        }
+      // Only update name and sortOrder — preserve existing coordinates
+      const { data: existing } = await supabase
+        .from("District")
+        .select("id, centerLat, centerLng")
+        .eq("code", code)
+        .maybeSingle();
+
+      const payload = {
+        name: item.wiwName,
+        code: code,
+        sortOrder: Number(item.wOrder) || 0,
+        centerLat: existing?.centerLat ?? 36.5,
+        centerLng: existing?.centerLng ?? 126.8,
+      };
+
+      const { error } = await supabase.from("District").upsert(payload, {
+        onConflict: "code",
+        ignoreDuplicates: false,
+      });
+
+      if (error) {
+        errors.push(`${item.wiwName}: ${error.message}`);
+      } else {
+        synced++;
       }
-    } catch (e) {
-      errors.push(`Districts sync failed: ${e}`);
-    }
-
-    // 2. Sync election types from NEC
-    try {
-      const electionItems = await fetchElectionTypes();
-      const localElection = electionItems.find(
-        (e) => e.sgId === LOCAL_ELECTION_SGID
-      );
-
-      if (localElection) {
-        const { error } = await supabase
-          .from("Election")
-          .upsert(
-            {
-              name: localElection.sgName || "제9회 전국동시지방선거",
-              type: "지방선거",
-              description: `${localElection.sgVotedate} 실시`,
-              visible: true,
-              sortOrder: 1,
-            },
-            { onConflict: "name", ignoreDuplicates: false }
-          );
-
-        if (!error) results.elections++;
-      }
-    } catch (e) {
-      errors.push(`Elections sync failed: ${e}`);
     }
 
     return apiSuccess({
-      synced: results,
+      synced,
+      total: chungnamItems.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `동기화 완료: 지역 ${results.districts}건, 선거 ${results.elections}건`,
+      message: `동기화 완료: 충청남도 지역 ${synced}/${chungnamItems.length}건`,
     });
   } catch (error) {
     console.error("[POST /api/admin/nec-sync]", error);
@@ -134,7 +87,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/admin/nec-sync — Preview what would be synced
+// GET /api/admin/nec-sync — Preview districts from NEC (no DB write)
 export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
