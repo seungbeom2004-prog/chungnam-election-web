@@ -67,7 +67,7 @@ const navItems = [
   },
   {
     href: "/dashboard/settings",
-    label: "계정 설정",
+    label: "개인 정보 관리",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path

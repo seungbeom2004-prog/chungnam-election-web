@@ -46,19 +46,20 @@ export default function PledgeList({
       {pledges.map((pledge) => (
         <Card key={pledge.id} padding="sm" className="group">
           <div className="flex gap-3">
-            {/* Thumbnail */}
-            {pledge.imageUrl && (
-              <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                <Image
-                  src={pledge.imageUrl}
-                  alt={pledge.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            )}
+            {/* Category icon */}
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+              style={{
+                backgroundColor: pledge.category?.color
+                  ? `${pledge.category.color}20`
+                  : "#f3f4f6",
+              }}
+              title={pledge.category?.name}
+            >
+              {pledge.category?.emoji || "📌"}
+            </div>
 
-            {/* Content */}
+            {/* Thumbnail + Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-medium text-foreground text-sm truncate">
@@ -66,6 +67,17 @@ export default function PledgeList({
                 </h3>
                 {!pledge.visible && <Badge variant="muted">숨김</Badge>}
               </div>
+              {pledge.category && (
+                <span
+                  className="inline-block text-xs px-1.5 py-0.5 rounded mt-0.5 font-medium"
+                  style={{
+                    backgroundColor: `${pledge.category.color}20`,
+                    color: pledge.category.color,
+                  }}
+                >
+                  {pledge.category.name}
+                </span>
+              )}
               <p className="text-xs text-muted line-clamp-1 mt-0.5">
                 {pledge.description}
               </p>
@@ -75,13 +87,25 @@ export default function PledgeList({
                 </Badge>
               )}
             </div>
+
+            {/* Thumbnail image */}
+            {pledge.imageUrl && (
+              <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
+                <Image
+                  src={pledge.imageUrl}
+                  alt={pledge.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            )}
           </div>
 
           {/* Collaborators badge */}
           {pledge.collaborators && pledge.collaborators.length > 0 && (
             <div className="mt-1.5 flex items-center gap-1">
-              <span className="text-xs text-primary font-medium">공약 작성자</span>
-              <span className="text-xs text-muted">+{pledge.collaborators.length}명 공동공약</span>
+              <span className="text-xs text-primary font-medium">공동공약</span>
+              <span className="text-xs text-muted">+{pledge.collaborators.length}명 참여</span>
             </div>
           )}
 

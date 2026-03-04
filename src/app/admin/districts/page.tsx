@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button, Card } from "@/components/ui";
 
 interface AdminDistrict {
@@ -13,14 +13,39 @@ interface AdminDistrict {
   sortOrder: number;
 }
 
+// Sections that can be shown per district on the public-facing page
+const DISTRICT_SECTIONS = [
+  { key: "candidates", label: "출마자 목록" },
+  { key: "pledges", label: "공약 목록" },
+  { key: "schedule", label: "일정" },
+  { key: "stats", label: "통계" },
+] as const;
+
+type SectionKey = (typeof DISTRICT_SECTIONS)[number]["key"];
+
+// Per-district section visibility — stored in localStorage (UI-only, no DB change)
+function getSectionConfig(): Record<string, SectionKey[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem("districtSections") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveSectionConfig(config: Record<string, SectionKey[]>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("districtSections", JSON.stringify(config));
+}
+
 export default function AdminDistrictsPage() {
   const [districts, setDistricts] = useState<AdminDistrict[]>([]);
   const [original, setOriginal] = useState<AdminDistrict[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const dragItem = useRef<number | null>(null);
-  const dragOverItem = useRef<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sectionConfig, setSectionConfig] = useState<Record<string, SectionKey[]>>({});
 
   const fetchDistricts = useCallback(async () => {
     setLoading(true);
@@ -38,6 +63,7 @@ export default function AdminDistrictsPage() {
 
   useEffect(() => {
     fetchDistricts();
+    setSectionConfig(getSectionConfig());
   }, [fetchDistricts]);
 
   const handleToggle = (districtId: string) => {
@@ -60,32 +86,38 @@ export default function AdminDistrictsPage() {
     setSaved(false);
   };
 
-  // Drag-and-drop handlers
-  const handleDragStart = (index: number) => {
-    dragItem.current = index;
-  };
-
-  const handleDragEnter = (index: number) => {
-    dragOverItem.current = index;
-    if (dragItem.current === null || dragItem.current === index) return;
-
+  const handleMoveUp = (index: number) => {
+    if (index === 0) return;
     setDistricts((prev) => {
       const next = [...prev];
-      const dragged = next.splice(dragItem.current!, 1)[0];
-      next.splice(index, 0, dragged);
-      // Reassign sortOrder based on new position
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
       return next.map((d, i) => ({ ...d, sortOrder: i + 1 }));
     });
-    dragItem.current = index;
     setSaved(false);
   };
 
-  const handleDragEnd = () => {
-    dragItem.current = null;
-    dragOverItem.current = null;
+  const handleMoveDown = (index: number) => {
+    setDistricts((prev) => {
+      if (index >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next.map((d, i) => ({ ...d, sortOrder: i + 1 }));
+    });
+    setSaved(false);
   };
 
-  // Check if there are unsaved changes
+  const handleSectionToggle = (districtId: string, sectionKey: SectionKey) => {
+    setSectionConfig((prev) => {
+      const current: SectionKey[] = prev[districtId] ?? DISTRICT_SECTIONS.map((s) => s.key);
+      const next = current.includes(sectionKey)
+        ? current.filter((k) => k !== sectionKey)
+        : [...current, sectionKey];
+      const updated = { ...prev, [districtId]: next };
+      saveSectionConfig(updated);
+      return updated;
+    });
+  };
+
   const hasChanges = districts.some((d) => {
     const orig = original.find((o) => o.id === d.id);
     if (!orig) return false;
@@ -101,23 +133,19 @@ export default function AdminDistrictsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      // Collect all changes
       const visibilityChanges = districts.filter((d) => {
         const orig = original.find((o) => o.id === d.id);
         return orig && orig.visible !== d.visible;
       });
-
       const sortOrderChanges = districts.filter((d) => {
         const orig = original.find((o) => o.id === d.id);
         return orig && orig.sortOrder !== d.sortOrder;
       });
-
       const coordinateChanges = districts.filter((d) => {
         const orig = original.find((o) => o.id === d.id);
         return orig && (orig.centerLat !== d.centerLat || orig.centerLng !== d.centerLng);
       });
 
-      // Save visibility changes individually
       await Promise.all(
         visibilityChanges.map((d) =>
           fetch("/api/admin/districts", {
@@ -128,7 +156,6 @@ export default function AdminDistrictsPage() {
         )
       );
 
-      // Save sortOrder changes in bulk
       if (sortOrderChanges.length > 0) {
         await fetch("/api/admin/districts", {
           method: "PATCH",
@@ -139,7 +166,6 @@ export default function AdminDistrictsPage() {
         });
       }
 
-      // Save coordinate changes individually
       await Promise.all(
         coordinateChanges.map((d) =>
           fetch("/api/admin/districts", {
@@ -172,11 +198,7 @@ export default function AdminDistrictsPage() {
           <span className="text-sm text-muted">
             {visibleCount}/{districts.length}개 표시 중
           </span>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
-          >
+          <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
             {saving ? "저장 중..." : "저장"}
           </Button>
         </div>
@@ -189,8 +211,8 @@ export default function AdminDistrictsPage() {
       )}
 
       <p className="text-sm text-muted mb-4">
-        드래그하여 지역 순서를 변경하고, 토글로 표시 여부와 입력란으로 지도 중심 좌표를 설정하세요.
-        변경 후 &quot;저장&quot; 버튼을 눌러주세요.
+        ▲ ▼ 버튼으로 순서를 변경하고, 토글로 표시 여부를 설정하세요.
+        지역명을 클릭하면 표시할 섹션을 선택할 수 있습니다. 섹션 설정은 브라우저에 저장됩니다.
       </p>
 
       {loading ? (
@@ -209,55 +231,62 @@ export default function AdminDistrictsPage() {
                   orig.centerLat !== district.centerLat ||
                   orig.centerLng !== district.centerLng);
 
-              return (
-                <div
-                  key={district.id}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragEnter={() => handleDragEnter(index)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={(e) => e.preventDefault()}
-                  className={`flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing select-none transition-colors ${
-                    isChanged ? "bg-primary-light/30" : "hover:bg-background/50"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {/* Drag handle */}
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      className="text-muted shrink-0"
-                    >
-                      <path
-                        d="M5 4h1v1H5V4zm4 0h1v1H9V4zM5 7h1v1H5V7zm4 0h1v1H9V7zM5 10h1v1H5v-1zm4 0h1v1H9v-1z"
-                        fill="currentColor"
-                      />
-                    </svg>
+              const isExpanded = expandedId === district.id;
+              const enabledSections: SectionKey[] =
+                sectionConfig[district.id] ?? DISTRICT_SECTIONS.map((s) => s.key);
 
-                    {/* Name + coordinates stacked */}
-                    <div className="flex flex-col gap-1 min-w-0">
-                      {/* Row 1: index, name, code, changed badge */}
-                      <div className="flex items-center gap-2">
+              return (
+                <div key={district.id}>
+                  <div
+                    className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                      isChanged ? "bg-primary-light/30" : "hover:bg-background/50"
+                    }`}
+                  >
+                    {/* Up/Down buttons */}
+                    <div className="flex flex-col gap-0.5 mr-3 shrink-0">
+                      <button
+                        onClick={() => handleMoveUp(index)}
+                        disabled={index === 0}
+                        className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-foreground hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold"
+                        title="위로"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => handleMoveDown(index)}
+                        disabled={index === districts.length - 1}
+                        className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-foreground hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold"
+                        title="아래로"
+                      >
+                        ▼
+                      </button>
+                    </div>
+
+                    {/* Name + coordinates */}
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer"
+                        onClick={() => setExpandedId(isExpanded ? null : district.id)}
+                      >
                         <span className="text-xs text-muted w-5 text-right shrink-0">
                           {index + 1}
                         </span>
-                        <span className="font-medium text-foreground">
-                          {district.name}
-                        </span>
+                        <span className="font-medium text-foreground">{district.name}</span>
                         <span className="text-xs text-muted">{district.code}</span>
                         {isChanged && (
-                          <span className="text-xs text-primary font-medium">
-                            (변경됨)
-                          </span>
+                          <span className="text-xs text-primary font-medium">(변경됨)</span>
                         )}
+                        <span className="text-xs text-muted ml-auto">
+                          섹션 {enabledSections.length}/{DISTRICT_SECTIONS.length}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {isExpanded ? "▲" : "▼"}
+                        </span>
                       </div>
 
-                      {/* Row 2: coordinate inputs — stopPropagation prevents drag */}
                       <div
                         className="flex items-center gap-2 ml-7"
-                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <span className="text-xs text-muted shrink-0">위도</span>
                         <input
@@ -285,20 +314,48 @@ export default function AdminDistrictsPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Visibility toggle */}
+                    <button
+                      onClick={() => handleToggle(district.id)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
+                        district.visible ? "bg-primary" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          district.visible ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
                   </div>
 
-                  <button
-                    onClick={() => handleToggle(district.id)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
-                      district.visible ? "bg-primary" : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        district.visible ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
+                  {/* Expanded section controls */}
+                  {isExpanded && (
+                    <div className="px-4 pb-3 pt-2 bg-background/60 border-t border-border/50">
+                      <p className="text-xs font-semibold text-muted mb-2">
+                        이 지역 페이지에서 표시할 섹션:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {DISTRICT_SECTIONS.map((section) => {
+                          const enabled = enabledSections.includes(section.key);
+                          return (
+                            <button
+                              key={section.key}
+                              onClick={() => handleSectionToggle(district.id, section.key)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                                enabled
+                                  ? "bg-primary text-white border-primary"
+                                  : "bg-surface text-muted border-border hover:border-primary hover:text-primary"
+                              }`}
+                            >
+                              {enabled ? "✓ " : ""}{section.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

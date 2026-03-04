@@ -8,6 +8,8 @@ interface CategoryOption {
   id: string;
   name: string;
   description: string | null;
+  emoji?: string | null;
+  color?: string | null;
 }
 
 interface PledgeFormProps {
@@ -156,7 +158,7 @@ export default function PledgeForm({
               <option value="">카테고리 선택</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name}
+                  {cat.emoji ? `${cat.emoji} ` : ""}{cat.name}
                 </option>
               ))}
             </select>

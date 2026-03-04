@@ -6,10 +6,14 @@ import PledgeList from "@/components/dashboard/PledgeList";
 import MapEditor from "@/components/dashboard/MapEditor";
 import PledgeForm from "@/components/dashboard/PledgeForm";
 import CollaborationModal from "@/components/dashboard/CollaborationModal";
+import OtherPledgesTab from "@/components/dashboard/OtherPledgesTab";
 import type { Pledge } from "@/types";
+
+type ActiveTab = "mine" | "others";
 
 export default function PledgesPage() {
   const { data: session } = useSession();
+  const [activeTab, setActiveTab] = useState<ActiveTab>("mine");
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [editingPledge, setEditingPledge] = useState<Pledge | null>(null);
   const [draftPin, setDraftPin] = useState<{
@@ -99,37 +103,67 @@ export default function PledgesPage() {
     <div className="max-w-screen-xl mx-auto">
       <h1 className="text-xl font-bold text-foreground mb-4">공약 관리</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-10rem)]">
-        {/* Left: Pledge List */}
-        <div className="overflow-y-auto custom-scrollbar">
-          <PledgeList
-            pledges={pledges}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleVisibility={handleToggleVisibility}
-            onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
-          />
-        </div>
-
-        {/* Right: Map Editor */}
-        <div className="relative rounded-xl overflow-hidden border border-border min-h-[400px]">
-          <MapEditor
-            pledges={pledges}
-            draftPin={draftPin}
-            onMapClick={handleMapClick}
-          />
-
-          {/* Floating Pledge Form */}
-          {showForm && (
-            <PledgeForm
-              pledge={editingPledge}
-              draftPin={draftPin}
-              onSubmit={handleFormSubmit}
-              onClose={handleFormClose}
-            />
-          )}
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-border">
+        <button
+          onClick={() => setActiveTab("mine")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === "mine"
+              ? "bg-primary text-white"
+              : "text-muted hover:text-foreground hover:bg-background"
+          }`}
+        >
+          내 공약
+        </button>
+        <button
+          onClick={() => setActiveTab("others")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === "others"
+              ? "bg-primary text-white"
+              : "text-muted hover:text-foreground hover:bg-background"
+          }`}
+        >
+          다른 출마자 공약
+        </button>
       </div>
+
+      {/* Tab: My Pledges */}
+      {activeTab === "mine" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-13rem)]">
+          {/* Left: Pledge List */}
+          <div className="overflow-y-auto custom-scrollbar">
+            <PledgeList
+              pledges={pledges}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onToggleVisibility={handleToggleVisibility}
+              onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
+            />
+          </div>
+
+          {/* Right: Map Editor */}
+          <div className="relative rounded-xl overflow-hidden border border-border min-h-[400px]">
+            <MapEditor
+              pledges={pledges}
+              draftPin={draftPin}
+              onMapClick={handleMapClick}
+            />
+            {showForm && (
+              <PledgeForm
+                pledge={editingPledge}
+                draftPin={draftPin}
+                onSubmit={handleFormSubmit}
+                onClose={handleFormClose}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Other Candidates' Pledges */}
+      {activeTab === "others" && candidateId && (
+        <OtherPledgesTab currentCandidateId={candidateId} />
+      )}
 
       {/* Collaboration Modal */}
       {collaborationPledge && candidateId && (
