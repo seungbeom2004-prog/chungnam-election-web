@@ -48,15 +48,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Single district update
-    const { districtId, visible, sortOrder } = body;
+    const { districtId, visible, sortOrder, centerLat, centerLng } = body;
 
     if (!districtId) {
       return apiError("districtId가 필요합니다", 400);
     }
 
+    // Validate coordinate ranges
+    if (typeof centerLat === "number" && (centerLat < -90 || centerLat > 90)) {
+      return apiError("유효한 위도를 입력하세요 (-90 ~ 90)", 400);
+    }
+    if (typeof centerLng === "number" && (centerLng < -180 || centerLng > 180)) {
+      return apiError("유효한 경도를 입력하세요 (-180 ~ 180)", 400);
+    }
+
     const updateData: Record<string, unknown> = {};
     if (typeof visible === "boolean") updateData.visible = visible;
     if (typeof sortOrder === "number") updateData.sortOrder = sortOrder;
+    if (typeof centerLat === "number") updateData.centerLat = centerLat;
+    if (typeof centerLng === "number") updateData.centerLng = centerLng;
 
     if (Object.keys(updateData).length === 0) {
       return apiError("변경할 값이 없습니다", 400);
@@ -66,7 +76,7 @@ export async function PATCH(request: NextRequest) {
       .from("District")
       .update(updateData)
       .eq("id", districtId)
-      .select("id, name, code, visible, sortOrder")
+      .select("id, name, code, centerLat, centerLng, visible, sortOrder")
       .single();
 
     if (error) {

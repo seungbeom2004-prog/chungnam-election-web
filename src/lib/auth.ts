@@ -43,6 +43,8 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 60,   // 1800s — JWT expires 30 minutes after issuance/last refresh
+    updateAge: 5 * 60, // 300s  — re-issue JWT every 5 min of active use (idle timeout)
   },
   callbacks: {
     async jwt({ token, user }) {

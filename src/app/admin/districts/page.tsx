@@ -47,6 +47,19 @@ export default function AdminDistrictsPage() {
     setSaved(false);
   };
 
+  const handleCoordChange = (
+    districtId: string,
+    field: "centerLat" | "centerLng",
+    rawValue: string
+  ) => {
+    const value = parseFloat(rawValue);
+    if (isNaN(value)) return;
+    setDistricts((prev) =>
+      prev.map((d) => (d.id === districtId ? { ...d, [field]: value } : d))
+    );
+    setSaved(false);
+  };
+
   // Drag-and-drop handlers
   const handleDragStart = (index: number) => {
     dragItem.current = index;
@@ -75,7 +88,13 @@ export default function AdminDistrictsPage() {
   // Check if there are unsaved changes
   const hasChanges = districts.some((d) => {
     const orig = original.find((o) => o.id === d.id);
-    return orig && (orig.visible !== d.visible || orig.sortOrder !== d.sortOrder);
+    if (!orig) return false;
+    return (
+      orig.visible !== d.visible ||
+      orig.sortOrder !== d.sortOrder ||
+      orig.centerLat !== d.centerLat ||
+      orig.centerLng !== d.centerLng
+    );
   });
 
   const handleSave = async () => {
@@ -91,6 +110,11 @@ export default function AdminDistrictsPage() {
       const sortOrderChanges = districts.filter((d) => {
         const orig = original.find((o) => o.id === d.id);
         return orig && orig.sortOrder !== d.sortOrder;
+      });
+
+      const coordinateChanges = districts.filter((d) => {
+        const orig = original.find((o) => o.id === d.id);
+        return orig && (orig.centerLat !== d.centerLat || orig.centerLng !== d.centerLng);
       });
 
       // Save visibility changes individually
@@ -114,6 +138,21 @@ export default function AdminDistrictsPage() {
           ),
         });
       }
+
+      // Save coordinate changes individually
+      await Promise.all(
+        coordinateChanges.map((d) =>
+          fetch("/api/admin/districts", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              districtId: d.id,
+              centerLat: d.centerLat,
+              centerLng: d.centerLng,
+            }),
+          })
+        )
+      );
 
       setOriginal([...districts]);
       setSaved(true);
@@ -150,7 +189,7 @@ export default function AdminDistrictsPage() {
       )}
 
       <p className="text-sm text-muted mb-4">
-        드래그하여 지역 순서를 변경하고, 토글로 표시 여부를 설정하세요.
+        드래그하여 지역 순서를 변경하고, 토글로 표시 여부와 입력란으로 지도 중심 좌표를 설정하세요.
         변경 후 &quot;저장&quot; 버튼을 눌러주세요.
       </p>
 
@@ -166,7 +205,9 @@ export default function AdminDistrictsPage() {
               const isChanged =
                 orig &&
                 (orig.visible !== district.visible ||
-                  orig.sortOrder !== district.sortOrder);
+                  orig.sortOrder !== district.sortOrder ||
+                  orig.centerLat !== district.centerLat ||
+                  orig.centerLng !== district.centerLng);
 
               return (
                 <div
@@ -180,7 +221,7 @@ export default function AdminDistrictsPage() {
                     isChanged ? "bg-primary-light/30" : "hover:bg-background/50"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Drag handle */}
                     <svg
                       width="16"
@@ -195,25 +236,60 @@ export default function AdminDistrictsPage() {
                       />
                     </svg>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted w-5 text-right">
-                        {index + 1}
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {district.name}
-                      </span>
-                      <span className="text-xs text-muted">{district.code}</span>
-                      {isChanged && (
-                        <span className="text-xs text-primary font-medium">
-                          (변경됨)
+                    {/* Name + coordinates stacked */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                      {/* Row 1: index, name, code, changed badge */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted w-5 text-right shrink-0">
+                          {index + 1}
                         </span>
-                      )}
+                        <span className="font-medium text-foreground">
+                          {district.name}
+                        </span>
+                        <span className="text-xs text-muted">{district.code}</span>
+                        {isChanged && (
+                          <span className="text-xs text-primary font-medium">
+                            (변경됨)
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Row 2: coordinate inputs — stopPropagation prevents drag */}
+                      <div
+                        className="flex items-center gap-2 ml-7"
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <span className="text-xs text-muted shrink-0">위도</span>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="-90"
+                          max="90"
+                          value={district.centerLat}
+                          onChange={(e) =>
+                            handleCoordChange(district.id, "centerLat", e.target.value)
+                          }
+                          className="w-24 text-xs px-1.5 py-0.5 border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        />
+                        <span className="text-xs text-muted shrink-0">경도</span>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="-180"
+                          max="180"
+                          value={district.centerLng}
+                          onChange={(e) =>
+                            handleCoordChange(district.id, "centerLng", e.target.value)
+                          }
+                          className="w-24 text-xs px-1.5 py-0.5 border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleToggle(district.id)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
                       district.visible ? "bg-primary" : "bg-gray-300"
                     }`}
                   >
