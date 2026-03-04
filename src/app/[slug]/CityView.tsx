@@ -1,48 +1,68 @@
 "use client";
 
+/**
+ * CityView – renders the full pledge map pre-centred on a specific district.
+ * It reuses the same NaverMap + PledgePanel as the home page, but seeds the
+ * Zustand map store with the district's coordinates on first mount.
+ */
 import { useEffect, useState, useCallback } from "react";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
 
-export default function HomePage() {
+interface DistrictInfo {
+  name: string;
+  code: string;
+  centerLat: number;
+  centerLng: number;
+}
+
+interface Props {
+  district: DistrictInfo;
+}
+
+const CITY_ZOOM = 6; // store level 6 → naverZoom 15 ≈ city scale
+
+export default function CityView({ district }: Props) {
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const { setSelectedPledge } = useMapStore();
+  const { setCenter, setZoomLevel, setSelectedDistrict, setSelectedPledge } =
+    useMapStore();
 
+  // Pre-select the district in the map store
   useEffect(() => {
-    fetch("/api/pledges?limit=1000")
+    setCenter(district.centerLat, district.centerLng);
+    setZoomLevel(CITY_ZOOM);
+    setSelectedDistrict(district.name);
+  }, [district, setCenter, setZoomLevel, setSelectedDistrict]);
+
+  // Fetch all visible pledges (optionally filtered by district via API)
+  useEffect(() => {
+    fetch(`/api/pledges?limit=1000&district=${encodeURIComponent(district.name)}`)
       .then((res) => res.json())
       .then((json) => {
         const data = json.data ?? json;
         setPledges(Array.isArray(data) ? data : []);
       })
       .catch(console.error);
-  }, []);
+  }, [district.name]);
 
-  // Register auth failure handler & wait for Naver Maps SDK
+  // Wait for Naver Maps SDK
   useEffect(() => {
-    // Auth failure callback from Naver Maps SDK
     (window as unknown as Record<string, unknown>).navermap_authFailure =
       function () {
-        console.error("[NaverMap] Authentication failed. Check:");
-        console.error("1. ncpKeyId is correct");
-        console.error("2. Web Dynamic Map API is enabled in NCP console");
-        console.error("3. Domain is registered in NCP Application settings");
-        setMapError("네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요.");
+        setMapError("네이버 지도 인증에 실패했습니다.");
       };
 
     let attempts = 0;
-    const maxAttempts = 50; // 5 seconds max
-
     const check = () => {
       attempts++;
       if (typeof naver !== "undefined" && naver.maps) {
         setMapReady(true);
-      } else if (attempts >= maxAttempts) {
-        setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
+      } else if (attempts >= 50) {
+        setMapError("네이버 지도 SDK를 불러올 수 없습니다.");
       } else {
         setTimeout(check, 100);
       }
@@ -51,9 +71,7 @@ export default function HomePage() {
   }, []);
 
   const handlePledgeClick = useCallback(
-    (pledge: Pledge) => {
-      setSelectedPledge(pledge);
-    },
+    (pledge: Pledge) => setSelectedPledge(pledge),
     [setSelectedPledge]
   );
 
@@ -70,9 +88,6 @@ export default function HomePage() {
                   <span className="text-red-500 text-lg">!</span>
                 </div>
                 <p className="text-sm text-red-600 max-w-xs">{mapError}</p>
-                <p className="text-xs text-muted mt-2">
-                  Client ID: {process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.slice(0, 4)}***
-                </p>
               </>
             ) : (
               <>
@@ -83,6 +98,13 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* District label overlay */}
+      <div className="absolute top-3 left-3 z-10 bg-surface/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border shadow-sm">
+        <span className="text-sm font-medium text-foreground">
+          📍 {district.name}
+        </span>
+      </div>
 
       <PledgePanel />
     </div>

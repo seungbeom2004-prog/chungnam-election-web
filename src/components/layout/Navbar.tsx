@@ -158,7 +158,7 @@ export default function Navbar() {
             href="/login"
             className="shrink-0 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-background transition-colors"
           >
-            후보 로그인
+            로그인
           </Link>
         )}
       </div>

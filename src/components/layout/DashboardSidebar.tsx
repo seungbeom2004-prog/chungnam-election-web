@@ -51,6 +51,21 @@ const navItems = [
     ),
   },
   {
+    href: "/dashboard/qr",
+    label: "QR 코드",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="4" y="4" width="3" height="3" fill="currentColor" />
+        <rect x="11" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="13" y="4" width="3" height="3" fill="currentColor" />
+        <rect x="2" y="11" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="4" y="13" width="3" height="3" fill="currentColor" />
+        <path d="M11 11h2v2h-2zM15 11h2v2h-2zM13 13h2v2h-2zM11 15h2v2h-2zM15 15h2v2h-2z" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/settings",
     label: "계정 설정",
     icon: (
@@ -115,8 +130,32 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="p-2 border-t border-border">
+        {/* Bottom Actions */}
+        <div className="p-2 border-t border-border space-y-0.5">
+          {/* Visitor View */}
+          <Link
+            href="/"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-foreground hover:bg-background transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 22V12h4v10"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            방문자 화면
+          </Link>
+          {/* Logout */}
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -154,6 +193,22 @@ export default function DashboardSidebar() {
               </Link>
             );
           })}
+          {/* Visitor View */}
+          <Link
+            href="/"
+            className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            방문자
+          </Link>
         </div>
       </nav>
     </>

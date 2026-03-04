@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+// Reserved slugs that cannot be used as candidate handles
+export const RESERVED_HANDLES = [
+  "admin", "dashboard", "login", "logout", "signup", "register",
+  "api", "candidates", "pledges", "districts", "categories",
+  "profile", "settings", "qr", "upload", "health", "about",
+  "cheonan", "gongju", "boryeong", "asan", "seosan", "nonsan",
+  "gyeryong", "dangjin", "geumsan", "buyeo", "seocheon",
+  "cheongyang", "hongseong", "yesan", "taean",
+];
+
 // ── Pledge Schemas ──────────────────────────────────────────
 
 export const createPledgeSchema = z.object({
@@ -31,6 +41,20 @@ export const updateCandidateSchema = z.object({
     .min(2, "이름은 2자 이상이어야 합니다")
     .max(20, "이름은 20자 이내여야 합니다")
     .optional(),
+  handle: z
+    .string()
+    .min(3, "핸들은 3자 이상이어야 합니다")
+    .max(30, "핸들은 30자 이내여야 합니다")
+    .regex(
+      /^[a-z0-9_-]+$/,
+      "핸들은 영어 소문자, 숫자, _, - 만 사용 가능합니다"
+    )
+    .refine(
+      (v) => !RESERVED_HANDLES.includes(v),
+      "사용할 수 없는 핸들입니다"
+    )
+    .optional()
+    .nullable(),
   slogan: z.string().max(100, "슬로건은 100자 이내여야 합니다").optional().nullable(),
   bio: z.string().max(2000, "소개는 2000자 이내여야 합니다").optional().nullable(),
   phone: z
@@ -80,6 +104,11 @@ export const verifyCandidateSchema = z.object({
 export const createCategorySchema = z.object({
   name: z.string().min(1, "카테고리명을 입력하세요").max(50),
   description: z.string().max(200).optional().nullable(),
+  emoji: z.string().max(10).optional().nullable(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "올바른 색상 코드를 입력하세요 (예: #FF5A00)")
+    .default("#FF5A00"),
   sortOrder: z.number().int().min(0).default(0),
 });
 
@@ -87,6 +116,11 @@ export const updateCategorySchema = z.object({
   categoryId: z.string().min(1),
   name: z.string().min(1).max(50).optional(),
   description: z.string().max(200).optional().nullable(),
+  emoji: z.string().max(10).optional().nullable(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "올바른 색상 코드를 입력하세요")
+    .optional(),
   visible: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
@@ -128,5 +162,5 @@ export const updateScheduleSchema = createScheduleSchema.partial().omit({ startD
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
 });

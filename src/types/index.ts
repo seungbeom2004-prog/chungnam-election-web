@@ -3,6 +3,7 @@ export interface Candidate {
   email: string;
   name: string;
   district: string;
+  handle: string | null;
   profileImage: string | null;
   slogan: string | null;
   bio: string | null;
@@ -85,6 +86,8 @@ export interface Category {
   id: string;
   name: string;
   description: string | null;
+  emoji: string | null;
+  color: string;
   visible: boolean;
   sortOrder: number;
   createdAt: string;

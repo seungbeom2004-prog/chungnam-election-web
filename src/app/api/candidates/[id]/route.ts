@@ -15,7 +15,7 @@ export async function GET(
 
     const { data: candidate, error } = await supabase
       .from("Candidate")
-      .select("id, name, district, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, phone, election:Election!electionId(id, name, type)")
+      .select("id, name, district, handle, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, phone, election:Election!electionId(id, name, type)")
       .eq("id", id)
       .single();
 
@@ -53,14 +53,28 @@ export async function PUT(
     const body = await request.json();
     const validated = updateCandidateSchema.parse(body);
 
+    // Normalise handle to lowercase if provided
+    const updatePayload =
+      validated.handle != null
+        ? {
+            ...validated,
+            handle: validated.handle.toLowerCase(),
+            updatedAt: new Date().toISOString(),
+          }
+        : { ...validated, updatedAt: new Date().toISOString() };
+
     const { data: updated, error } = await supabase
       .from("Candidate")
-      .update({ ...validated, updatedAt: new Date().toISOString() })
+      .update(updatePayload)
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
+      // Unique constraint violation on handle
+      if (error.code === "23505") {
+        return apiError("이미 사용 중인 핸들입니다. 다른 핸들을 선택하세요.", 409);
+      }
       console.error("[PUT /api/candidates/:id] Supabase error:", error);
       return apiError("프로필 수정에 실패했습니다", 500);
     }
