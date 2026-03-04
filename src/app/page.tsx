@@ -6,11 +6,32 @@ import PledgePanel from "@/components/map/PledgePanel";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
 
+// Same zoom level used when clicking a district tab in the Navbar
+const CITY_ZOOM = 6;
+
 export default function HomePage() {
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const { setSelectedPledge } = useMapStore();
+  const { setSelectedPledge, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
+
+  // Center the map on the first visible district (admin-configured order)
+  useEffect(() => {
+    fetch("/api/districts")
+      .then((r) => r.json())
+      .then((json) => {
+        const districts: { name: string; centerLat: number; centerLng: number }[] =
+          json.data ?? [];
+        if (districts.length === 0) return;
+        const first = districts[0];
+        setCenter(first.centerLat, first.centerLng);
+        setZoomLevel(CITY_ZOOM);
+        setSelectedDistrict(first.name);
+      })
+      .catch(() => {
+        // Keep default Chungnam center on error
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch("/api/pledges?limit=1000")
