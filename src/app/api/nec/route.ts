@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const NEC_API_KEY = process.env.NEC_API_KEY!;
+const NEC_API_KEY = process.env.NEC_API_KEY || "40c8fb3f3f39e2d88885f91bbfc25aaa397229a6b344944116d973f594ffbd92";
 const NEC_BASE_URL = "http://apis.data.go.kr/9760000/CommonCodeService";
 
 // 제9회 전국동시지방선거 (2026.06.03)
@@ -48,13 +48,6 @@ async function fetchChungnamDistricts(): Promise<NecGusigunItem[]> {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
-
-  if (!NEC_API_KEY) {
-    return NextResponse.json(
-      { success: false, error: "NEC API key not configured" },
-      { status: 500 }
-    );
-  }
 
   // ── /api/nec?type=districts ─────────────────────────────────
   if (type === "districts") {

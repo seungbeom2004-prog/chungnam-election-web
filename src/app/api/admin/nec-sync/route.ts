@@ -3,7 +3,7 @@ import { isAdmin } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
-const NEC_API_KEY = process.env.NEC_API_KEY!;
+const NEC_API_KEY = process.env.NEC_API_KEY || "40c8fb3f3f39e2d88885f91bbfc25aaa397229a6b344944116d973f594ffbd92";
 const NEC_BASE_URL = "http://apis.data.go.kr/9760000/CommonCodeService";
 const LOCAL_ELECTION_SGID = "20260603";
 
@@ -55,10 +55,6 @@ export async function POST(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
       return apiError("관리자 권한이 필요합니다", 403);
-    }
-
-    if (!NEC_API_KEY) {
-      return apiError("NEC API 키가 설정되지 않았습니다", 500);
     }
 
     const results: { districts: number; elections: number } = {
@@ -143,10 +139,6 @@ export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
       return apiError("관리자 권한이 필요합니다", 403);
-    }
-
-    if (!NEC_API_KEY) {
-      return apiError("NEC API 키가 설정되지 않았습니다", 500);
     }
 
     const chungnamItems = await fetchAllChungnamDistricts();
