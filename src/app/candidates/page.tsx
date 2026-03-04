@@ -129,7 +129,7 @@ export default function CandidatesPage() {
     <div className="min-h-[calc(100vh-3.5rem)] bg-background">
       {/* Page Header */}
       <div className="border-b border-border bg-surface px-4 pt-5 pb-3">
-        <h1 className="text-lg font-bold text-foreground">후보자 목록</h1>
+        <h1 className="text-lg font-bold text-foreground">출마자 목록</h1>
         <p className="text-xs text-muted mt-0.5">
           제9회 전국동시지방선거 · 충청남도
         </p>

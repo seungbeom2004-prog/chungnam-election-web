@@ -84,12 +84,16 @@ export const registerCandidateSchema = z.object({
     .string()
     .min(2, "이름은 2자 이상이어야 합니다")
     .max(20, "이름은 20자 이내여야 합니다"),
-  district: z.string().min(2, "지역을 선택해주세요"),
   phone: z
     .string()
     .regex(/^[0-9-]+$/, "올바른 전화번호를 입력하세요")
-    .max(20)
-    .optional(),
+    .max(20),
+  electionType: z.string().min(1, "선거 종류를 선택해주세요"),
+  province: z.string().min(2, "시도를 선택해주세요"),
+  district: z.string().min(2, "지역을 선택해주세요"),
+  profileImage: z.string().url().optional().nullable(),
+  isNominated: z.boolean().optional(),
+  isNecRegistered: z.boolean().optional(),
 });
 
 // ── Admin Schemas ───────────────────────────────────────────

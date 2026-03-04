@@ -38,8 +38,13 @@ export async function POST(request: NextRequest) {
         email: validated.email,
         password: hashedPassword,
         name: validated.name,
+        phone: validated.phone,
+        electionType: validated.electionType,
+        province: validated.province,
         district: validated.district,
-        phone: validated.phone ?? null,
+        profileImage: validated.profileImage ?? null,
+        isNominated: validated.isNominated ?? false,
+        isNecRegistered: validated.isNecRegistered ?? false,
         party: "개혁",
         verified: false,
         role: "candidate",
@@ -55,7 +60,7 @@ export async function POST(request: NextRequest) {
     return apiSuccess(
       {
         ...candidate,
-        message: "후보 등록이 완료되었습니다. 관리자 승인 후 로그인이 가능합니다.",
+        message: "출마자 등록이 완료되었습니다. 관리자 승인 후 로그인이 가능합니다.",
       },
       201
     );

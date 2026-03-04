@@ -9,21 +9,27 @@ datasource db {
 }
 
 model Candidate {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  password     String
-  name         String
-  district     String
-  profileImage String?
-  slogan       String?
-  bio          String?
-  phone        String?
-  party        String   @default("개혁")
-  role         String   @default("candidate") // "candidate" | "admin"
-  verified     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  pledges      Pledge[]
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String
+  district        String
+  profileImage    String?
+  slogan          String?
+  bio             String?
+  phone           String?
+  electionType    String?  // "시군구의원선거" | "지방자치단체장선거"
+  province        String?  // Korean "do" (도)
+  electionId      String?
+  candidateStatus String?  // "출마예정자" | "예비후보자" | "후보자"
+  isNominated     Boolean? // 공천 여부 (党에서 공천한 경우 true)
+  isNecRegistered Boolean? // NEC 등록 여부
+  party           String   @default("개혁")
+  role            String   @default("candidate") // "candidate" | "admin"
+  verified        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  pledges         Pledge[]
 
   @@index([district])
   @@index([verified])

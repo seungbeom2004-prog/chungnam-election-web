@@ -9,7 +9,7 @@ export default function QRPage() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const candidateId = (session?.user as { id?: string })?.id;
-  const candidateName = session?.user?.name ?? "후보자";
+  const candidateName = session?.user?.name ?? "출마자";
   const profileUrl =
     typeof window !== "undefined" && candidateId
       ? `${window.location.origin}/candidates/${candidateId}`
@@ -67,7 +67,7 @@ export default function QRPage() {
 
           {/* Candidate name label */}
           <div className="text-center">
-            <p className="text-sm font-medium text-foreground">{candidateName} 후보</p>
+            <p className="text-sm font-medium text-foreground">{candidateName} 출마자</p>
             <p className="text-xs text-muted mt-0.5">개혁신당 충남도당</p>
           </div>
 

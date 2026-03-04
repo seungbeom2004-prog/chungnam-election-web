@@ -127,7 +127,7 @@ export default function AdminCandidatesPage() {
   };
 
   const handleDelete = async (candidateId: string, name: string) => {
-    if (!confirm(`정말로 "${name}" 후보를 삭제하시겠습니까?`)) return;
+    if (!confirm(`정말로 "${name}" 출마자를 삭제하시겠습니까?`)) return;
     setActionLoading(candidateId + "delete");
     try {
       await fetch(`/api/admin/candidates?id=${candidateId}`, { method: "DELETE" });
@@ -161,8 +161,8 @@ export default function AdminCandidatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-foreground">후보 관리</h1>
-          <p className="text-sm text-muted mt-0.5">후보자 승인, 상태 변경, 선거구 배정을 관리합니다</p>
+          <h1 className="text-xl font-bold text-foreground">출마자 관리</h1>
+          <p className="text-sm text-muted mt-0.5">출마자 승인, 상태 변경, 선거구 배정을 관리합니다</p>
         </div>
         <span className="text-sm text-muted bg-background px-3 py-1.5 rounded-lg border border-border">
           총 {filtered.length}명
@@ -211,10 +211,10 @@ export default function AdminCandidatesPage() {
             {search
               ? "검색 결과가 없습니다."
               : filter === "pending"
-              ? "승인 대기 중인 후보가 없습니다."
+              ? "승인 대기 중인 출마자가 없습니다."
               : filter === "approved"
-              ? "승인된 후보가 없습니다."
-              : "등록된 후보가 없습니다."}
+              ? "승인된 출마자가 없습니다."
+              : "등록된 출마자가 없습니다."}
           </p>
         </Card>
       ) : (
