@@ -6,8 +6,7 @@
  * centerLat / centerLng: GPS 기반 최근접 지역 자동 선택에 사용하는 행정구역 중심 좌표
  */
 export const CHUNGNAM_DISTRICTS = [
-  { name: "천안시서북구", code: "cheonan-seobuk", centerLat: 36.845,  centerLng: 127.075 },
-  { name: "천안시동남구", code: "cheonan-dongnam", centerLat: 36.790,  centerLng: 127.152 },
+  { name: "천안시",       code: "cheonan",         centerLat: 36.815,  centerLng: 127.114 },
   { name: "공주시",       code: "gongju",          centerLat: 36.4465, centerLng: 127.1190 },
   { name: "보령시",       code: "boryeong",         centerLat: 36.3334, centerLng: 126.6130 },
   { name: "아산시",       code: "asan",             centerLat: 36.7898, centerLng: 127.0018 },

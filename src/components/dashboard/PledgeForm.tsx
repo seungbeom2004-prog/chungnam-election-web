@@ -141,7 +141,7 @@ export default function PledgeForm({
           label="주소 (선택)"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="예: 천안시 서북구 ○○로"
+          placeholder="예: 천안시 ○○로"
         />
 
         {/* Category select */}

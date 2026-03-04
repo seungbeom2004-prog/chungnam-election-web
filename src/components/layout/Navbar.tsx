@@ -16,14 +16,15 @@ interface DistrictItem {
 const CITY_ZOOM = 6; // storeLevel 6 → naverZoom ≈ city scale
 
 /** Match NEC district names with center coordinates from static data */
-function matchCoordinates(name: string): { centerLat: number; centerLng: number } | null {
+function matchCoordinates(name: string): { matchedName: string; centerLat: number; centerLng: number } | null {
   const found = CHUNGNAM_DISTRICTS.find((d) => d.name === name);
-  if (found) return { centerLat: found.centerLat, centerLng: found.centerLng };
+  if (found) return { matchedName: found.name, centerLat: found.centerLat, centerLng: found.centerLng };
 
-  // Fuzzy match: strip sub-district suffix (e.g. "천안시서북구" → "천안시")
+  // Fuzzy match: NEC returns sub-district names (e.g. "천안시서북구") but we display them
+  // as the merged parent city (e.g. "천안시"). Strip known suffixes and match.
   const city = name.replace(/(서북구|동남구|갑|을)$/, "");
   const fuzzy = CHUNGNAM_DISTRICTS.find((d) => d.name === city || d.name.startsWith(city));
-  return fuzzy ? { centerLat: fuzzy.centerLat, centerLng: fuzzy.centerLng } : null;
+  return fuzzy ? { matchedName: fuzzy.name, centerLat: fuzzy.centerLat, centerLng: fuzzy.centerLng } : null;
 }
 
 export default function Navbar() {
@@ -49,9 +50,14 @@ export default function Navbar() {
         if (necData.length === 0) return;
 
         necData.sort((a, b) => a.wOrder - b.wOrder);
+        const seen = new Set<string>();
         const withCoords: DistrictItem[] = necData.flatMap((d) => {
           const coords = matchCoordinates(d.name);
-          return coords ? [{ name: d.name, ...coords }] : [];
+          if (!coords) return [];
+          // Deduplicate merged districts (e.g. 천안시서북구 + 천안시동남구 → 천안시)
+          if (seen.has(coords.matchedName)) return [];
+          seen.add(coords.matchedName);
+          return [{ name: coords.matchedName, centerLat: coords.centerLat, centerLng: coords.centerLng }];
         });
         if (withCoords.length > 0) setDistricts(withCoords);
       })
