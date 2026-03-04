@@ -2,28 +2,27 @@
 -- Merge "천안시서북구" and "천안시동남구" → "천안시"
 -- Run this in the Supabase SQL editor.
 
--- ① Upsert the merged "천안시" district row
+-- ① Upsert the merged "천안시" District row
+--    (includes visible + sortOrder columns added in v3/v4 migrations)
 INSERT INTO "District" (name, code, "centerLat", "centerLng", visible, "sortOrder")
 VALUES ('천안시', 'cheonan', 36.815, 127.114, true, 1)
 ON CONFLICT (code) DO UPDATE
-  SET name       = EXCLUDED.name,
+  SET name        = EXCLUDED.name,
       "centerLat" = EXCLUDED."centerLat",
       "centerLng" = EXCLUDED."centerLng";
 
--- ② Re-assign any Candidate rows that reference the old sub-district codes
---    to the new merged "cheonan" district
+-- ② Re-assign Candidate rows that use the old district name strings
+--    Candidate.district is a plain String column storing the district name,
+--    not a foreign key.
 UPDATE "Candidate"
-SET "districtId" = (SELECT id FROM "District" WHERE code = 'cheonan')
-WHERE "districtId" IN (
-  SELECT id FROM "District" WHERE code IN ('cheonan-seobuk', 'cheonan-dongnam')
-);
+SET district = '천안시'
+WHERE district IN ('천안시서북구', '천안시동남구');
 
--- ③ Delete the old sub-district rows (safe now that no Candidates reference them)
+-- ③ Delete the old sub-district rows from the District table
 DELETE FROM "District"
 WHERE code IN ('cheonan-seobuk', 'cheonan-dongnam');
 
--- ④ Renumber sortOrder to keep consistent ordering
---    (optional — only needed if sortOrder matters for your UI)
+-- ④ Renumber sortOrder for consistent ordering
 UPDATE "District" SET "sortOrder" = 1  WHERE code = 'cheonan';
 UPDATE "District" SET "sortOrder" = 2  WHERE code = 'gongju';
 UPDATE "District" SET "sortOrder" = 3  WHERE code = 'boryeong';
