@@ -151,7 +151,8 @@ export default function HomePage() {
 
   return (
     <div className="relative w-full h-[calc(100vh-3.5rem)]">
-      {mapReady ? (
+      {/* Show NaverMap only when SDK is ready AND there's no fatal auth error */}
+      {mapReady && !mapError ? (
         <NaverMap
           pledges={pledges}
           candidates={candidates}
@@ -172,6 +173,12 @@ export default function HomePage() {
                   Client ID:{" "}
                   {process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.slice(0, 4)}***
                 </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-4 py-2 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  다시 시도
+                </button>
               </>
             ) : (
               <>

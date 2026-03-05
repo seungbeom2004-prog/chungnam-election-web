@@ -252,27 +252,50 @@ export default function NaverMap({
 
   // ─── Initialize map ───────────────────────────────────────────────────────
   //
-  // We defer map creation to after the browser has painted the container.
-  // Without this, the div can have 0×0 dimensions at effect time, which causes
-  // Naver Maps to render its tile layer invisibly (markers still show because
-  // they're absolutely positioned, but the base map is blank).
+  // Key issues this implementation addresses:
+  //
+  // 1. DIRTY CONTAINER (React StrictMode / page navigation):
+  //    React StrictMode double-invokes effects: mount→cleanup→remount on the
+  //    SAME div. `map.destroy()` leaves Naver Maps' internal child nodes in
+  //    the container. When `new naver.maps.Map()` runs again on that dirty div,
+  //    the tile layer silently fails while the marker overlay still works
+  //    (markers are absolutely-positioned DOM children; tiles are canvas/img
+  //    elements that Naver Maps inserts fresh). Fix: remove all children from
+  //    the container before every map creation.
+  //
+  // 2. ZERO-DIMENSION CONTAINER:
+  //    The container must have a non-zero painted size before map creation.
+  //    We keep retrying with requestAnimationFrame until offsetWidth > 0.
+  //
+  // 3. PREMATURE RESIZE TRIGGER:
+  //    Calling Event.trigger(map,"resize") synchronously after creation fires
+  //    before Naver Maps has set up its internal tile pipeline. We defer it
+  //    to a setTimeout so tiles get a chance to initialise first.
   //
   useEffect(() => {
     if (!mapRef.current || typeof naver === "undefined" || !naver.maps) return;
 
     const container = mapRef.current;
     let rafId: number;
-    let map: naver.maps.Map;
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    // Keep a local reference to detect stale closures in the timer callback
+    let activeMap: naver.maps.Map | null = null;
 
     const initMap = () => {
-      // Guard: container must have non-zero dimensions
+      // Guard: container must have non-zero painted dimensions
       if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-        // Retry next frame
         rafId = requestAnimationFrame(initMap);
         return;
       }
 
-      map = new naver.maps.Map(container, {
+      // ── Fix 1: clear any children left by a previous map.destroy() ──────
+      // Without this, Naver Maps silently fails to render tiles on the
+      // reused container (zoom controls and copyright also disappear).
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+
+      const map = new naver.maps.Map(container, {
         center: new naver.maps.LatLng(center.lat, center.lng),
         zoom: toNaverZoom(zoomLevel),
         zoomControl: true,
@@ -281,10 +304,15 @@ export default function NaverMap({
         },
       });
 
+      activeMap = map;
       mapInstance.current = map;
 
-      // Force the tile layer to recalculate after initial paint
-      naver.maps.Event.trigger(map, "resize");
+      // ── Fix 3: delayed resize so tile pipeline is ready ─────────────────
+      resizeTimer = setTimeout(() => {
+        if (mapInstance.current === map) {
+          naver.maps.Event.trigger(map, "resize");
+        }
+      }, 300);
 
       naver.maps.Event.addListener(map, "zoom_changed", () => {
         setZoomLevel(toStoreLevel(map.getZoom()));
@@ -305,6 +333,8 @@ export default function NaverMap({
 
     return () => {
       cancelAnimationFrame(rafId);
+      clearTimeout(resizeTimer);
+      activeMap = null;
       clearPledgeMarkers();
       clearCandidateMarkers();
       if (mapInstance.current) {
