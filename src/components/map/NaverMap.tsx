@@ -251,47 +251,66 @@ export default function NaverMap({
   }, [addCandidateMarkers]);
 
   // ─── Initialize map ───────────────────────────────────────────────────────
-
+  //
+  // We defer map creation to after the browser has painted the container.
+  // Without this, the div can have 0×0 dimensions at effect time, which causes
+  // Naver Maps to render its tile layer invisibly (markers still show because
+  // they're absolutely positioned, but the base map is blank).
+  //
   useEffect(() => {
     if (!mapRef.current || typeof naver === "undefined" || !naver.maps) return;
 
-    const map = new naver.maps.Map(mapRef.current, {
-      center: new naver.maps.LatLng(center.lat, center.lng),
-      zoom: toNaverZoom(zoomLevel),
-      zoomControl: true,
-      zoomControlOptions: {
-        position: naver.maps.Position.TOP_RIGHT,
-      },
-    });
+    const container = mapRef.current;
+    let rafId: number;
+    let map: naver.maps.Map;
 
-    mapInstance.current = map;
-
-    // Trigger a resize after mount to fix blank map on some devices/browsers
-    setTimeout(() => {
-      if (mapInstance.current) {
-        naver.maps.Event.trigger(mapInstance.current, "resize");
+    const initMap = () => {
+      // Guard: container must have non-zero dimensions
+      if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+        // Retry next frame
+        rafId = requestAnimationFrame(initMap);
+        return;
       }
-    }, 150);
 
-    naver.maps.Event.addListener(map, "zoom_changed", () => {
-      setZoomLevel(toStoreLevel(map.getZoom()));
+      map = new naver.maps.Map(container, {
+        center: new naver.maps.LatLng(center.lat, center.lng),
+        zoom: toNaverZoom(zoomLevel),
+        zoomControl: true,
+        zoomControlOptions: {
+          position: naver.maps.Position.TOP_RIGHT,
+        },
+      });
+
+      mapInstance.current = map;
+
+      // Force the tile layer to recalculate after initial paint
+      naver.maps.Event.trigger(map, "resize");
+
+      naver.maps.Event.addListener(map, "zoom_changed", () => {
+        setZoomLevel(toStoreLevel(map.getZoom()));
+        addPledgeMarkersRef.current(map);
+        addCandidateMarkersRef.current(map);
+      });
+
+      naver.maps.Event.addListener(map, "dragend", () => {
+        const c = map.getCenter() as naver.maps.LatLng;
+        setCenter(c.lat(), c.lng());
+      });
+
       addPledgeMarkersRef.current(map);
       addCandidateMarkersRef.current(map);
-    });
+    };
 
-    naver.maps.Event.addListener(map, "dragend", () => {
-      const c = map.getCenter() as naver.maps.LatLng;
-      setCenter(c.lat(), c.lng());
-    });
-
-    addPledgeMarkersRef.current(map);
-    addCandidateMarkersRef.current(map);
+    rafId = requestAnimationFrame(initMap);
 
     return () => {
+      cancelAnimationFrame(rafId);
       clearPledgeMarkers();
       clearCandidateMarkers();
-      map.destroy();
-      mapInstance.current = null;
+      if (mapInstance.current) {
+        mapInstance.current.destroy();
+        mapInstance.current = null;
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -316,5 +335,13 @@ export default function NaverMap({
     addCandidateMarkers(mapInstance.current);
   }, [candidates, districts, addCandidateMarkers]);
 
-  return <div ref={mapRef} className="w-full h-full" />;
+  // Explicit inline style guarantees Naver Maps can measure the container
+  // on all platforms — Tailwind classes alone can be overridden by resets.
+  return (
+    <div
+      ref={mapRef}
+      className="w-full h-full"
+      style={{ width: "100%", height: "100%", display: "block" }}
+    />
+  );
 }

@@ -105,30 +105,41 @@ export default function CityView({ district }: Props) {
       .catch(console.error);
   }, []);
 
-  // Wait for Naver Maps SDK
+  // Dynamically load Naver Maps SDK — same approach as home page.
   useEffect(() => {
+    const SCRIPT_ID = "__naver_map_sdk__";
+
     (window as unknown as Record<string, unknown>).navermap_authFailure =
       function () {
         setMapError("네이버 지도 인증에 실패했습니다.");
       };
 
-    let attempts = 0;
-    const check = () => {
-      attempts++;
-      if (
-        typeof window !== "undefined" &&
-        typeof (window as unknown as { naver?: { maps?: unknown } }).naver !==
-          "undefined" &&
-        (window as unknown as { naver: { maps?: unknown } }).naver.maps
-      ) {
-        setMapReady(true);
-      } else if (attempts >= 100) {
-        setMapError("네이버 지도 SDK를 불러올 수 없습니다.");
-      } else {
-        setTimeout(check, 100);
-      }
-    };
-    check();
+    // Already loaded
+    if ((window as unknown as { naver?: { maps?: unknown } }).naver?.maps) {
+      setMapReady(true);
+      return;
+    }
+
+    // Script tag already injected (home page may have loaded it)
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      const onLoad = () => setMapReady(true);
+      const onError = () => setMapError("네이버 지도 SDK를 불러올 수 없습니다.");
+      existing.addEventListener("load", onLoad);
+      existing.addEventListener("error", onError);
+      return () => {
+        existing.removeEventListener("load", onLoad);
+        existing.removeEventListener("error", onError);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = SCRIPT_ID;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
+    script.async = true;
+    script.onload = () => setMapReady(true);
+    script.onerror = () => setMapError("네이버 지도 SDK를 불러올 수 없습니다.");
+    document.head.appendChild(script);
   }, []);
 
   const handlePledgeClick = useCallback(

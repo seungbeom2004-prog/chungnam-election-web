@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import AuthProvider from "@/components/layout/AuthProvider";
@@ -31,10 +30,6 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <Script
-          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
-          strategy="afterInteractive"
-        />
         <AuthProvider>
           <Navbar />
           <main>{children}</main>

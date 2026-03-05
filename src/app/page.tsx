@@ -89,8 +89,15 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  // Register auth failure handler & wait for Naver Maps SDK
+  // Dynamically load Naver Maps SDK — fires onload exactly once when fully ready.
+  // This is more reliable than polling because:
+  //   1. `script.onload` fires after the JS *and* inline setup runs
+  //   2. No race conditions from Next.js Script component in server layouts
+  //   3. Works across all browsers/platforms including mobile WebViews
   useEffect(() => {
+    const SCRIPT_ID = "__naver_map_sdk__";
+
+    // Set auth-failure handler BEFORE the script runs
     (window as unknown as Record<string, unknown>).navermap_authFailure =
       function () {
         setMapError(
@@ -98,27 +105,37 @@ export default function HomePage() {
         );
       };
 
-    let attempts = 0;
-    const maxAttempts = 100; // 10 seconds max (afterInteractive needs more time)
+    // Already loaded (e.g., hot-reload or back navigation)
+    if (
+      (window as unknown as { naver?: { maps?: unknown } }).naver?.maps
+    ) {
+      setMapReady(true);
+      return;
+    }
 
-    const check = () => {
-      attempts++;
-      if (
-        typeof window !== "undefined" &&
-        typeof (window as unknown as { naver?: { maps?: unknown } }).naver !==
-          "undefined" &&
-        (window as unknown as { naver: { maps?: unknown } }).naver.maps
-      ) {
-        setMapReady(true);
-      } else if (attempts >= maxAttempts) {
-        setMapError(
-          "네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요."
-        );
-      } else {
-        setTimeout(check, 100);
-      }
-    };
-    check();
+    // Script tag already in DOM (another component loaded it)
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      const onLoad = () => setMapReady(true);
+      const onError = () =>
+        setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
+      existing.addEventListener("load", onLoad);
+      existing.addEventListener("error", onError);
+      return () => {
+        existing.removeEventListener("load", onLoad);
+        existing.removeEventListener("error", onError);
+      };
+    }
+
+    // Inject script for the first time
+    const script = document.createElement("script");
+    script.id = SCRIPT_ID;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
+    script.async = true;
+    script.onload = () => setMapReady(true);
+    script.onerror = () =>
+      setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
+    document.head.appendChild(script);
   }, []);
 
   const handlePledgeClick = useCallback(

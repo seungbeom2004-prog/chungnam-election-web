@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       .from("Candidate")
       .select("id, name, district, profileImage, slogan, party, candidateStatus, caucusStatus, electionId, electionType, election:Election!electionId(id, name)", { count: "exact" })
       .eq("verified", true)
+      .eq("role", "candidate")   // exclude admin accounts from public listing
       .order("name", { ascending: true })
       .range(from, to);
 
