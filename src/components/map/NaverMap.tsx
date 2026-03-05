@@ -16,25 +16,29 @@ interface NaverMapProps {
 interface PinSettings {
   emoji: string;
   color: string;
+  iconImage: string | null;
 }
 
-// Naver Maps zoom: higher = more zoomed in
-// naverZoom ≈ 21 - kakaoLevel
-function toNaverZoom(storeLevel: number): number {
-  return 21 - storeLevel;
-}
+// Naver Maps zoom: higher = more zoomed in; naverZoom ≈ 21 - storeLevel
+function toNaverZoom(storeLevel: number): number { return 21 - storeLevel; }
+function toStoreLevel(naverZoom: number): number { return 21 - naverZoom; }
 
-function toStoreLevel(naverZoom: number): number {
-  return 21 - naverZoom;
-}
-
-function buildMarkerSVG(emoji: string, color: string): string {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">` +
-    `<circle cx="22" cy="22" r="20" fill="${color}" stroke="white" stroke-width="2.5"/>` +
-    `<text x="22" y="29" font-size="22" text-anchor="middle" font-family="sans-serif">${emoji}</text>` +
-    `</svg>`;
-  return "data:image/svg+xml," + encodeURIComponent(svg);
+/**
+ * Poll for the naver.maps global up to 20 × 50 ms = 1 s.
+ * Returns a cancel function. Handles the race between script.onload →
+ * React state update → re-render → useEffect where typeof naver might
+ * not yet be defined when the effect body runs.
+ */
+function waitForNaver(cb: () => void): () => void {
+  let attempts = 0;
+  let cancelled = false;
+  const check = () => {
+    if (cancelled) return;
+    if (typeof naver !== "undefined" && naver.maps) { cb(); return; }
+    if (++attempts < 20) setTimeout(check, 50);
+  };
+  check();
+  return () => { cancelled = true; };
 }
 
 function escapeHtml(str: string): string {
@@ -48,16 +52,35 @@ function escapeHtml(str: string): string {
 const BRAND_COLOR = "#FF5A00";
 
 /**
- * Build HTML content for a candidate map marker.
- * Structure: rounded-square profile image + info box below.
- * Marker anchor is set to (55, 34) — center of the 64px profile image.
+ * Build HTML for a pledge/category map marker.
+ * Uses a rounded-square pin (no circle). Supports photo icon.
+ */
+function buildPledgeMarkerHTML(
+  emoji: string,
+  color: string,
+  iconImage: string | null
+): string {
+  const inner = iconImage
+    ? `<img src="${escapeHtml(iconImage)}" style="width:100%;height:100%;object-fit:cover;" />`
+    : `<span style="font-size:20px;line-height:1;font-family:sans-serif;">${emoji}</span>`;
+  return (
+    `<div style="width:40px;height:40px;background:${color};border-radius:10px;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;">` +
+    inner +
+    `</div>`
+  );
+}
+
+/**
+ * Build HTML for a candidate map marker.
+ * Shows election type and district in the info box.
  */
 function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
-  const electionLabel =
-    candidate.electionName || candidate.electionType || "";
-  const statusLine = [electionLabel, candidate.candidateStatus]
-    .filter(Boolean)
-    .join(" ");
+  // Show election type first, then status
+  const electionLabel = candidate.electionType || candidate.electionName || "";
+  const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
+  const statusLine = statusParts.join(" · ");
 
   const imgContent = candidate.profileImage
     ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" />`
@@ -65,11 +88,9 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
 
   return (
     `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;">` +
-    // Profile image — 64×64 rounded square with brand border
     `<div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:14px;overflow:hidden;border:3px solid ${BRAND_COLOR};background:${BRAND_COLOR};box-shadow:0 4px 12px rgba(0,0,0,0.35);">` +
     imgContent +
     `</div>` +
-    // Info box below
     `<div style="background:#fff;border:2px solid ${BRAND_COLOR};border-radius:10px;padding:5px 8px;margin-top:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">` +
     `<div style="font-weight:800;font-size:13px;color:#111;line-height:1.3;font-family:sans-serif;">${escapeHtml(candidate.name)}</div>` +
     (statusLine
@@ -91,59 +112,55 @@ export default function NaverMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<naver.maps.Map | null>(null);
 
-  // Pledge markers
   const pledgeMarkersRef = useRef<naver.maps.Marker[]>([]);
   const pledgeListenersRef = useRef<naver.maps.MapEventListener[]>([]);
-
-  // Candidate markers
   const candidateMarkersRef = useRef<naver.maps.Marker[]>([]);
   const candidateListenersRef = useRef<naver.maps.MapEventListener[]>([]);
 
-  // Ref to always hold latest addPledgeMarkers — fixes stale closures in event listeners
+  // Keep refs to latest callbacks to avoid stale closures in stable listeners
   const addPledgeMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
-  const addCandidateMarkersRef = useRef<(map: naver.maps.Map) => void>(
-    () => {}
-  );
+  const addCandidateMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
 
   const { center, zoomLevel, setCenter, setZoomLevel } = useMapStore();
 
   const [pinSettings, setPinSettings] = useState<PinSettings>({
     emoji: "📍",
     color: "#FF5A00",
+    iconImage: null,
   });
 
   useEffect(() => {
     fetch("/api/map-settings/pin")
       .then((r) => r.json())
       .then((json) => {
-        if (json.data?.emoji && json.data?.color) {
-          setPinSettings({ emoji: json.data.emoji, color: json.data.color });
+        if (json.data) {
+          setPinSettings({
+            emoji: json.data.emoji || "📍",
+            color: json.data.color || "#FF5A00",
+            iconImage: json.data.iconImage || null,
+          });
         }
       })
       .catch(() => {});
   }, []);
 
-  // ─── Clear helpers ────────────────────────────────────────────────────────
+  // ─── Clear helpers ──────────────────────────────────────────────────────────
 
   const clearPledgeMarkers = useCallback(() => {
-    pledgeListenersRef.current.forEach((l) =>
-      naver.maps.Event.removeListener(l)
-    );
+    pledgeListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
     pledgeListenersRef.current = [];
     pledgeMarkersRef.current.forEach((m) => m.setMap(null));
     pledgeMarkersRef.current = [];
   }, []);
 
   const clearCandidateMarkers = useCallback(() => {
-    candidateListenersRef.current.forEach((l) =>
-      naver.maps.Event.removeListener(l)
-    );
+    candidateListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
     candidateListenersRef.current = [];
     candidateMarkersRef.current.forEach((m) => m.setMap(null));
     candidateMarkersRef.current = [];
   }, []);
 
-  // ─── Pledge markers ───────────────────────────────────────────────────────
+  // ─── Pledge markers ────────────────────────────────────────────────────────
 
   const addPledgeMarkers = useCallback(
     (map: naver.maps.Map) => {
@@ -151,21 +168,19 @@ export default function NaverMap({
       if (!Array.isArray(pledges)) return;
 
       pledges.forEach((pledge) => {
-        const position = new naver.maps.LatLng(
-          pledge.latitude,
-          pledge.longitude
-        );
+        const position = new naver.maps.LatLng(pledge.latitude, pledge.longitude);
         const emoji = pledge.category?.emoji ?? pinSettings.emoji;
         const color = pledge.category?.color ?? pinSettings.color;
-        const pinUrl = buildMarkerSVG(emoji, color);
+        const iconImage =
+          (pledge.category as { iconImage?: string | null } | undefined)?.iconImage ??
+          pinSettings.iconImage;
 
         const marker = new naver.maps.Marker({
           map,
           position,
           icon: {
-            url: pinUrl,
-            size: new naver.maps.Size(44, 44),
-            anchor: new naver.maps.Point(22, 22),
+            content: buildPledgeMarkerHTML(emoji, color, iconImage ?? null),
+            anchor: new naver.maps.Point(20, 20),
           },
           zIndex: 50,
         });
@@ -175,7 +190,6 @@ export default function NaverMap({
           "click",
           () => onPledgeClick(pledge)
         );
-
         pledgeMarkersRef.current.push(marker);
         pledgeListenersRef.current.push(listener);
       });
@@ -183,14 +197,14 @@ export default function NaverMap({
     [pledges, onPledgeClick, clearPledgeMarkers, pinSettings]
   );
 
-  // ─── Candidate markers ────────────────────────────────────────────────────
+  // ─── Candidate markers ─────────────────────────────────────────────────────
 
   const addCandidateMarkers = useCallback(
     (map: naver.maps.Map) => {
       clearCandidateMarkers();
       if (!Array.isArray(candidates) || !Array.isArray(districts)) return;
 
-      // Group candidates by district to spread overlapping markers
+      // Group by district for spread calculation
       const byDistrict: Record<string, CandidateForMap[]> = {};
       candidates.forEach((c) => {
         if (!byDistrict[c.district]) byDistrict[c.district] = [];
@@ -198,31 +212,36 @@ export default function NaverMap({
       });
 
       candidates.forEach((candidate) => {
-        const districtInfo = districts.find(
-          (d) => d.name === candidate.district
-        );
-        if (!districtInfo) return;
+        let lat: number;
+        let lng: number;
 
-        const sameDistrict = byDistrict[candidate.district];
-        const idx = sameDistrict.findIndex((c) => c.id === candidate.id);
-        const total = sameDistrict.length;
+        if (candidate.pinLat != null && candidate.pinLng != null) {
+          // Admin-configured custom pin position
+          lat = candidate.pinLat;
+          lng = candidate.pinLng;
+        } else {
+          // Fall back to district center, with spreading for co-district candidates
+          const districtInfo =
+            districts.find((d) => d.name === candidate.district) ||
+            // Partial match for ward-level districts (e.g. "천안시동남구 다선거구" → "천안시동남구")
+            districts.find((d) => candidate.district.startsWith(d.name));
 
-        // Spread overlapping candidates horizontally (≈0.004° ≈ 350m offset)
-        const spread = 0.004;
-        const offsetLng = (idx - (total - 1) / 2) * spread;
+          if (!districtInfo) return;
 
-        const position = new naver.maps.LatLng(
-          districtInfo.centerLat,
-          districtInfo.centerLng + offsetLng
-        );
+          const sameDistrict = byDistrict[candidate.district];
+          const idx = sameDistrict.findIndex((c) => c.id === candidate.id);
+          const total = sameDistrict.length;
+
+          lat = districtInfo.centerLat;
+          lng = districtInfo.centerLng + (idx - (total - 1) / 2) * 0.004;
+        }
 
         const marker = new naver.maps.Marker({
           map,
-          position,
+          position: new naver.maps.LatLng(lat, lng),
           icon: {
             content: buildCandidateMarkerHTML(candidate),
-            // Anchor at center of the 64px profile image:
-            // wrapper width=110px → center x=55, image height+border=70px → center y=35
+            // Anchor at center of the 64px profile image within the 110px wrapper
             anchor: new naver.maps.Point(55, 35),
           },
           zIndex: 100,
@@ -233,7 +252,6 @@ export default function NaverMap({
           "click",
           () => onCandidateClick(candidate)
         );
-
         candidateMarkersRef.current.push(marker);
         candidateListenersRef.current.push(listener);
       });
@@ -241,77 +259,58 @@ export default function NaverMap({
     [candidates, districts, onCandidateClick, clearCandidateMarkers]
   );
 
-  // Keep refs pointing at latest callbacks (avoids stale closures in stable listeners)
-  useEffect(() => {
-    addPledgeMarkersRef.current = addPledgeMarkers;
-  }, [addPledgeMarkers]);
+  useEffect(() => { addPledgeMarkersRef.current = addPledgeMarkers; }, [addPledgeMarkers]);
+  useEffect(() => { addCandidateMarkersRef.current = addCandidateMarkers; }, [addCandidateMarkers]);
 
-  useEffect(() => {
-    addCandidateMarkersRef.current = addCandidateMarkers;
-  }, [addCandidateMarkers]);
-
-  // ─── Initialize map ───────────────────────────────────────────────────────
+  // ─── Initialize map ────────────────────────────────────────────────────────
   //
-  // Key issues this implementation addresses:
+  // Three known issues this implementation addresses:
   //
-  // 1. DIRTY CONTAINER (React StrictMode / page navigation):
-  //    React StrictMode double-invokes effects: mount→cleanup→remount on the
-  //    SAME div. `map.destroy()` leaves Naver Maps' internal child nodes in
-  //    the container. When `new naver.maps.Map()` runs again on that dirty div,
-  //    the tile layer silently fails while the marker overlay still works
-  //    (markers are absolutely-positioned DOM children; tiles are canvas/img
-  //    elements that Naver Maps inserts fresh). Fix: remove all children from
-  //    the container before every map creation.
+  // 1. NAVER GLOBAL RACE: script.onload fires → React setState → re-render →
+  //    useEffect runs. On some devices/browsers the naver global isn't yet
+  //    available when the effect body executes. waitForNaver() polls until it is.
   //
-  // 2. ZERO-DIMENSION CONTAINER:
-  //    The container must have a non-zero painted size before map creation.
-  //    We keep retrying with requestAnimationFrame until offsetWidth > 0.
+  // 2. DIRTY CONTAINER (StrictMode / navigation):
+  //    map.destroy() leaves child nodes. new naver.maps.Map() on a dirty div
+  //    silently skips tile rendering. Fix: clear all children first.
   //
-  // 3. PREMATURE RESIZE TRIGGER:
-  //    Calling Event.trigger(map,"resize") synchronously after creation fires
-  //    before Naver Maps has set up its internal tile pipeline. We defer it
-  //    to a setTimeout so tiles get a chance to initialise first.
+  // 3. ZERO-DIMENSION CONTAINER:
+  //    The container needs non-zero offsetWidth/Height before map creation.
+  //    requestAnimationFrame retries until the layout is painted.
+  //
+  // 4. PREMATURE RESIZE:
+  //    Event.trigger(map, "resize") synchronously after new Map() fires before
+  //    the tile pipeline is ready. Defer it 300 ms.
   //
   useEffect(() => {
-    if (!mapRef.current || typeof naver === "undefined" || !naver.maps) return;
-
+    if (!mapRef.current) return;
     const container = mapRef.current;
     let rafId: number;
     let resizeTimer: ReturnType<typeof setTimeout>;
-    // Keep a local reference to detect stale closures in the timer callback
-    let activeMap: naver.maps.Map | null = null;
+    let cancelWait: (() => void) | null = null;
 
     const initMap = () => {
-      // Guard: container must have non-zero painted dimensions
+      // Guard: must have painted dimensions (fix 3)
       if (container.offsetWidth === 0 || container.offsetHeight === 0) {
         rafId = requestAnimationFrame(initMap);
         return;
       }
 
-      // ── Fix 1: clear any children left by a previous map.destroy() ──────
-      // Without this, Naver Maps silently fails to render tiles on the
-      // reused container (zoom controls and copyright also disappear).
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
+      // Clear any children left by a previous map.destroy() (fix 2)
+      while (container.firstChild) container.removeChild(container.firstChild);
 
       const map = new naver.maps.Map(container, {
         center: new naver.maps.LatLng(center.lat, center.lng),
         zoom: toNaverZoom(zoomLevel),
         zoomControl: true,
-        zoomControlOptions: {
-          position: naver.maps.Position.TOP_RIGHT,
-        },
+        zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT },
       });
 
-      activeMap = map;
       mapInstance.current = map;
 
-      // ── Fix 3: delayed resize so tile pipeline is ready ─────────────────
+      // Deferred resize so tile pipeline has time to initialize (fix 4)
       resizeTimer = setTimeout(() => {
-        if (mapInstance.current === map) {
-          naver.maps.Event.trigger(map, "resize");
-        }
+        if (mapInstance.current === map) naver.maps.Event.trigger(map, "resize");
       }, 300);
 
       naver.maps.Event.addListener(map, "zoom_changed", () => {
@@ -329,12 +328,15 @@ export default function NaverMap({
       addCandidateMarkersRef.current(map);
     };
 
-    rafId = requestAnimationFrame(initMap);
+    // Wait for naver.maps global (fix 1), then schedule initMap on next frame
+    cancelWait = waitForNaver(() => {
+      rafId = requestAnimationFrame(initMap);
+    });
 
     return () => {
+      cancelWait?.();
       cancelAnimationFrame(rafId);
       clearTimeout(resizeTimer);
-      activeMap = null;
       clearPledgeMarkers();
       clearCandidateMarkers();
       if (mapInstance.current) {
@@ -344,29 +346,25 @@ export default function NaverMap({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync external center/zoom changes
+  // Sync external center/zoom changes to map
   useEffect(() => {
     if (!mapInstance.current) return;
-    mapInstance.current.setCenter(
-      new naver.maps.LatLng(center.lat, center.lng)
-    );
+    mapInstance.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
     mapInstance.current.setZoom(toNaverZoom(zoomLevel));
   }, [center, zoomLevel]);
 
-  // Update pledge markers when pledges or pin settings change
+  // Refresh pledge markers when data or pin settings change
   useEffect(() => {
     if (!mapInstance.current) return;
     addPledgeMarkers(mapInstance.current);
   }, [pledges, addPledgeMarkers]);
 
-  // Update candidate markers when candidates or districts change
+  // Refresh candidate markers when data or districts change
   useEffect(() => {
     if (!mapInstance.current) return;
     addCandidateMarkers(mapInstance.current);
   }, [candidates, districts, addCandidateMarkers]);
 
-  // Explicit inline style guarantees Naver Maps can measure the container
-  // on all platforms — Tailwind classes alone can be overridden by resets.
   return (
     <div
       ref={mapRef}

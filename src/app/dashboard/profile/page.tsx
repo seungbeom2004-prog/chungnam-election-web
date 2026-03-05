@@ -26,6 +26,17 @@ export default function ProfilePage() {
   const [handleTimer, setHandleTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Ward (선거구) selector state
+  const [electionType, setElectionType] = useState("");
+  const [currentGun, setCurrentGun] = useState(""); // e.g. "천안시동남구"
+  const [selectedWard, setSelectedWard] = useState(""); // e.g. "다선거구"
+  const [wards, setWards] = useState<{ electCode: string; electName: string }[]>([]);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [wardMessage, setWardMessage] = useState("");
+
+  const isWardLevel =
+    electionType.includes("의회의원선거") && !electionType.includes("시·도의회");
+
   useEffect(() => {
     if (!candidateId) return;
     fetch(`/api/candidates/${candidateId}`)
@@ -38,8 +49,46 @@ export default function ProfilePage() {
           bio: data.bio || "",
           profileImage: data.profileImage || "",
         });
+        setElectionType(data.electionType || "");
+        // Parse gun and ward from district (e.g. "천안시동남구 다선거구")
+        const district: string = data.district || "";
+        const spaceIdx = district.indexOf(" ");
+        if (spaceIdx > -1) {
+          setCurrentGun(district.slice(0, spaceIdx));
+          setSelectedWard(district.slice(spaceIdx + 1));
+        } else {
+          setCurrentGun(district);
+          setSelectedWard("");
+        }
       });
   }, [candidateId]);
+
+  // Load wards when gun is known and election type is ward-level
+  useEffect(() => {
+    if (!isWardLevel || !currentGun) { setWards([]); return; }
+    setLoadingWards(true);
+    fetch(`/api/nec?type=wards&wiwName=${encodeURIComponent(currentGun)}`)
+      .then((r) => r.json())
+      .then((json) => setWards(json.data ?? []))
+      .catch(() => setWards([]))
+      .finally(() => setLoadingWards(false));
+  }, [currentGun, isWardLevel]);
+
+  const handleWardSave = async () => {
+    if (!candidateId || !selectedWard) return;
+    const newDistrict = `${currentGun} ${selectedWard}`;
+    setWardMessage("");
+    try {
+      const res = await fetch(`/api/candidates/${candidateId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ district: newDistrict }),
+      });
+      setWardMessage(res.ok ? "선거구가 저장되었습니다." : "저장에 실패했습니다.");
+    } catch {
+      setWardMessage("저장에 실패했습니다.");
+    }
+  };
 
   const checkHandle = useCallback(
     (value: string) => {
@@ -310,6 +359,60 @@ export default function ProfilePage() {
                 핸들을 설정하면{" "}
                 <span className="font-mono">{origin}/@핸들</span>로 접근할 수 있습니다.
                 영어 소문자·숫자·_·- 사용 가능, 3~30자.
+              </p>
+            </div>
+
+            {/* Ward (선거구) re-selector — only for 구시군의회의원선거 */}
+            {isWardLevel && currentGun && (
+              <div className="border border-border rounded-lg p-3 bg-surface/50">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  세부 선거구{" "}
+                  <span className="text-xs text-muted font-normal">
+                    ({currentGun})
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  {loadingWards ? (
+                    <p className="text-xs text-muted py-2">불러오는 중...</p>
+                  ) : wards.length > 0 ? (
+                    <select
+                      value={selectedWard}
+                      onChange={(e) => setSelectedWard(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    >
+                      <option value="">선거구를 선택하세요</option>
+                      {wards.map((w) => (
+                        <option key={w.electCode} value={w.electName}>
+                          {w.electName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={selectedWard}
+                      onChange={(e) => setSelectedWard(e.target.value)}
+                      placeholder="예: 다선거구, 제3선거구"
+                      className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  )}
+                  <Button type="button" size="sm" onClick={handleWardSave} disabled={!selectedWard}>
+                    저장
+                  </Button>
+                </div>
+                {wardMessage && (
+                  <p className={`text-xs mt-1.5 ${wardMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>
+                    {wardMessage}
+                  </p>
+                )}
+                <p className="text-xs text-muted mt-1.5">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
+              </div>
+            )}
+
+            {/* Pin location notice */}
+            <div className="px-3 py-2 bg-muted/10 border border-border rounded-lg">
+              <p className="text-xs text-muted">
+                📍 핀 위치 변경은 관리자에게 문의하세요.
               </p>
             </div>
 

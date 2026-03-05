@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { Button, Input, Card, Modal } from "@/components/ui";
 
 // Preset palette for quick color selection
@@ -16,6 +17,7 @@ interface AdminCategory {
   description: string | null;
   emoji: string | null;
   color: string;
+  iconImage: string | null;
   visible: boolean;
   sortOrder: number;
   createdAt: string;
@@ -31,10 +33,13 @@ export default function AdminCategoriesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formEmoji, setFormEmoji] = useState("");
   const [formColor, setFormColor] = useState("#FF5A00");
+  const [formIconImage, setFormIconImage] = useState<string | null>(null);
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [saving, setSaving] = useState(false);
   const [publishSaving, setPublishSaving] = useState(false);
   const [published, setPublished] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const iconFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -60,6 +65,7 @@ export default function AdminCategoriesPage() {
     setFormDescription("");
     setFormEmoji("");
     setFormColor("#FF5A00");
+    setFormIconImage(null);
     setFormSortOrder(categories.length);
     setModalOpen(true);
   };
@@ -70,8 +76,26 @@ export default function AdminCategoriesPage() {
     setFormDescription(cat.description || "");
     setFormEmoji(cat.emoji || "");
     setFormColor(cat.color || "#FF5A00");
+    setFormIconImage(cat.iconImage || null);
     setFormSortOrder(cat.sortOrder);
     setModalOpen(true);
+  };
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIcon(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      const url = json.data?.url || json.url;
+      if (url) setFormIconImage(url);
+    } catch {
+      alert("아이콘 업로드에 실패했습니다.");
+    }
+    setUploadingIcon(false);
   };
 
   const handleSave = async () => {
@@ -83,6 +107,7 @@ export default function AdminCategoriesPage() {
         description: formDescription || null,
         emoji: formEmoji || null,
         color: formColor,
+        iconImage: formIconImage || null,
         sortOrder: formSortOrder,
       };
 
@@ -203,12 +228,16 @@ export default function AdminCategoriesPage() {
                 className="flex items-center justify-between px-4 py-3"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {/* Emoji + color preview */}
+                  {/* Icon preview */}
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0 border-2"
-                    style={{ borderColor: cat.color || "#FF5A00", backgroundColor: (cat.color || "#FF5A00") + "20" }}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden"
+                    style={{ backgroundColor: (cat.color || "#FF5A00") + "20", border: `2px solid ${cat.color || "#FF5A00"}` }}
                   >
-                    {cat.emoji || "📌"}
+                    {cat.iconImage ? (
+                      <Image src={cat.iconImage} alt={cat.name} width={36} height={36} className="w-full h-full object-cover" />
+                    ) : (
+                      cat.emoji || "📌"
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -282,18 +311,51 @@ export default function AdminCategoriesPage() {
             placeholder="카테고리에 대한 설명"
           />
 
+          {/* Icon Image Upload */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              아이콘 이미지 <span className="text-xs font-normal text-muted">(선택 — 이모지 대신 표시됨)</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
+                style={{ backgroundColor: (formColor || "#FF5A00") + "20", border: `2px solid ${formColor || "#FF5A00"}` }}
+              >
+                {formIconImage ? (
+                  <Image src={formIconImage} alt="icon" width={48} height={48} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl">{formEmoji || "📌"}</span>
+                )}
+              </div>
+              <div className="flex-1">
+                <input ref={iconFileRef} type="file" accept="image/*" onChange={handleIconUpload} className="hidden" />
+                <button
+                  type="button"
+                  onClick={() => iconFileRef.current?.click()}
+                  disabled={uploadingIcon}
+                  className="px-3 py-1.5 text-sm border border-dashed border-border rounded-lg text-muted hover:border-primary hover:text-primary transition-colors"
+                >
+                  {uploadingIcon ? "업로드 중..." : formIconImage ? "이미지 변경" : "이미지 업로드"}
+                </button>
+                {formIconImage && (
+                  <button
+                    type="button"
+                    onClick={() => setFormIconImage(null)}
+                    className="ml-2 text-xs text-red-500 hover:text-red-700"
+                  >
+                    제거
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Emoji */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              이모지 (선택)
+              이모지 <span className="text-xs font-normal text-muted">(이미지 없을 때 표시)</span>
             </label>
             <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl"
-                style={{ borderColor: formColor }}
-              >
-                {formEmoji || "📌"}
-              </div>
               <input
                 type="text"
                 value={formEmoji}

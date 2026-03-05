@@ -23,10 +23,16 @@ interface NecElectionType {
   name: string;
 }
 
-// District selection depth based on election type:
-// "none"  → province-level (시도지사, 교육감, 광역비례) → no district UI, auto-set to "충청남도"
-// "gun"   → 구시군 level (구시군의장, 시도의회의원, 기초비례)
-// "ward"  → 구시군 + ward (구시군의회의원선거)
+interface NecCandidate {
+  name: string;
+  party: string;
+  electionType: string;
+  ward: string;
+  district: string;
+  registStatus: string;
+}
+
+// District selection depth based on election type
 type DistrictLevel = "none" | "gun" | "ward";
 
 function getDistrictLevel(electionTypeName: string): DistrictLevel {
@@ -45,6 +51,7 @@ function getDistrictLevel(electionTypeName: string): DistrictLevel {
 const PROVINCES = [{ value: "충청남도", label: "충청남도" }];
 
 export default function SignupPage() {
+  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -53,7 +60,7 @@ export default function SignupPage() {
   const [electionType, setElectionType] = useState("");
   const [province, setProvince] = useState("충청남도");
   const [district, setDistrict] = useState("");
-  const [ward, setWard] = useState(""); // for ward-level elections
+  const [ward, setWard] = useState("");
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [isNominated, setIsNominated] = useState(false);
   const [isNecRegistered, setIsNecRegistered] = useState(false);
@@ -61,12 +68,20 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // NEC data
   const [districts, setDistricts] = useState<NecDistrict[]>([]);
   const [loadingDistricts, setLoadingDistricts] = useState(true);
   const [electionTypes, setElectionTypes] = useState<NecElectionType[]>([]);
-
   const [wards, setWards] = useState<NecWard[]>([]);
   const [loadingWards, setLoadingWards] = useState(false);
+
+  // NEC pre-check step state
+  const [necStep, setNecStep] = useState<"question" | "district" | "candidates" | "form">("question");
+  const [necPrefilled, setNecPrefilled] = useState(false);
+  const [necDistrict, setNecDistrict] = useState("");
+  const [necCandidates, setNecCandidates] = useState<NecCandidate[]>([]);
+  const [loadingNecCandidates, setLoadingNecCandidates] = useState(false);
+  const [necError, setNecError] = useState("");
 
   const districtLevel = getDistrictLevel(electionType);
 
@@ -119,7 +134,7 @@ export default function SignupPage() {
     setLoadingWards(true);
     setWard("");
     const params = new URLSearchParams({ type: "wards", wiwCode });
-    if (!wiwCode) params.set("wiwName", district); // fallback: filter by name
+    if (!wiwCode) params.set("wiwName", district);
     fetch(`/api/nec?${params.toString()}`)
       .then((r) => r.json())
       .then((json) => {
@@ -131,10 +146,12 @@ export default function SignupPage() {
 
   // Reset district/ward when election type changes
   useEffect(() => {
-    setDistrict("");
-    setWard("");
-    setWards([]);
-  }, [electionType]);
+    if (!necPrefilled) {
+      setDistrict("");
+      setWard("");
+      setWards([]);
+    }
+  }, [electionType, necPrefilled]);
 
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -142,12 +159,58 @@ export default function SignupPage() {
     }
   };
 
-  // Build the final district value to submit
   function buildDistrictValue(): string {
-    if (districtLevel === "none") return province; // "충청남도"
+    if (districtLevel === "none") return province;
     if (districtLevel === "ward" && district && ward) return `${district} ${ward}`;
     return district;
   }
+
+  // NEC candidate lookup
+  const fetchNecCandidates = async () => {
+    if (!necDistrict) return;
+    setLoadingNecCandidates(true);
+    setNecError("");
+    try {
+      const res = await fetch(`/api/nec/candidate?district=${encodeURIComponent(necDistrict)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed");
+      const candidates: NecCandidate[] = json.data ?? [];
+      setNecCandidates(candidates);
+      if (candidates.length === 0) {
+        setNecError("해당 지역에서 등록된 후보자 정보를 찾을 수 없습니다.");
+      } else {
+        setNecStep("candidates");
+      }
+    } catch {
+      setNecError("후보자 정보를 불러오는데 실패했습니다. 잠시 후 다시 시도하세요.");
+    }
+    setLoadingNecCandidates(false);
+  };
+
+  // Pre-fill form from NEC candidate selection
+  const selectNecCandidate = (c: NecCandidate) => {
+    const isReformParty = c.party === "개혁신당" || c.party.includes("개혁신당");
+    if (!isReformParty) {
+      setNecError("개혁신당 후보자만 가입할 수 있습니다.");
+      return;
+    }
+    setName(c.name);
+    setElectionType(c.electionType);
+    setIsNecRegistered(true);
+    // Parse ward into district + ward parts
+    const wardStr = c.ward || "";
+    const spaceIdx = wardStr.indexOf(" ");
+    if (spaceIdx > -1) {
+      setDistrict(wardStr.slice(0, spaceIdx));
+      setWard(wardStr.slice(spaceIdx + 1));
+    } else {
+      setDistrict(c.district || wardStr);
+      setWard("");
+    }
+    setNecPrefilled(true);
+    setNecError("");
+    setNecStep("form");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,6 +333,234 @@ export default function SignupPage() {
     );
   }
 
+  // ── NEC Pre-check: Step 0 — Question ────────────────────────────────────────
+  if (necStep === "question") {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">개혁</span>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">출마자 가입</h1>
+            <p className="text-sm text-muted mt-1">출마자 계정을 등록하세요</p>
+          </div>
+
+          <div className="border border-border rounded-2xl p-6 bg-surface text-center space-y-4">
+            <p className="text-base font-semibold text-foreground">
+              선거관리위원회에 (예비)후보자 등록을 이미 하셨나요?
+            </p>
+            <p className="text-sm text-muted">
+              선관위 등록 후보자는 자동으로 정보를 불러올 수 있습니다.
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                size="lg"
+                onClick={() => setNecStep("district")}
+                className="w-full"
+              >
+                예, 이미 등록했습니다
+              </Button>
+              <Button
+                size="lg"
+                variant="ghost"
+                onClick={() => setNecStep("form")}
+                className="w-full"
+              >
+                아니요, 아직입니다
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted text-center mt-6">
+            이미 계정이 있으신가요?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              로그인
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── NEC Pre-check: Step A — Select District ──────────────────────────────────
+  if (necStep === "district") {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">개혁</span>
+            </div>
+            <h1 className="text-xl font-bold text-foreground">지역 선택</h1>
+            <p className="text-sm text-muted mt-1">출마하실 시군구를 선택하세요</p>
+          </div>
+
+          <div className="border border-border rounded-2xl p-5 bg-surface space-y-4">
+            <select
+              value={necDistrict}
+              onChange={(e) => setNecDistrict(e.target.value)}
+              disabled={loadingDistricts}
+              className="w-full px-3 py-2.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+            >
+              <option value="">
+                {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
+              </option>
+              {districts.map((d) => (
+                <option key={d.name} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+
+            {necError && (
+              <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">
+                {necError}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => { setNecStep("question"); setNecError(""); }}
+              >
+                뒤로
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={fetchNecCandidates}
+                disabled={!necDistrict || loadingNecCandidates}
+              >
+                {loadingNecCandidates ? "조회 중..." : "후보자 조회"}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted text-center">
+              출처: 중앙선관위 · 제9회 전국동시지방선거
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── NEC Pre-check: Step B — Select Candidate ─────────────────────────────────
+  if (necStep === "candidates") {
+    const reformCandidates = necCandidates.filter(
+      (c) => c.party === "개혁신당" || c.party.includes("개혁신당")
+    );
+    const otherCandidates = necCandidates.filter(
+      (c) => c.party !== "개혁신당" && !c.party.includes("개혁신당")
+    );
+
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">개혁</span>
+            </div>
+            <h1 className="text-xl font-bold text-foreground">후보자 선택</h1>
+            <p className="text-sm text-muted mt-1">
+              {necDistrict} · 목록에서 본인을 선택하세요
+            </p>
+          </div>
+
+          <div className="border border-border rounded-2xl bg-surface overflow-hidden">
+            {necError && (
+              <div className="px-4 py-3 text-sm text-red-500 bg-red-50 border-b border-border">
+                {necError}
+              </div>
+            )}
+
+            {reformCandidates.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-muted">
+                <p className="font-medium text-foreground mb-1">이 지역에 개혁신당 후보자가 없습니다</p>
+                <p>다른 지역을 선택하거나, 아래에서 직접 가입하세요.</p>
+              </div>
+            )}
+
+            {reformCandidates.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-primary/5 border-b border-border">
+                  <p className="text-xs font-semibold text-primary">개혁신당</p>
+                </div>
+                <div className="divide-y divide-border">
+                  {reformCandidates.map((c, i) => (
+                    <button
+                      key={i}
+                      onClick={() => selectNecCandidate(c)}
+                      className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-background/60 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-primary font-bold text-sm">{c.name[0]}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground">{c.name}</p>
+                        <p className="text-xs text-muted truncate">{c.electionType}</p>
+                        {c.ward && (
+                          <p className="text-xs text-primary truncate">{c.ward}</p>
+                        )}
+                        {c.registStatus && (
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium mt-1">
+                            {c.registStatus}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {otherCandidates.length > 0 && (
+              <div className="border-t border-border">
+                <div className="px-4 py-2 bg-muted/5">
+                  <p className="text-xs text-muted">타 정당 (선택 불가)</p>
+                </div>
+                <div className="divide-y divide-border">
+                  {otherCandidates.map((c, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-3 px-4 py-3 opacity-40"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-muted/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-muted font-bold text-sm">{c.name[0]}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground">{c.name}</p>
+                        <p className="text-xs text-muted">{c.party} · {c.electionType}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onClick={() => { setNecStep("district"); setNecError(""); }}
+            >
+              뒤로
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onClick={() => { setNecStep("form"); setNecPrefilled(false); setNecError(""); }}
+            >
+              직접 입력하기
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main Signup Form (necStep === "form") ────────────────────────────────────
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
@@ -282,6 +573,32 @@ export default function SignupPage() {
             출마자 계정을 등록하세요
           </p>
         </div>
+
+        {/* NEC pre-filled summary */}
+        {necPrefilled && (
+          <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 mt-0.5">✓</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-green-700">선관위 등록 확인</p>
+                <p className="text-sm text-green-800 font-bold mt-0.5">{name}</p>
+                <p className="text-xs text-green-700 truncate">{electionType}</p>
+                {(district || ward) && (
+                  <p className="text-xs text-green-700 truncate">
+                    {district}{ward ? ` ${ward}` : ""}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setNecStep("question")}
+                className="text-xs text-green-600 hover:text-green-800 shrink-0"
+              >
+                변경
+              </button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
@@ -314,15 +631,24 @@ export default function SignupPage() {
             required
           />
 
-          {/* Name */}
-          <Input
-            label="이름"
-            type="text"
-            placeholder="홍길동"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+          {/* Name — read-only if pre-filled */}
+          {necPrefilled ? (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">이름</label>
+              <div className="px-3 py-2 border border-border rounded-lg bg-muted/10 text-sm text-foreground">
+                {name}
+              </div>
+            </div>
+          ) : (
+            <Input
+              label="이름"
+              type="text"
+              placeholder="홍길동"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          )}
 
           {/* Phone */}
           <Input
@@ -334,142 +660,153 @@ export default function SignupPage() {
             required
           />
 
-          {/* Election Type */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              선거 종류 <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={electionType}
-              onChange={(e) => setElectionType(e.target.value)}
-              required
-              disabled={electionTypes.length === 0}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-            >
-              <option value="">
-                {electionTypes.length === 0 ? "불러오는 중..." : "선택하세요"}
-              </option>
-              {electionTypes.map((type) => (
-                <option key={type.code} value={type.name}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted mt-1">
-              출처: 중앙선관위 · 제9회 전국동시지방선거
-            </p>
-          </div>
-
-          {/* Province */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              시도 <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-            >
-              {PROVINCES.map((prov) => (
-                <option key={prov.value} value={prov.value}>
-                  {prov.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* District (구시군) — hidden for province-level elections */}
-          {districtLevel !== "none" && (
+          {/* Election type, province, district, ward — read-only if NEC pre-filled */}
+          {necPrefilled ? (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                시군구{" "}
-                <span className="text-xs text-muted font-normal">(선거구)</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                required
-                disabled={loadingDistricts}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-              >
-                <option value="">
-                  {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
-                </option>
-                {districts.map((d) => (
-                  <option key={d.name} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted mt-1">
-                출처: 중앙선관위 · 제9회 전국동시지방선거
-              </p>
+              <label className="block text-sm font-medium text-foreground mb-1.5">선거 정보</label>
+              <div className="px-3 py-2 border border-border rounded-lg bg-muted/10 text-sm text-foreground space-y-0.5">
+                <p>{electionType}</p>
+                <p className="text-muted text-xs">{province} · {district}{ward ? ` ${ward}` : ""}</p>
+              </div>
+              <p className="text-xs text-muted mt-1">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
             </div>
-          )}
-
-          {/* Ward (선거구) — only for 구시군의회의원선거 */}
-          {districtLevel === "ward" && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                선거구{" "}
-                <span className="text-xs text-muted font-normal">
-                  (세부 선거구)
-                </span>
-                <span className="text-red-500">*</span>
-              </label>
-              {wards.length > 0 ? (
+          ) : (
+            <>
+              {/* Election Type */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  선거 종류 <span className="text-red-500">*</span>
+                </label>
                 <select
-                  value={ward}
-                  onChange={(e) => setWard(e.target.value)}
+                  value={electionType}
+                  onChange={(e) => setElectionType(e.target.value)}
                   required
-                  disabled={loadingWards || !district}
+                  disabled={electionTypes.length === 0}
                   className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
                 >
                   <option value="">
-                    {loadingWards ? "불러오는 중..." : "선거구를 선택하세요"}
+                    {electionTypes.length === 0 ? "불러오는 중..." : "선택하세요"}
                   </option>
-                  {wards.map((w) => (
-                    <option key={w.electCode} value={w.electName}>
-                      {w.electName}
+                  {electionTypes.map((type) => (
+                    <option key={type.code} value={type.name}>
+                      {type.name}
                     </option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  value={ward}
-                  onChange={(e) => setWard(e.target.value)}
-                  placeholder={
-                    loadingWards
-                      ? "불러오는 중..."
-                      : !district
-                      ? "시군구를 먼저 선택하세요"
-                      : "예: 가선거구, 제1선거구"
-                  }
-                  disabled={loadingWards || !district}
+                <p className="text-xs text-muted mt-1">
+                  출처: 중앙선관위 · 제9회 전국동시지방선거
+                </p>
+              </div>
+
+              {/* Province */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  시도 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={province}
+                  onChange={(e) => setProvince(e.target.value)}
                   required
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-                />
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                >
+                  {PROVINCES.map((prov) => (
+                    <option key={prov.value} value={prov.value}>
+                      {prov.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* District (구시군) */}
+              {districtLevel !== "none" && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    시군구{" "}
+                    <span className="text-xs text-muted font-normal">(선거구)</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    required
+                    disabled={loadingDistricts}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                  >
+                    <option value="">
+                      {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
+                    </option>
+                    {districts.map((d) => (
+                      <option key={d.name} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted mt-1">
+                    출처: 중앙선관위 · 제9회 전국동시지방선거
+                  </p>
+                </div>
               )}
-              <p className="text-xs text-muted mt-1">
-                출처: 중앙선관위 · 제9회 전국동시지방선거
-              </p>
-            </div>
+
+              {/* Ward */}
+              {districtLevel === "ward" && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    선거구{" "}
+                    <span className="text-xs text-muted font-normal">(세부 선거구)</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  {wards.length > 0 ? (
+                    <select
+                      value={ward}
+                      onChange={(e) => setWard(e.target.value)}
+                      required
+                      disabled={loadingWards || !district}
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                    >
+                      <option value="">
+                        {loadingWards ? "불러오는 중..." : "선거구를 선택하세요"}
+                      </option>
+                      {wards.map((w) => (
+                        <option key={w.electCode} value={w.electName}>
+                          {w.electName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={ward}
+                      onChange={(e) => setWard(e.target.value)}
+                      placeholder={
+                        loadingWards
+                          ? "불러오는 중..."
+                          : !district
+                          ? "시군구를 먼저 선택하세요"
+                          : "예: 가선거구, 제1선거구"
+                      }
+                      disabled={loadingWards || !district}
+                      required
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                    />
+                  )}
+                  <p className="text-xs text-muted mt-1">
+                    출처: 중앙선관위 · 제9회 전국동시지방선거
+                  </p>
+                </div>
+              )}
+
+              {/* Province-level notice */}
+              {districtLevel === "none" && electionType && (
+                <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700">
+                    선택하신 선거는 <strong>충청남도 전체</strong>를 선거구로 합니다.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Province-level notice */}
-          {districtLevel === "none" && electionType && (
-            <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-700">
-                선택하신 선거는 <strong>충청남도 전체</strong>를 선거구로
-                합니다.
-              </p>
-            </div>
-          )}
-
-          {/* Profile Image (optional) */}
+          {/* Profile Image */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               프로필 이미지{" "}
@@ -482,55 +819,63 @@ export default function SignupPage() {
               className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
             />
             {profileImage && (
-              <p className="text-xs text-muted mt-1">
-                선택됨: {profileImage.name}
-              </p>
+              <p className="text-xs text-muted mt-1">선택됨: {profileImage.name}</p>
             )}
           </div>
 
-          {/* Status Section */}
-          <div className="border border-border rounded-lg p-4 bg-surface/50">
-            <label className="block text-sm font-medium text-foreground mb-3">
-              상태
-            </label>
+          {/* Status Section — hidden if NEC pre-filled (isNecRegistered already set) */}
+          {!necPrefilled && (
+            <div className="border border-border rounded-lg p-4 bg-surface/50">
+              <label className="block text-sm font-medium text-foreground mb-3">상태</label>
 
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="isNominated"
-                checked={isNominated}
-                onChange={(e) => setIsNominated(e.target.checked)}
-                className="w-4 h-4 accent-primary rounded"
-              />
-              <label
-                htmlFor="isNominated"
-                className="ml-2.5 text-sm text-foreground cursor-pointer"
-              >
-                당에서 공천을 받았습니다 (공천 여부)
-              </label>
-            </div>
+              <div className="flex items-center mb-3">
+                <input
+                  type="checkbox"
+                  id="isNominated"
+                  checked={isNominated}
+                  onChange={(e) => setIsNominated(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded"
+                />
+                <label htmlFor="isNominated" className="ml-2.5 text-sm text-foreground cursor-pointer">
+                  당에서 공천을 받았습니다 (공천 여부)
+                </label>
+              </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isNecRegistered"
-                checked={isNecRegistered}
-                onChange={(e) => setIsNecRegistered(e.target.checked)}
-                className="w-4 h-4 accent-primary rounded"
-              />
-              <label
-                htmlFor="isNecRegistered"
-                className="ml-2.5 text-sm text-foreground cursor-pointer"
-              >
-                중앙선관위에 등록되었습니다 (NEC 등록 여부)
-              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isNecRegistered"
+                  checked={isNecRegistered}
+                  onChange={(e) => setIsNecRegistered(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded"
+                />
+                <label htmlFor="isNecRegistered" className="ml-2.5 text-sm text-foreground cursor-pointer">
+                  중앙선관위에 등록되었습니다 (NEC 등록 여부)
+                </label>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Nomination checkbox when pre-filled */}
+          {necPrefilled && (
+            <div className="border border-border rounded-lg p-4 bg-surface/50">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isNominated2"
+                  checked={isNominated}
+                  onChange={(e) => setIsNominated(e.target.checked)}
+                  className="w-4 h-4 accent-primary rounded"
+                />
+                <label htmlFor="isNominated2" className="ml-2.5 text-sm text-foreground cursor-pointer">
+                  당에서 공천을 받았습니다 (공천 여부)
+                </label>
+              </div>
+            </div>
+          )}
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>

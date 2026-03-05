@@ -27,6 +27,8 @@ model Candidate {
   party           String   @default("개혁")
   role            String   @default("candidate") // "candidate" | "admin"
   verified        Boolean  @default(false)
+  pinLat          Float?   // admin-set map pin latitude (overrides district center)
+  pinLng          Float?   // admin-set map pin longitude (overrides district center)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   pledges         Pledge[]

@@ -113,6 +113,7 @@ export const createCategorySchema = z.object({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "올바른 색상 코드를 입력하세요 (예: #FF5A00)")
     .default("#FF5A00"),
+  iconImage: z.string().url().optional().nullable(),
   sortOrder: z.number().int().min(0).default(0),
 });
 
@@ -125,6 +126,7 @@ export const updateCategorySchema = z.object({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "올바른 색상 코드를 입력하세요")
     .optional(),
+  iconImage: z.string().url().optional().nullable(),
   visible: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
 });

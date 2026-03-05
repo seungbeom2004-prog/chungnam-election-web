@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
-import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
 import { useMapStore } from "@/store/useMapStore";
 
 interface DistrictItem {
@@ -22,13 +21,7 @@ export default function Navbar() {
   const { selectedDistrict, setCenter, setZoomLevel, setSelectedDistrict, reset } =
     useMapStore();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [districts, setDistricts] = useState<DistrictItem[]>(
-    CHUNGNAM_DISTRICTS.map((d) => ({
-      name: d.name,
-      centerLat: d.centerLat,
-      centerLng: d.centerLng,
-    }))
-  );
+  const [districts, setDistricts] = useState<DistrictItem[]>([]);
 
   // Fetch districts from DB — respects admin-configured order and center coordinates
   useEffect(() => {

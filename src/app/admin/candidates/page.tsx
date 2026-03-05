@@ -27,6 +27,8 @@ interface AdminCandidate {
   election: { id: string; name: string } | null;
   candidateStatus: string;
   caucusStatus: string;
+  pinLat: number | null;
+  pinLng: number | null;
   createdAt: string;
 }
 
@@ -109,7 +111,7 @@ export default function AdminCandidatesPage() {
 
   const handleFieldChange = async (
     candidateId: string,
-    field: "candidateStatus" | "caucusStatus" | "electionId" | "district",
+    field: "candidateStatus" | "caucusStatus" | "electionId" | "district" | "pinLat" | "pinLng",
     value: string | null
   ) => {
     setActionLoading(candidateId + field);
@@ -418,6 +420,52 @@ export default function AdminCandidatesPage() {
                             등록된 선거 없음
                           </p>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Pin location — admin sets map marker position */}
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <p className="text-xs font-medium text-muted mb-2">
+                        지도 핀 위치{" "}
+                        <span className="font-normal text-muted/70">(비워두면 선거구 중심으로 표시)</span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-muted mb-1">위도 (Lat)</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            placeholder="예: 36.8151"
+                            defaultValue={candidate.pinLat ?? ""}
+                            onBlur={(e) =>
+                              handleFieldChange(
+                                candidate.id,
+                                "pinLat",
+                                e.target.value || null
+                              )
+                            }
+                            disabled={!!anyLoading}
+                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-muted mb-1">경도 (Lng)</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            placeholder="예: 127.1139"
+                            defaultValue={candidate.pinLng ?? ""}
+                            onBlur={(e) =>
+                              handleFieldChange(
+                                candidate.id,
+                                "pinLng",
+                                e.target.value || null
+                              )
+                            }
+                            disabled={!!anyLoading}
+                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                          />
+                        </div>
                       </div>
                     </div>
 

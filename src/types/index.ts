@@ -89,6 +89,7 @@ export interface Category {
   description: string | null;
   emoji: string | null;
   color: string;
+  iconImage: string | null;
   visible: boolean;
   sortOrder: number;
   createdAt: string;
