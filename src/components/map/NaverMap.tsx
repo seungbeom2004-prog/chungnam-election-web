@@ -23,22 +23,18 @@ interface PinSettings {
 function toNaverZoom(storeLevel: number): number { return 21 - storeLevel; }
 function toStoreLevel(naverZoom: number): number { return 21 - naverZoom; }
 
-/**
- * Poll for the naver.maps global up to 20 × 50 ms = 1 s.
- * Returns a cancel function. Handles the race between script.onload →
- * React state update → re-render → useEffect where typeof naver might
- * not yet be defined when the effect body runs.
- */
-function waitForNaver(cb: () => void): () => void {
-  let attempts = 0;
-  let cancelled = false;
-  const check = () => {
-    if (cancelled) return;
-    if (typeof naver !== "undefined" && naver.maps) { cb(); return; }
-    if (++attempts < 20) setTimeout(check, 50);
-  };
-  check();
-  return () => { cancelled = true; };
+/** Check that the Naver Maps SDK is fully loaded (not just the namespace). */
+function isNaverReady(): boolean {
+  try {
+    return (
+      typeof naver !== "undefined" &&
+      !!naver.maps &&
+      typeof naver.maps.Map === "function" &&
+      typeof naver.maps.LatLng === "function"
+    );
+  } catch {
+    return false;
+  }
 }
 
 function escapeHtml(str: string): string {
@@ -102,6 +98,9 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   );
 }
 
+// ─── Hardcoded fallback: 천안시 is always the default first city ────────────
+const DEFAULT_DISTRICT = "천안시";
+
 export default function NaverMap({
   pledges,
   candidates,
@@ -145,19 +144,26 @@ export default function NaverMap({
           if (json.data.defaultZoom != null) {
             setZoomLevel(Number(json.data.defaultZoom));
           }
-          // Store default district; will be applied once districts list is available
-          if (json.data.defaultDistrict) {
-            setPendingDefaultDistrict(json.data.defaultDistrict);
-          }
+          // Default district: use admin setting or fall back to 천안시
+          setPendingDefaultDistrict(json.data.defaultDistrict || DEFAULT_DISTRICT);
+        } else {
+          // API returned no data — use hardcoded 천안시
+          setPendingDefaultDistrict(DEFAULT_DISTRICT);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Network error — still default to 천안시
+        setPendingDefaultDistrict(DEFAULT_DISTRICT);
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Apply the admin-configured default district once both it and the districts list are ready
+  // Apply the default district once both it and the districts list are ready
   useEffect(() => {
     if (!pendingDefaultDistrict || districts.length === 0 || defaultDistrictApplied.current) return;
-    const found = districts.find((d) => d.name === pendingDefaultDistrict);
+    // Exact match first, then startsWith match (e.g. "천안시" → "천안시동남구")
+    const found =
+      districts.find((d) => d.name === pendingDefaultDistrict) ||
+      districts.find((d) => d.name.startsWith(pendingDefaultDistrict));
     if (found) {
       setCenter(found.centerLat, found.centerLng);
       setSelectedDistrict(found.name);
@@ -285,80 +291,93 @@ export default function NaverMap({
 
   // ─── Initialize map ────────────────────────────────────────────────────────
   //
-  // Three known issues this implementation addresses:
-  //
-  // 1. NAVER GLOBAL RACE: script.onload fires → React setState → re-render →
-  //    useEffect runs. On some devices/browsers the naver global isn't yet
-  //    available when the effect body executes. waitForNaver() polls until it is.
-  //
-  // 2. DIRTY CONTAINER (StrictMode / navigation):
-  //    map.destroy() leaves child nodes. new naver.maps.Map() on a dirty div
-  //    silently skips tile rendering. Fix: clear all children first.
-  //
-  // 3. ZERO-DIMENSION CONTAINER:
-  //    The container needs non-zero offsetWidth/Height before map creation.
-  //    requestAnimationFrame retries until the layout is painted.
-  //
-  // 4. PREMATURE RESIZE:
-  //    Event.trigger(map, "resize") synchronously after new Map() fires before
-  //    the tile pipeline is ready. Defer it 300 ms.
+  // Robust initialisation that handles:
+  //  1. SDK race  — naver.maps.Map might not be a constructor yet when the
+  //                 script onload fires; we check typeof === "function".
+  //  2. Slow paint — container may have 0×0 dims on first frame (mobile).
+  //  3. Dirty DOM  — previous map.destroy() leaves child nodes.
+  //  4. Tile blank — deferred resize at 300 ms, 800 ms, and 2 000 ms.
+  //  5. Timeout    — polls every 100 ms for up to 10 s (not 1 s).
   //
   useEffect(() => {
     if (!mapRef.current) return;
     const container = mapRef.current;
-    let rafId: number;
-    let resizeTimer: ReturnType<typeof setTimeout>;
-    let cancelWait: (() => void) | null = null;
+    let destroyed = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    const resizeTimers: ReturnType<typeof setTimeout>[] = [];
 
-    const initMap = () => {
-      // Guard: must have painted dimensions (fix 3)
-      if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-        rafId = requestAnimationFrame(initMap);
-        return;
-      }
+    const createMap = () => {
+      if (destroyed) return;
 
-      // Clear any children left by a previous map.destroy() (fix 2)
-      while (container.firstChild) container.removeChild(container.firstChild);
+      try {
+        // Thoroughly clean container (fix 3)
+        while (container.firstChild) container.removeChild(container.firstChild);
 
-      const map = new naver.maps.Map(container, {
-        center: new naver.maps.LatLng(center.lat, center.lng),
-        zoom: toNaverZoom(zoomLevel),
-        zoomControl: true,
-        // Keep zoom controls on the left so the right-side "후보자" button doesn't collide
-        zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
-      });
+        const map = new naver.maps.Map(container, {
+          center: new naver.maps.LatLng(center.lat, center.lng),
+          zoom: toNaverZoom(zoomLevel),
+          zoomControl: true,
+          zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
+        });
 
-      mapInstance.current = map;
+        mapInstance.current = map;
 
-      // Deferred resize so tile pipeline has time to initialize (fix 4)
-      resizeTimer = setTimeout(() => {
-        if (mapInstance.current === map) naver.maps.Event.trigger(map, "resize");
-      }, 300);
+        // Multiple deferred resizes — slow devices need more time (fix 4)
+        [300, 800, 2000].forEach((ms) => {
+          resizeTimers.push(
+            setTimeout(() => {
+              if (!destroyed && mapInstance.current === map) {
+                naver.maps.Event.trigger(map, "resize");
+              }
+            }, ms)
+          );
+        });
 
-      naver.maps.Event.addListener(map, "zoom_changed", () => {
-        setZoomLevel(toStoreLevel(map.getZoom()));
+        naver.maps.Event.addListener(map, "zoom_changed", () => {
+          setZoomLevel(toStoreLevel(map.getZoom()));
+          addPledgeMarkersRef.current(map);
+          addCandidateMarkersRef.current(map);
+        });
+
+        naver.maps.Event.addListener(map, "dragend", () => {
+          const c = map.getCenter() as naver.maps.LatLng;
+          setCenter(c.lat(), c.lng());
+        });
+
         addPledgeMarkersRef.current(map);
         addCandidateMarkersRef.current(map);
-      });
-
-      naver.maps.Event.addListener(map, "dragend", () => {
-        const c = map.getCenter() as naver.maps.LatLng;
-        setCenter(c.lat(), c.lng());
-      });
-
-      addPledgeMarkersRef.current(map);
-      addCandidateMarkersRef.current(map);
+      } catch (e) {
+        console.error("[NaverMap] Map creation failed:", e);
+      }
     };
 
-    // Wait for naver.maps global (fix 1), then schedule initMap on next frame
-    cancelWait = waitForNaver(() => {
-      rafId = requestAnimationFrame(initMap);
-    });
+    // Poll until SDK is fully ready AND container has real dimensions (fix 1, 2, 5)
+    let attempts = 0;
+    pollTimer = setInterval(() => {
+      if (destroyed) {
+        if (pollTimer) clearInterval(pollTimer);
+        return;
+      }
+      if (
+        isNaverReady() &&
+        container.offsetWidth > 0 &&
+        container.offsetHeight > 0
+      ) {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+        createMap();
+      } else if (++attempts > 100) {
+        // 100 × 100 ms = 10 s — give up
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+        console.error("[NaverMap] Timed out waiting for Naver Maps SDK or container dimensions");
+      }
+    }, 100);
 
     return () => {
-      cancelWait?.();
-      cancelAnimationFrame(rafId);
-      clearTimeout(resizeTimer);
+      destroyed = true;
+      if (pollTimer) clearInterval(pollTimer);
+      resizeTimers.forEach(clearTimeout);
       clearPledgeMarkers();
       clearCandidateMarkers();
       if (mapInstance.current) {
