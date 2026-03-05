@@ -178,7 +178,7 @@ interface AlertSidebarProps {
 }
 
 export default function AlertSidebar({ role }: AlertSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true); // start minimized
   const { alerts, loading } = useAlerts(role);
   const router = useRouter();
 
@@ -187,7 +187,7 @@ export default function AlertSidebar({ role }: AlertSidebarProps) {
 
   return (
     <div
-      className={`hidden md:flex flex-col shrink-0 border-l border-border bg-surface/60 transition-all duration-200 ${
+      className={`hidden md:flex flex-col shrink-0 border-l border-border bg-surface/60 transition-all duration-200 h-full overflow-hidden ${
         collapsed ? "w-10" : "w-64"
       }`}
     >

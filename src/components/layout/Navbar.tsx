@@ -97,31 +97,7 @@ export default function Navbar() {
             >
               공약 지도
             </Link>
-            <Link
-              href="/candidates"
-              className={`shrink-0 text-xs font-medium transition-colors ${
-                pathname.startsWith("/candidates")
-                  ? "text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              후보자 목록
-            </Link>
           </nav>
-        )}
-
-        {/* Candidates list shortcut (on map page) */}
-        {isMapPage && (
-          <Link
-            href="/candidates"
-            className="shrink-0 hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted border border-border rounded-lg hover:text-primary hover:border-primary transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-            </svg>
-            후보자
-          </Link>
         )}
 
         {/* Auth Button */}

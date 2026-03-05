@@ -12,18 +12,20 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("MapPinSettings")
-      .select("emoji, color, defaultZoom")
+      .select("emoji, color, defaultZoom, defaultDistrict")
       .eq("id", "default")
       .single();
 
     if (error || !data) {
-      return apiSuccess({ emoji: "📍", color: "#FF5A00", defaultZoom: 9 });
+      return apiSuccess({ emoji: "📍", color: "#FF5A00", defaultZoom: 9, defaultDistrict: null });
     }
 
+    const d = data as { emoji: string; color: string; defaultZoom?: number; defaultDistrict?: string | null };
     return apiSuccess({
-      emoji: data.emoji,
-      color: data.color,
-      defaultZoom: (data as { defaultZoom?: number }).defaultZoom ?? 9,
+      emoji: d.emoji,
+      color: d.color,
+      defaultZoom: d.defaultZoom ?? 9,
+      defaultDistrict: d.defaultDistrict ?? null,
     });
   } catch (error) {
     console.error("[GET /api/admin/map-settings]", error);
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH /api/admin/map-settings — Admin: update pin emoji, color, and/or defaultZoom
+// PATCH /api/admin/map-settings — Admin: update pin emoji, color, defaultZoom, and/or defaultDistrict
 export async function PATCH(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -39,7 +41,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { emoji, color, defaultZoom } = body;
+    const { emoji, color, defaultZoom, defaultDistrict } = body;
 
     // Validate emoji
     if (emoji !== undefined) {
@@ -63,10 +65,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const updateData: Record<string, string | number> = {};
+    // Validate defaultDistrict (string or null)
+    if (defaultDistrict !== undefined && defaultDistrict !== null) {
+      if (typeof defaultDistrict !== "string" || defaultDistrict.length > 50) {
+        return apiError("유효한 기본 지역을 선택하세요", 400);
+      }
+    }
+
+    const updateData: Record<string, string | number | null> = {};
     if (emoji !== undefined) updateData.emoji = emoji.trim();
     if (color !== undefined) updateData.color = color;
     if (defaultZoom !== undefined) updateData.defaultZoom = Number(defaultZoom);
+    if (defaultDistrict !== undefined) updateData.defaultDistrict = defaultDistrict ?? null;
 
     if (Object.keys(updateData).length === 0) {
       return apiError("변경할 값이 없습니다", 400);
@@ -76,7 +86,7 @@ export async function PATCH(request: NextRequest) {
       .from("MapPinSettings")
       .update(updateData)
       .eq("id", "default")
-      .select("emoji, color, defaultZoom")
+      .select("emoji, color, defaultZoom, defaultDistrict")
       .single();
 
     if (error) {

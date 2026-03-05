@@ -18,6 +18,12 @@ const ZOOM_LABELS: Record<number, string> = {
   14: "골목 수준",
 };
 
+interface DistrictItem {
+  name: string;
+  centerLat: number;
+  centerLng: number;
+}
+
 export default function AdminSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -35,7 +41,12 @@ export default function AdminSettingsPage() {
   // Default zoom (map scale)
   const [defaultZoom, setDefaultZoom] = useState(9);
 
+  // Default district
+  const [defaultDistrict, setDefaultDistrict] = useState<string | null>(null);
+  const [districts, setDistricts] = useState<DistrictItem[]>([]);
+
   useEffect(() => {
+    // Fetch current map settings
     fetch("/api/admin/map-settings")
       .then((r) => r.json())
       .then((json) => {
@@ -43,12 +54,28 @@ export default function AdminSettingsPage() {
           setPinEmoji(json.data.emoji ?? "📍");
           setPinColor(json.data.color ?? "#FF5A00");
           setDefaultZoom(json.data.defaultZoom ?? 9);
+          setDefaultDistrict(json.data.defaultDistrict ?? null);
         }
       })
       .catch(() => {
         // Keep defaults on error
       })
       .finally(() => setPinLoading(false));
+
+    // Fetch district list for the district picker
+    fetch("/api/districts")
+      .then((r) => r.json())
+      .then((json) => {
+        const data: DistrictItem[] = (json.data ?? []).map(
+          (d: { name: string; centerLat: number; centerLng: number }) => ({
+            name: d.name,
+            centerLat: d.centerLat,
+            centerLng: d.centerLng,
+          })
+        );
+        setDistricts(data);
+      })
+      .catch(() => {});
   }, []);
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -95,7 +122,7 @@ export default function AdminSettingsPage() {
       const res = await fetch("/api/admin/map-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emoji: pinEmoji, color: pinColor, defaultZoom }),
+        body: JSON.stringify({ emoji: pinEmoji, color: pinColor, defaultZoom, defaultDistrict }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -170,6 +197,52 @@ export default function AdminSettingsPage() {
           </div>
         ) : (
           <form onSubmit={handleSavePin} className="space-y-5">
+            {/* Default district */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                기본 지역{" "}
+                <span className="text-xs font-normal text-muted">
+                  (홈페이지 처음 열릴 때 자동 선택될 지역)
+                </span>
+              </label>
+              {districts.length === 0 ? (
+                <p className="text-xs text-muted">지역 목록을 불러오는 중...</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDefaultDistrict(null)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      defaultDistrict === null
+                        ? "bg-primary text-white border-primary"
+                        : "bg-background text-muted border-border hover:text-foreground hover:border-foreground/30"
+                    }`}
+                  >
+                    전체 (기본값 없음)
+                  </button>
+                  {districts.map((d) => (
+                    <button
+                      type="button"
+                      key={d.name}
+                      onClick={() => setDefaultDistrict(d.name)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        defaultDistrict === d.name
+                          ? "bg-primary text-white border-primary"
+                          : "bg-background text-muted border-border hover:text-foreground hover:border-foreground/30"
+                      }`}
+                    >
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {defaultDistrict && (
+                <p className="text-xs text-muted mt-1.5">
+                  선택됨: <span className="text-foreground font-medium">{defaultDistrict}</span>
+                </p>
+              )}
+            </div>
+
             {/* Default zoom level */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">

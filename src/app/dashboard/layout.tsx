@@ -31,7 +31,8 @@ export default function DashboardLayout({
   if (status === "unauthenticated") return null;
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    // h + overflow-hidden: sidebars stay fixed; content area scrolls independently
+    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
       <DashboardSidebar />
       <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto min-w-0">
         {children}

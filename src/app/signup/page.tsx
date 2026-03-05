@@ -755,17 +755,23 @@ export default function SignupPage() {
                     <span className="text-xs text-muted font-normal">(세부 선거구)</span>
                     <span className="text-red-500">*</span>
                   </label>
-                  {wards.length > 0 ? (
+                  {loadingWards ? (
+                    <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                      선거구 정보를 불러오는 중...
+                    </div>
+                  ) : !district ? (
+                    <div className="px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
+                      시군구를 먼저 선택하세요
+                    </div>
+                  ) : wards.length > 0 ? (
                     <select
                       value={ward}
                       onChange={(e) => setWard(e.target.value)}
                       required
-                      disabled={loadingWards || !district}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                     >
-                      <option value="">
-                        {loadingWards ? "불러오는 중..." : "선거구를 선택하세요"}
-                      </option>
+                      <option value="">선거구를 선택하세요</option>
                       {wards.map((w) => (
                         <option key={w.electCode} value={w.electName}>
                           {w.electName}
@@ -773,21 +779,9 @@ export default function SignupPage() {
                       ))}
                     </select>
                   ) : (
-                    <input
-                      type="text"
-                      value={ward}
-                      onChange={(e) => setWard(e.target.value)}
-                      placeholder={
-                        loadingWards
-                          ? "불러오는 중..."
-                          : !district
-                          ? "시군구를 먼저 선택하세요"
-                          : "예: 가선거구, 제1선거구"
-                      }
-                      disabled={loadingWards || !district}
-                      required
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-                    />
+                    <div className="px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
+                      선거구 정보를 불러올 수 없습니다. 잠시 후 다시 시도하세요.
+                    </div>
                   )}
                   <p className="text-xs text-muted mt-1">
                     출처: 중앙선관위 · 제9회 전국동시지방선거

@@ -121,13 +121,15 @@ export default function NaverMap({
   const addPledgeMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
   const addCandidateMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
 
-  const { center, zoomLevel, setCenter, setZoomLevel } = useMapStore();
+  const { center, zoomLevel, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
 
   const [pinSettings, setPinSettings] = useState<PinSettings>({
     emoji: "📍",
     color: "#FF5A00",
     iconImage: null,
   });
+  const [pendingDefaultDistrict, setPendingDefaultDistrict] = useState<string | null>(null);
+  const defaultDistrictApplied = useRef(false);
 
   useEffect(() => {
     fetch("/api/map-settings/pin")
@@ -143,10 +145,25 @@ export default function NaverMap({
           if (json.data.defaultZoom != null) {
             setZoomLevel(Number(json.data.defaultZoom));
           }
+          // Store default district; will be applied once districts list is available
+          if (json.data.defaultDistrict) {
+            setPendingDefaultDistrict(json.data.defaultDistrict);
+          }
         }
       })
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply the admin-configured default district once both it and the districts list are ready
+  useEffect(() => {
+    if (!pendingDefaultDistrict || districts.length === 0 || defaultDistrictApplied.current) return;
+    const found = districts.find((d) => d.name === pendingDefaultDistrict);
+    if (found) {
+      setCenter(found.centerLat, found.centerLng);
+      setSelectedDistrict(found.name);
+      defaultDistrictApplied.current = true;
+    }
+  }, [pendingDefaultDistrict, districts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Clear helpers ──────────────────────────────────────────────────────────
 

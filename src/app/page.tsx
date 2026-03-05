@@ -71,15 +71,15 @@ function CandidateSidebar({
               onClick={() => onSelect(c)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-background/60 transition-colors text-left"
             >
-              {/* Profile image */}
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border-2 border-primary/30">
+              {/* Profile image — auto-fit regardless of source image size */}
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border-2 border-primary/30">
                 {c.profileImage ? (
                   <Image
                     src={c.profileImage}
                     alt={c.name}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="40px"
+                    className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -120,8 +120,14 @@ export default function HomePage() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Closed by default — mobile users see the full map
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { setSelectedPledge, selectedDistrict } = useMapStore();
+
+  // Count candidates visible in sidebar
+  const filteredCount = selectedDistrict
+    ? candidates.filter((c) => c.district === selectedDistrict || c.district.startsWith(selectedDistrict)).length
+    : candidates.length;
 
   // Fetch all pledges
   useEffect(() => {
@@ -184,24 +190,21 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  // Dynamically load Naver Maps SDK — fires onload exactly once when fully ready
+  // Dynamically load Naver Maps SDK
   useEffect(() => {
     const SCRIPT_ID = "__naver_map_sdk__";
 
-    // Set auth-failure handler BEFORE the script runs
     (window as unknown as Record<string, unknown>).navermap_authFailure = function () {
       setMapError(
         "네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요."
       );
     };
 
-    // Already loaded (hot-reload or back navigation)
     if ((window as unknown as { naver?: { maps?: unknown } }).naver?.maps) {
       setMapReady(true);
       return;
     }
 
-    // Script tag already in DOM (another component loaded it)
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
       const onLoad = () => setMapReady(true);
@@ -215,7 +218,6 @@ export default function HomePage() {
       };
     }
 
-    // Inject script for the first time
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
@@ -286,10 +288,10 @@ export default function HomePage() {
           />
         )}
 
-        {/* Sidebar toggle button */}
+        {/* Desktop sidebar toggle — chevron rotates 180° on toggle, no continuous spinning */}
         <button
           onClick={() => setSidebarOpen((o) => !o)}
-          className="absolute top-3 right-3 z-20 w-8 h-8 bg-surface/95 backdrop-blur-sm border border-border rounded-lg flex items-center justify-center shadow-sm hover:bg-background transition-colors"
+          className="hidden md:flex absolute top-3 right-3 z-20 items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md hover:bg-background transition-colors text-xs font-medium text-foreground"
           title={sidebarOpen ? "후보자 목록 닫기" : "후보자 목록 열기"}
         >
           <svg
@@ -298,25 +300,75 @@ export default function HomePage() {
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`transition-transform ${sidebarOpen ? "rotate-0" : "rotate-180"}`}
+            style={{ transition: "transform 0.2s", transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
           >
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          후보자 {filteredCount}명
+        </button>
+
+        {/* Mobile bottom tab — shows count, tap to expand list */}
+        <button
+          onClick={() => setSidebarOpen((o) => !o)}
+          className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-lg text-sm font-semibold text-foreground"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+          후보자 {filteredCount}명
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            style={{ transition: "transform 0.2s", transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            <path d="M18 15l-6-6-6 6" />
           </svg>
         </button>
       </div>
 
-      {/* Right candidate sidebar */}
+      {/* Desktop: right candidate sidebar — smooth slide */}
+      <div
+        className={`hidden md:flex shrink-0 border-l border-border bg-surface flex-col overflow-hidden transition-all duration-200 ${
+          sidebarOpen ? "w-64" : "w-0 border-l-0"
+        }`}
+      >
+        <CandidateSidebar
+          candidates={candidates}
+          selectedDistrict={selectedDistrict}
+          onSelect={handleCandidateClick}
+        />
+      </div>
+
+      {/* Mobile: bottom drawer */}
       {sidebarOpen && (
-        <div className="w-64 shrink-0 border-l border-border bg-surface flex flex-col overflow-hidden">
-          <CandidateSidebar
-            candidates={candidates}
-            selectedDistrict={selectedDistrict}
-            onSelect={handleCandidateClick}
-          />
+        <div className="md:hidden fixed inset-0 z-40" onClick={() => setSidebarOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl max-h-[70vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div
+              className="flex justify-center pt-3 pb-1 cursor-pointer"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <div className="w-10 h-1 bg-border rounded-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <CandidateSidebar
+                candidates={candidates}
+                selectedDistrict={selectedDistrict}
+                onSelect={(c) => { handleCandidateClick(c); setSidebarOpen(false); }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
