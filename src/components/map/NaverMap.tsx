@@ -139,10 +139,14 @@ export default function NaverMap({
             color: json.data.color || "#FF5A00",
             iconImage: json.data.iconImage || null,
           });
+          // Apply admin-configured default zoom on first load
+          if (json.data.defaultZoom != null) {
+            setZoomLevel(Number(json.data.defaultZoom));
+          }
         }
       })
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Clear helpers ──────────────────────────────────────────────────────────
 

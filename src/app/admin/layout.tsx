@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import AlertSidebar from "@/components/dashboard/AlertSidebar";
 
 export default function AdminLayout({
   children,
@@ -36,9 +37,10 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
       <AdminSidebar />
-      <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto">
+      <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto min-w-0">
         {children}
       </div>
+      <AlertSidebar role="admin" />
     </div>
   );
 }

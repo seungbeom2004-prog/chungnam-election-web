@@ -15,7 +15,7 @@ export async function GET(
 
     const { data: candidate, error } = await supabase
       .from("Candidate")
-      .select("id, name, district, handle, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, phone, election:Election!electionId(id, name, type)")
+      .select("id, name, district, handle, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, electionType, phone, election:Election!electionId(id, name, type)")
       .eq("id", id)
       .single();
 

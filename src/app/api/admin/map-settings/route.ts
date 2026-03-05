@@ -12,22 +12,26 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("MapPinSettings")
-      .select("emoji, color")
+      .select("emoji, color, defaultZoom")
       .eq("id", "default")
       .single();
 
     if (error || !data) {
-      return apiSuccess({ emoji: "📍", color: "#FF5A00" });
+      return apiSuccess({ emoji: "📍", color: "#FF5A00", defaultZoom: 9 });
     }
 
-    return apiSuccess({ emoji: data.emoji, color: data.color });
+    return apiSuccess({
+      emoji: data.emoji,
+      color: data.color,
+      defaultZoom: (data as { defaultZoom?: number }).defaultZoom ?? 9,
+    });
   } catch (error) {
     console.error("[GET /api/admin/map-settings]", error);
     return apiError("설정을 불러올 수 없습니다", 500);
   }
 }
 
-// PATCH /api/admin/map-settings — Admin: update pin emoji and/or color
+// PATCH /api/admin/map-settings — Admin: update pin emoji, color, and/or defaultZoom
 export async function PATCH(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -35,7 +39,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { emoji, color } = body;
+    const { emoji, color, defaultZoom } = body;
 
     // Validate emoji
     if (emoji !== undefined) {
@@ -51,9 +55,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const updateData: Record<string, string> = {};
+    // Validate defaultZoom (integer 3–18)
+    if (defaultZoom !== undefined) {
+      const z = Number(defaultZoom);
+      if (!Number.isInteger(z) || z < 3 || z > 18) {
+        return apiError("유효한 배율을 입력하세요 (3~18)", 400);
+      }
+    }
+
+    const updateData: Record<string, string | number> = {};
     if (emoji !== undefined) updateData.emoji = emoji.trim();
     if (color !== undefined) updateData.color = color;
+    if (defaultZoom !== undefined) updateData.defaultZoom = Number(defaultZoom);
 
     if (Object.keys(updateData).length === 0) {
       return apiError("변경할 값이 없습니다", 400);
@@ -63,7 +76,7 @@ export async function PATCH(request: NextRequest) {
       .from("MapPinSettings")
       .update(updateData)
       .eq("id", "default")
-      .select("emoji, color")
+      .select("emoji, color, defaultZoom")
       .single();
 
     if (error) {

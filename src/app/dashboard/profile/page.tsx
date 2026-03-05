@@ -6,6 +6,18 @@ import Image from "next/image";
 import { Button, Input, Textarea } from "@/components/ui";
 import Card from "@/components/ui/Card";
 
+const ELECTION_TYPES = [
+  "시도지사선거",
+  "교육감선거",
+  "시장선거",
+  "군수선거",
+  "구청장선거",
+  "시·도의회의원선거",
+  "구·시·군의회의원선거",
+  "비례대표시·도의원선거",
+  "비례대표구·시·군의원선거",
+];
+
 export default function ProfilePage() {
   const { data: session } = useSession();
   const candidateId = (session?.user as { id?: string })?.id;
@@ -24,10 +36,13 @@ export default function ProfilePage() {
     "idle" | "checking" | "available" | "taken" | "invalid"
   >("idle");
   const [handleTimer, setHandleTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+
+  // Election type selector
+  const [electionType, setElectionType] = useState("");
+  const [electionTypeSaving, setElectionTypeSaving] = useState(false);
+  const [electionTypeMessage, setElectionTypeMessage] = useState("");
 
   // Ward (선거구) selector state
-  const [electionType, setElectionType] = useState("");
   const [currentGun, setCurrentGun] = useState(""); // e.g. "천안시동남구"
   const [selectedWard, setSelectedWard] = useState(""); // e.g. "다선거구"
   const [wards, setWards] = useState<{ electCode: string; electName: string }[]>([]);
@@ -88,6 +103,23 @@ export default function ProfilePage() {
     } catch {
       setWardMessage("저장에 실패했습니다.");
     }
+  };
+
+  const handleElectionTypeSave = async () => {
+    if (!candidateId) return;
+    setElectionTypeSaving(true);
+    setElectionTypeMessage("");
+    try {
+      const res = await fetch(`/api/candidates/${candidateId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ electionType: electionType || null }),
+      });
+      setElectionTypeMessage(res.ok ? "선거 종류가 저장되었습니다." : "저장에 실패했습니다.");
+    } catch {
+      setElectionTypeMessage("저장에 실패했습니다.");
+    }
+    setElectionTypeSaving(false);
   };
 
   const checkHandle = useCallback(
@@ -206,9 +238,15 @@ export default function ProfilePage() {
     ? `${origin}/candidates/${candidateId}`
     : "";
 
+  const openPreview = () => {
+    if (profileUrl) {
+      window.open(profileUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Top action bar with top save button */}
+      {/* Top action bar */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-foreground">내 프로필</h1>
         <div className="flex gap-2">
@@ -216,9 +254,11 @@ export default function ProfilePage() {
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => setShowPreview(!showPreview)}
+            onClick={openPreview}
+            disabled={!profileUrl}
+            title={profileUrl || "프로필을 새 탭에서 미리보기"}
           >
-            {showPreview ? "편집으로" : "미리보기"}
+            미리보기 ↗
           </Button>
           <Button
             type="button"
@@ -230,51 +270,6 @@ export default function ProfilePage() {
           </Button>
         </div>
       </div>
-
-      {/* Profile preview panel */}
-      {showPreview && (
-        <Card className="mb-4">
-          <h2 className="text-sm font-semibold text-muted mb-3">프로필 미리보기</h2>
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 shrink-0">
-              {form.profileImage ? (
-                <Image
-                  src={form.profileImage}
-                  alt="프로필"
-                  width={80}
-                  height={80}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl text-muted">
-                  👤
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground text-lg">
-                {session?.user?.name || "이름"}
-              </p>
-              {form.slogan && (
-                <p className="text-sm text-primary mt-0.5">&ldquo;{form.slogan}&rdquo;</p>
-              )}
-              {form.bio && (
-                <p className="text-sm text-muted mt-1 line-clamp-3">{form.bio}</p>
-              )}
-              {form.handle && (
-                <a
-                  href={profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary mt-1 block hover:underline"
-                >
-                  {origin}/@{form.handle}
-                </a>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
 
       <form onSubmit={handleSave}>
         <Card>
@@ -362,60 +357,6 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {/* Ward (선거구) re-selector — only for 구시군의회의원선거 */}
-            {isWardLevel && currentGun && (
-              <div className="border border-border rounded-lg p-3 bg-surface/50">
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  세부 선거구{" "}
-                  <span className="text-xs text-muted font-normal">
-                    ({currentGun})
-                  </span>
-                </label>
-                <div className="flex gap-2">
-                  {loadingWards ? (
-                    <p className="text-xs text-muted py-2">불러오는 중...</p>
-                  ) : wards.length > 0 ? (
-                    <select
-                      value={selectedWard}
-                      onChange={(e) => setSelectedWard(e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    >
-                      <option value="">선거구를 선택하세요</option>
-                      {wards.map((w) => (
-                        <option key={w.electCode} value={w.electName}>
-                          {w.electName}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={selectedWard}
-                      onChange={(e) => setSelectedWard(e.target.value)}
-                      placeholder="예: 다선거구, 제3선거구"
-                      className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    />
-                  )}
-                  <Button type="button" size="sm" onClick={handleWardSave} disabled={!selectedWard}>
-                    저장
-                  </Button>
-                </div>
-                {wardMessage && (
-                  <p className={`text-xs mt-1.5 ${wardMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>
-                    {wardMessage}
-                  </p>
-                )}
-                <p className="text-xs text-muted mt-1.5">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
-              </div>
-            )}
-
-            {/* Pin location notice */}
-            <div className="px-3 py-2 bg-muted/10 border border-border rounded-lg">
-              <p className="text-xs text-muted">
-                📍 핀 위치 변경은 관리자에게 문의하세요.
-              </p>
-            </div>
-
             {message && (
               <p
                 className={`text-sm px-3 py-2 rounded-lg ${
@@ -435,6 +376,113 @@ export default function ProfilePage() {
           </div>
         </Card>
       </form>
+
+      {/* Election info card */}
+      <Card className="mt-4">
+        <h2 className="text-sm font-semibold text-foreground mb-3">선거 정보</h2>
+        <div className="space-y-3">
+          {/* Election type */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              선거 종류
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={electionType}
+                onChange={(e) => setElectionType(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="">선거 종류를 선택하세요</option>
+                {ELECTION_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleElectionTypeSave}
+                disabled={electionTypeSaving}
+              >
+                {electionTypeSaving ? "저장 중..." : "저장"}
+              </Button>
+            </div>
+            {electionTypeMessage && (
+              <p className={`text-xs mt-1 ${electionTypeMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>
+                {electionTypeMessage}
+              </p>
+            )}
+          </div>
+
+          {/* Ward (선거구) re-selector — only for 구시군의회의원선거 */}
+          {isWardLevel && currentGun && (
+            <div className="border border-border rounded-lg p-3 bg-surface/50">
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                세부 선거구{" "}
+                <span className="text-xs text-muted font-normal">
+                  ({currentGun})
+                </span>
+              </label>
+              <div className="flex gap-2">
+                {loadingWards ? (
+                  <p className="text-xs text-muted py-2">불러오는 중...</p>
+                ) : wards.length > 0 ? (
+                  <select
+                    value={selectedWard}
+                    onChange={(e) => setSelectedWard(e.target.value)}
+                    className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  >
+                    <option value="">선거구를 선택하세요</option>
+                    {wards.map((w) => (
+                      <option key={w.electCode} value={w.electName}>
+                        {w.electName}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={selectedWard}
+                    onChange={(e) => setSelectedWard(e.target.value)}
+                    placeholder="예: 다선거구, 제3선거구"
+                    className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                )}
+                <Button type="button" size="sm" onClick={handleWardSave} disabled={!selectedWard}>
+                  저장
+                </Button>
+              </div>
+              {wardMessage && (
+                <p className={`text-xs mt-1.5 ${wardMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>
+                  {wardMessage}
+                </p>
+              )}
+              <p className="text-xs text-muted mt-1.5">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
+            </div>
+          )}
+
+          {/* Pin location notice */}
+          <div className="px-3 py-2 bg-muted/10 border border-border rounded-lg">
+            <p className="text-xs text-muted">
+              📍 핀 위치 변경은 관리자에게 문의하세요.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Profile preview link */}
+      {profileUrl && (
+        <Card className="mt-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">내 공개 프로필</p>
+              <p className="text-xs text-muted truncate mt-0.5">{profileUrl}</p>
+            </div>
+            <Button type="button" size="sm" variant="ghost" onClick={openPreview}>
+              새 탭 열기 ↗
+            </Button>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

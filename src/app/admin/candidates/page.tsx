@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Button, Badge, Card } from "@/components/ui";
+
+const PinPickerMap = dynamic(() => import("@/components/map/PinPickerMap"), { ssr: false });
 
 interface DistrictOption {
   name: string;
   wOrder?: number;
+  centerLat?: number;
+  centerLng?: number;
 }
 
 interface ElectionOption {
@@ -24,6 +29,7 @@ interface AdminCandidate {
   emailVerified: boolean;
   role: string;
   electionId: string | null;
+  electionType: string | null;
   election: { id: string; name: string } | null;
   candidateStatus: string;
   caucusStatus: string;
@@ -36,6 +42,17 @@ type FilterTab = "pending" | "approved" | "all";
 
 const CANDIDATE_STATUSES = ["출마예정자", "예비후보자", "후보자"];
 const CAUCUS_STATUSES = ["공천 미확정", "공천 확정"];
+const ELECTION_TYPES = [
+  "시도지사선거",
+  "교육감선거",
+  "시장선거",
+  "군수선거",
+  "구청장선거",
+  "시·도의회의원선거",
+  "구·시·군의회의원선거",
+  "비례대표시·도의원선거",
+  "비례대표구·시·군의원선거",
+];
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, "primary" | "secondary" | "muted"> = {
@@ -64,6 +81,9 @@ export default function AdminCandidatesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  // Per-candidate temporary pin values (for the map picker)
+  const [tempPins, setTempPins] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -74,7 +94,7 @@ export default function AdminCandidatesPage() {
       const [candidatesRes, electionsRes, districtsRes] = await Promise.all([
         fetch(`/api/admin/candidates?${params.toString()}`),
         fetch("/api/admin/elections"),
-        fetch("/api/nec?type=districts"), // NEC-sourced exact districts
+        fetch("/api/nec?type=districts"),
       ]);
       const candidatesJson = await candidatesRes.json();
       const electionsJson = await electionsRes.json();
@@ -111,7 +131,7 @@ export default function AdminCandidatesPage() {
 
   const handleFieldChange = async (
     candidateId: string,
-    field: "candidateStatus" | "caucusStatus" | "electionId" | "district" | "pinLat" | "pinLng",
+    field: "candidateStatus" | "caucusStatus" | "electionId" | "electionType" | "district" | "pinLat" | "pinLng",
     value: string | null
   ) => {
     setActionLoading(candidateId + field);
@@ -124,6 +144,53 @@ export default function AdminCandidatesPage() {
       await fetchData();
     } catch {
       alert("상태 변경에 실패했습니다.");
+    }
+    setActionLoading(null);
+  };
+
+  const handlePinSave = async (candidateId: string) => {
+    const pin = tempPins[candidateId];
+    if (!pin) return;
+    setActionLoading(candidateId + "pin");
+    try {
+      await fetch("/api/admin/candidates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId,
+          pinLat: pin.lat ?? "",
+          pinLng: pin.lng ?? "",
+        }),
+      });
+      await fetchData();
+      // Clear temp state for this candidate
+      setTempPins((prev) => {
+        const next = { ...prev };
+        delete next[candidateId];
+        return next;
+      });
+    } catch {
+      alert("핀 위치 저장에 실패했습니다.");
+    }
+    setActionLoading(null);
+  };
+
+  const handlePinClear = async (candidateId: string) => {
+    setActionLoading(candidateId + "pin");
+    try {
+      await fetch("/api/admin/candidates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, pinLat: "", pinLng: "" }),
+      });
+      await fetchData();
+      setTempPins((prev) => {
+        const next = { ...prev };
+        delete next[candidateId];
+        return next;
+      });
+    } catch {
+      alert("핀 초기화에 실패했습니다.");
     }
     setActionLoading(null);
   };
@@ -227,6 +294,18 @@ export default function AdminCandidatesPage() {
               actionLoading === candidate.id + suffix;
             const anyLoading = actionLoading?.startsWith(candidate.id);
 
+            // Determine district center for map
+            const districtInfo = districts.find((d) => d.name === candidate.district)
+              ?? districts.find((d) => candidate.district?.startsWith(d.name));
+            const mapCenterLat = districtInfo?.centerLat ?? 36.5184;
+            const mapCenterLng = districtInfo?.centerLng ?? 126.8;
+
+            // Effective pin coords (temp takes priority)
+            const tempPin = tempPins[candidate.id];
+            const effectivePinLat = tempPin !== undefined ? tempPin.lat : candidate.pinLat;
+            const effectivePinLng = tempPin !== undefined ? tempPin.lng : candidate.pinLng;
+            const hasPendingPin = tempPin !== undefined;
+
             return (
               <Card key={candidate.id} padding="md">
                 {/* Main row */}
@@ -256,6 +335,9 @@ export default function AdminCandidatesPage() {
                         <span>선거구: <span className="text-foreground font-medium">{candidate.district || "미지정"}</span></span>
                         {candidate.election && (
                           <span>| 선거: <span className="text-foreground font-medium">{candidate.election.name}</span></span>
+                        )}
+                        {candidate.electionType && (
+                          <span>| 선거종류: <span className="text-foreground font-medium">{candidate.electionType}</span></span>
                         )}
                         {candidate.phone && (
                           <span>| {candidate.phone}</span>
@@ -322,19 +404,13 @@ export default function AdminCandidatesPage() {
                         <select
                           value={candidate.candidateStatus}
                           onChange={(e) =>
-                            handleFieldChange(
-                              candidate.id,
-                              "candidateStatus",
-                              e.target.value
-                            )
+                            handleFieldChange(candidate.id, "candidateStatus", e.target.value)
                           }
                           disabled={!!anyLoading}
                           className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
                         >
                           {CANDIDATE_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
+                            <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
                       </div>
@@ -347,19 +423,33 @@ export default function AdminCandidatesPage() {
                         <select
                           value={candidate.caucusStatus}
                           onChange={(e) =>
-                            handleFieldChange(
-                              candidate.id,
-                              "caucusStatus",
-                              e.target.value
-                            )
+                            handleFieldChange(candidate.id, "caucusStatus", e.target.value)
                           }
                           disabled={!!anyLoading}
                           className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
                         >
                           {CAUCUS_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Election type (선거 종류) */}
+                      <div>
+                        <label className="block text-xs font-medium text-muted mb-1">
+                          선거 종류
+                        </label>
+                        <select
+                          value={candidate.electionType ?? ""}
+                          onChange={(e) =>
+                            handleFieldChange(candidate.id, "electionType", e.target.value || null)
+                          }
+                          disabled={!!anyLoading}
+                          className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                        >
+                          <option value="">선거 종류 미지정</option>
+                          {ELECTION_TYPES.map((t) => (
+                            <option key={t} value={t}>{t}</option>
                           ))}
                         </select>
                       </div>
@@ -372,20 +462,14 @@ export default function AdminCandidatesPage() {
                         <select
                           value={candidate.district}
                           onChange={(e) =>
-                            handleFieldChange(
-                              candidate.id,
-                              "district",
-                              e.target.value
-                            )
+                            handleFieldChange(candidate.id, "district", e.target.value)
                           }
                           disabled={!!anyLoading}
                           className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
                         >
                           <option value="">선거구 미지정</option>
                           {districts.map((d) => (
-                            <option key={d.name} value={d.name}>
-                              {d.name}
-                            </option>
+                            <option key={d.name} value={d.name}>{d.name}</option>
                           ))}
                         </select>
                       </div>
@@ -399,20 +483,14 @@ export default function AdminCandidatesPage() {
                           <select
                             value={candidate.electionId || ""}
                             onChange={(e) =>
-                              handleFieldChange(
-                                candidate.id,
-                                "electionId",
-                                e.target.value || null
-                              )
+                              handleFieldChange(candidate.id, "electionId", e.target.value || null)
                             }
                             disabled={!!anyLoading}
                             className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
                           >
                             <option value="">선거 미지정</option>
                             {elections.map((el) => (
-                              <option key={el.id} value={el.id}>
-                                {el.name}
-                              </option>
+                              <option key={el.id} value={el.id}>{el.name}</option>
                             ))}
                           </select>
                         ) : (
@@ -423,50 +501,60 @@ export default function AdminCandidatesPage() {
                       </div>
                     </div>
 
-                    {/* Pin location — admin sets map marker position */}
+                    {/* Pin location — interactive map */}
                     <div className="mt-3 pt-3 border-t border-border/50">
-                      <p className="text-xs font-medium text-muted mb-2">
-                        지도 핀 위치{" "}
-                        <span className="font-normal text-muted/70">(비워두면 선거구 중심으로 표시)</span>
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-muted mb-1">위도 (Lat)</label>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            placeholder="예: 36.8151"
-                            defaultValue={candidate.pinLat ?? ""}
-                            onBlur={(e) =>
-                              handleFieldChange(
-                                candidate.id,
-                                "pinLat",
-                                e.target.value || null
-                              )
-                            }
-                            disabled={!!anyLoading}
-                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-muted mb-1">경도 (Lng)</label>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            placeholder="예: 127.1139"
-                            defaultValue={candidate.pinLng ?? ""}
-                            onBlur={(e) =>
-                              handleFieldChange(
-                                candidate.id,
-                                "pinLng",
-                                e.target.value || null
-                              )
-                            }
-                            disabled={!!anyLoading}
-                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                          />
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted">
+                          지도 핀 위치{" "}
+                          <span className="font-normal text-muted/70">(지도를 클릭하여 설정)</span>
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          {(candidate.pinLat || effectivePinLat) && (
+                            <button
+                              type="button"
+                              onClick={() => handlePinClear(candidate.id)}
+                              disabled={!!anyLoading}
+                              className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition-colors disabled:opacity-50"
+                            >
+                              초기화
+                            </button>
+                          )}
+                          {hasPendingPin && (
+                            <Button
+                              size="sm"
+                              onClick={() => handlePinSave(candidate.id)}
+                              disabled={!!anyLoading}
+                            >
+                              {isActionLoading("pin") ? "저장 중..." : "핀 저장"}
+                            </Button>
+                          )}
                         </div>
                       </div>
+
+                      {/* Coordinates display */}
+                      <div className="flex gap-3 mb-2">
+                        <div className="flex-1 px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-muted font-mono">
+                          위도: {effectivePinLat != null ? effectivePinLat.toFixed(6) : "—"}
+                          {hasPendingPin && <span className="ml-1 text-primary">(미저장)</span>}
+                        </div>
+                        <div className="flex-1 px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-muted font-mono">
+                          경도: {effectivePinLng != null ? effectivePinLng.toFixed(6) : "—"}
+                        </div>
+                      </div>
+
+                      {/* Interactive pin picker map */}
+                      <PinPickerMap
+                        lat={effectivePinLat}
+                        lng={effectivePinLng}
+                        centerLat={mapCenterLat}
+                        centerLng={mapCenterLng}
+                        onPick={(lat, lng) => {
+                          setTempPins((prev) => ({
+                            ...prev,
+                            [candidate.id]: { lat, lng },
+                          }));
+                        }}
+                      />
                     </div>
 
                     {anyLoading && (
