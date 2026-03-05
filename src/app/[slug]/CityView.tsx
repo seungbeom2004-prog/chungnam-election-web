@@ -82,6 +82,8 @@ export default function CityView({ district }: Props) {
             electionType: c.electionType ?? null,
             electionName: c.election?.name ?? null,
             candidateStatus: c.candidateStatus ?? "",
+            pinLat: (c as { pinLat?: number | null }).pinLat ?? null,
+            pinLng: (c as { pinLng?: number | null }).pinLng ?? null,
           }))
         );
       })
