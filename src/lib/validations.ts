@@ -90,7 +90,7 @@ export const registerCandidateSchema = z.object({
     .max(20),
   electionType: z.string().min(1, "선거 종류를 선택해주세요"),
   province: z.string().min(2, "시도를 선택해주세요"),
-  district: z.string().min(2, "지역을 선택해주세요"),
+  district: z.string().min(2, "지역을 선택해주세요").max(100),
   profileImage: z.string().url().optional().nullable(),
   isNominated: z.boolean().optional(),
   isNecRegistered: z.boolean().optional(),

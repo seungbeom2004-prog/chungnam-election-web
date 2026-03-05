@@ -20,7 +20,19 @@ export const LOCAL_ELECTION_TYPES = [
 interface NecGusigunItem {
   num: string;
   sgId: string;
+  wiwCode: string; // 구시군 코드
   wiwName: string;
+  wOrder: string;
+  sdName: string;
+}
+
+interface NecWardItem {
+  num: string;
+  sgId: string;
+  wiwCode: string; // 구시군 코드
+  wiwName: string; // 구시군명
+  electCode: string; // 선거구 코드
+  electName: string; // 선거구명 (가선거구, 나선거구, ...)
   wOrder: string;
   sdName: string;
 }
@@ -58,6 +70,7 @@ export async function GET(request: NextRequest) {
         success: true,
         data: chungnamItems.map((item) => ({
           name: item.wiwName,
+          wiwCode: item.wiwCode,
           wOrder: Number(item.wOrder),
         })),
         meta: {
@@ -70,6 +83,52 @@ export async function GET(request: NextRequest) {
       console.error("[GET /api/nec?type=districts]", error);
       return NextResponse.json(
         { success: false, error: "지역 정보를 불러올 수 없습니다" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // ── /api/nec?type=wards&wiwCode=XXXX ───────────────────────
+  if (type === "wards") {
+    const wiwCode = searchParams.get("wiwCode") || "";
+    const wiwName = searchParams.get("wiwName") || ""; // fallback filter by name
+    try {
+      const res = await fetch(
+        `${NEC_BASE_URL}/getCommonWiw2CodeList?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${wiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`,
+        { next: { revalidate: 86400 } }
+      );
+      const json = await res.json();
+      const items = json?.response?.body?.items?.item;
+      const wardItems: NecWardItem[] = Array.isArray(items)
+        ? items
+        : items
+        ? [items]
+        : [];
+
+      // Filter by 충청남도, optionally by wiwCode, optionally by wiwName (fallback)
+      const filtered = wardItems.filter(
+        (w) =>
+          w.sdName === "충청남도" &&
+          (!wiwCode || w.wiwCode === wiwCode) &&
+          (!wiwName || w.wiwName === wiwName)
+      );
+      filtered.sort((a, b) => Number(a.wOrder) - Number(b.wOrder));
+
+      return NextResponse.json({
+        success: true,
+        data: filtered.map((w) => ({
+          wiwCode: w.wiwCode,
+          wiwName: w.wiwName,
+          electCode: w.electCode,
+          electName: w.electName,
+          wOrder: Number(w.wOrder),
+        })),
+        meta: { total: filtered.length, wiwCode },
+      });
+    } catch (error) {
+      console.error("[GET /api/nec?type=wards]", error);
+      return NextResponse.json(
+        { success: false, data: [], error: "선거구 정보를 불러올 수 없습니다" },
         { status: 500 }
       );
     }
