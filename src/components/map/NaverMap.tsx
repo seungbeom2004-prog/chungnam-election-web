@@ -324,7 +324,8 @@ export default function NaverMap({
         center: new naver.maps.LatLng(center.lat, center.lng),
         zoom: toNaverZoom(zoomLevel),
         zoomControl: true,
-        zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT },
+        // Keep zoom controls on the left so the right-side "후보자" button doesn't collide
+        zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
       });
 
       mapInstance.current = map;

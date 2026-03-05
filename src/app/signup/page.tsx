@@ -76,9 +76,9 @@ export default function SignupPage() {
   const [loadingWards, setLoadingWards] = useState(false);
 
   // NEC pre-check step state
-  const [necStep, setNecStep] = useState<"question" | "district" | "candidates" | "form">("question");
+  const [necStep, setNecStep] = useState<"electiontype" | "question" | "district" | "candidates" | "form">("electiontype");
   const [necPrefilled, setNecPrefilled] = useState(false);
-  const [necDistrict, setNecDistrict] = useState("");
+  const [necDistrict, setNecDistrict] = useState("천안시");
   const [necCandidates, setNecCandidates] = useState<NecCandidate[]>([]);
   const [loadingNecCandidates, setLoadingNecCandidates] = useState(false);
   const [necError, setNecError] = useState("");
@@ -333,7 +333,59 @@ export default function SignupPage() {
     );
   }
 
-  // ── NEC Pre-check: Step 0 — Question ────────────────────────────────────────
+  // ── Step 0: Select Election Type ─────────────────────────────────────────────
+  if (necStep === "electiontype") {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">개혁</span>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">출마자 가입</h1>
+            <p className="text-sm text-muted mt-1">출마하실 선거 종류를 선택하세요</p>
+          </div>
+
+          <div className="border border-border rounded-2xl p-5 bg-surface space-y-2">
+            {electionTypes.length === 0 ? (
+              <div className="flex justify-center py-8">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              electionTypes.map((type) => (
+                <button
+                  key={type.code}
+                  type="button"
+                  onClick={() => {
+                    setElectionType(type.name);
+                    setNecStep("question");
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-border bg-background hover:bg-primary/5 hover:border-primary text-left transition-colors group"
+                >
+                  <span className="font-medium text-foreground text-sm">{type.name}</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted group-hover:text-primary transition-colors shrink-0">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              ))
+            )}
+            <p className="text-xs text-muted text-center pt-2">
+              출처: 중앙선관위 · 제9회 전국동시지방선거
+            </p>
+          </div>
+
+          <p className="text-xs text-muted text-center mt-6">
+            이미 계정이 있으신가요?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              로그인
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Step 1: NEC Registration Question ────────────────────────────────────────
   if (necStep === "question") {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
@@ -343,7 +395,11 @@ export default function SignupPage() {
               <span className="text-white font-bold text-xl">개혁</span>
             </div>
             <h1 className="text-2xl font-bold text-foreground">출마자 가입</h1>
-            <p className="text-sm text-muted mt-1">출마자 계정을 등록하세요</p>
+            {electionType && (
+              <span className="inline-block mt-2 px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                {electionType}
+              </span>
+            )}
           </div>
 
           <div className="border border-border rounded-2xl p-6 bg-surface text-center space-y-4">
@@ -372,18 +428,25 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <p className="text-xs text-muted text-center mt-6">
-            이미 계정이 있으신가요?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              로그인
-            </Link>
-          </p>
+          <div className="flex items-center justify-between mt-6">
+            <button
+              type="button"
+              onClick={() => setNecStep("electiontype")}
+              className="text-xs text-muted hover:text-foreground flex items-center gap-1 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+              선거 종류 다시 선택
+            </button>
+            <p className="text-xs text-muted">
+              <Link href="/login" className="text-primary hover:underline">로그인</Link>
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── NEC Pre-check: Step A — Select District ──────────────────────────────────
+  // ── Step 2: Select District ───────────────────────────────────────────────────
   if (necStep === "district") {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-8">
@@ -397,21 +460,42 @@ export default function SignupPage() {
           </div>
 
           <div className="border border-border rounded-2xl p-5 bg-surface space-y-4">
-            <select
-              value={necDistrict}
-              onChange={(e) => setNecDistrict(e.target.value)}
-              disabled={loadingDistricts}
-              className="w-full px-3 py-2.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-            >
-              <option value="">
-                {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
-              </option>
-              {districts.map((d) => (
-                <option key={d.name} value={d.name}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            {/* Election type badge */}
+            {electionType && (
+              <div className="px-3 py-2 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-xs text-primary font-medium">{electionType}</p>
+              </div>
+            )}
+
+            {/* District button grid */}
+            {loadingDistricts ? (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto py-1">
+                {districts.map((d) => (
+                  <button
+                    key={d.name}
+                    type="button"
+                    onClick={() => setNecDistrict(d.name)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      necDistrict === d.name
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-background text-muted border-border hover:text-foreground hover:border-foreground/30"
+                    }`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {necDistrict && (
+              <p className="text-xs text-muted">
+                선택됨: <span className="font-medium text-foreground">{necDistrict}</span>
+              </p>
+            )}
 
             {necError && (
               <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">
