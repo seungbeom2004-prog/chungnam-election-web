@@ -13,6 +13,7 @@ export interface Candidate {
   verified: boolean;
   emailVerified: boolean;
   electionId: string | null;
+  electionType: string | null;
   election?: Election | null;
   candidateStatus: string; // '출마예정자' | '예비후보자' | '후보자'
   caucusStatus: string;    // '공천 미확정' | '공천 확정'

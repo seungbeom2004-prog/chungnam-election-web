@@ -3,36 +3,36 @@
 import { useEffect, useState, useCallback } from "react";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
+import CandidatePopup from "@/components/map/CandidatePopup";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
 
-// Same zoom level used when clicking a district tab in the Navbar
-const CITY_ZOOM = 6;
+export interface CandidateForMap {
+  id: string;
+  name: string;
+  district: string;
+  profileImage: string | null;
+  electionType: string | null;
+  electionName: string | null;
+  candidateStatus: string;
+}
+
+export interface DistrictCoords {
+  name: string;
+  centerLat: number;
+  centerLng: number;
+}
 
 export default function HomePage() {
   const [pledges, setPledges] = useState<Pledge[]>([]);
+  const [candidates, setCandidates] = useState<CandidateForMap[]>([]);
+  const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const { setSelectedPledge, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
+  const { setSelectedPledge } = useMapStore();
 
-  // Center the map on the first visible district (admin-configured order)
-  useEffect(() => {
-    fetch("/api/districts")
-      .then((r) => r.json())
-      .then((json) => {
-        const districts: { name: string; centerLat: number; centerLng: number }[] =
-          json.data ?? [];
-        if (districts.length === 0) return;
-        const first = districts[0];
-        setCenter(first.centerLat, first.centerLng);
-        setZoomLevel(CITY_ZOOM);
-        setSelectedDistrict(first.name);
-      })
-      .catch(() => {
-        // Keep default Chungnam center on error
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // Fetch all pledges
   useEffect(() => {
     fetch("/api/pledges?limit=1000")
       .then((res) => res.json())
@@ -43,27 +43,77 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
+  // Fetch all candidates (verified) with election data
+  useEffect(() => {
+    fetch("/api/candidates?limit=500")
+      .then((res) => res.json())
+      .then((json) => {
+        const data: Array<{
+          id: string;
+          name: string;
+          district: string;
+          profileImage: string | null;
+          electionType: string | null;
+          candidateStatus: string;
+          election?: { id: string; name: string } | null;
+        }> = json.data ?? [];
+        setCandidates(
+          data.map((c) => ({
+            id: c.id,
+            name: c.name,
+            district: c.district,
+            profileImage: c.profileImage,
+            electionType: c.electionType ?? null,
+            electionName: c.election?.name ?? null,
+            candidateStatus: c.candidateStatus ?? "",
+          }))
+        );
+      })
+      .catch(console.error);
+  }, []);
+
+  // Fetch districts for candidate marker coordinates
+  useEffect(() => {
+    fetch("/api/districts")
+      .then((res) => res.json())
+      .then((json) => {
+        const data: DistrictCoords[] = (json.data ?? []).map(
+          (d: { name: string; centerLat: number; centerLng: number }) => ({
+            name: d.name,
+            centerLat: d.centerLat,
+            centerLng: d.centerLng,
+          })
+        );
+        setDistricts(data);
+      })
+      .catch(console.error);
+  }, []);
+
   // Register auth failure handler & wait for Naver Maps SDK
   useEffect(() => {
-    // Auth failure callback from Naver Maps SDK
     (window as unknown as Record<string, unknown>).navermap_authFailure =
       function () {
-        console.error("[NaverMap] Authentication failed. Check:");
-        console.error("1. ncpKeyId is correct");
-        console.error("2. Web Dynamic Map API is enabled in NCP console");
-        console.error("3. Domain is registered in NCP Application settings");
-        setMapError("네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요.");
+        setMapError(
+          "네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요."
+        );
       };
 
     let attempts = 0;
-    const maxAttempts = 50; // 5 seconds max
+    const maxAttempts = 100; // 10 seconds max (afterInteractive needs more time)
 
     const check = () => {
       attempts++;
-      if (typeof naver !== "undefined" && naver.maps) {
+      if (
+        typeof window !== "undefined" &&
+        typeof (window as unknown as { naver?: { maps?: unknown } }).naver !==
+          "undefined" &&
+        (window as unknown as { naver: { maps?: unknown } }).naver.maps
+      ) {
         setMapReady(true);
       } else if (attempts >= maxAttempts) {
-        setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
+        setMapError(
+          "네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요."
+        );
       } else {
         setTimeout(check, 100);
       }
@@ -78,10 +128,20 @@ export default function HomePage() {
     [setSelectedPledge]
   );
 
+  const handleCandidateClick = useCallback((candidate: CandidateForMap) => {
+    setSelectedCandidate(candidate);
+  }, []);
+
   return (
     <div className="relative w-full h-[calc(100vh-3.5rem)]">
       {mapReady ? (
-        <NaverMap pledges={pledges} onPledgeClick={handlePledgeClick} />
+        <NaverMap
+          pledges={pledges}
+          candidates={candidates}
+          districts={districts}
+          onPledgeClick={handlePledgeClick}
+          onCandidateClick={handleCandidateClick}
+        />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-background">
           <div className="text-center">
@@ -92,7 +152,8 @@ export default function HomePage() {
                 </div>
                 <p className="text-sm text-red-600 max-w-xs">{mapError}</p>
                 <p className="text-xs text-muted mt-2">
-                  Client ID: {process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.slice(0, 4)}***
+                  Client ID:{" "}
+                  {process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.slice(0, 4)}***
                 </p>
               </>
             ) : (
@@ -106,6 +167,13 @@ export default function HomePage() {
       )}
 
       <PledgePanel />
+
+      {selectedCandidate && (
+        <CandidatePopup
+          candidate={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+        />
+      )}
     </div>
   );
 }

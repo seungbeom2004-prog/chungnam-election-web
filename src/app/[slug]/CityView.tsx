@@ -2,14 +2,15 @@
 
 /**
  * CityView – renders the full pledge map pre-centred on a specific district.
- * It reuses the same NaverMap + PledgePanel as the home page, but seeds the
- * Zustand map store with the district's coordinates on first mount.
+ * Shows both pledge markers and candidate profile markers for the city.
  */
 import { useEffect, useState, useCallback } from "react";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
+import CandidatePopup from "@/components/map/CandidatePopup";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
+import type { CandidateForMap, DistrictCoords } from "@/app/page";
 
 interface DistrictInfo {
   name: string;
@@ -26,8 +27,13 @@ const CITY_ZOOM = 6; // store level 6 → naverZoom 15 ≈ city scale
 
 export default function CityView({ district }: Props) {
   const [pledges, setPledges] = useState<Pledge[]>([]);
+  const [candidates, setCandidates] = useState<CandidateForMap[]>([]);
+  const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<CandidateForMap | null>(null);
+
   const { setCenter, setZoomLevel, setSelectedDistrict, setSelectedPledge } =
     useMapStore();
 
@@ -38,9 +44,11 @@ export default function CityView({ district }: Props) {
     setSelectedDistrict(district.name);
   }, [district, setCenter, setZoomLevel, setSelectedDistrict]);
 
-  // Fetch all visible pledges (optionally filtered by district via API)
+  // Fetch pledges for this district
   useEffect(() => {
-    fetch(`/api/pledges?limit=1000&district=${encodeURIComponent(district.name)}`)
+    fetch(
+      `/api/pledges?limit=1000&district=${encodeURIComponent(district.name)}`
+    )
       .then((res) => res.json())
       .then((json) => {
         const data = json.data ?? json;
@@ -48,6 +56,54 @@ export default function CityView({ district }: Props) {
       })
       .catch(console.error);
   }, [district.name]);
+
+  // Fetch candidates for this district
+  useEffect(() => {
+    fetch(
+      `/api/candidates?limit=200&district=${encodeURIComponent(district.name)}`
+    )
+      .then((res) => res.json())
+      .then((json) => {
+        const data: Array<{
+          id: string;
+          name: string;
+          district: string;
+          profileImage: string | null;
+          electionType: string | null;
+          candidateStatus: string;
+          election?: { id: string; name: string } | null;
+        }> = json.data ?? [];
+        setCandidates(
+          data.map((c) => ({
+            id: c.id,
+            name: c.name,
+            district: c.district,
+            profileImage: c.profileImage,
+            electionType: c.electionType ?? null,
+            electionName: c.election?.name ?? null,
+            candidateStatus: c.candidateStatus ?? "",
+          }))
+        );
+      })
+      .catch(console.error);
+  }, [district.name]);
+
+  // Fetch all districts for candidate marker coordinates
+  useEffect(() => {
+    fetch("/api/districts")
+      .then((res) => res.json())
+      .then((json) => {
+        const data: DistrictCoords[] = (json.data ?? []).map(
+          (d: { name: string; centerLat: number; centerLng: number }) => ({
+            name: d.name,
+            centerLat: d.centerLat,
+            centerLng: d.centerLng,
+          })
+        );
+        setDistricts(data);
+      })
+      .catch(console.error);
+  }, []);
 
   // Wait for Naver Maps SDK
   useEffect(() => {
@@ -59,9 +115,14 @@ export default function CityView({ district }: Props) {
     let attempts = 0;
     const check = () => {
       attempts++;
-      if (typeof naver !== "undefined" && naver.maps) {
+      if (
+        typeof window !== "undefined" &&
+        typeof (window as unknown as { naver?: { maps?: unknown } }).naver !==
+          "undefined" &&
+        (window as unknown as { naver: { maps?: unknown } }).naver.maps
+      ) {
         setMapReady(true);
-      } else if (attempts >= 50) {
+      } else if (attempts >= 100) {
         setMapError("네이버 지도 SDK를 불러올 수 없습니다.");
       } else {
         setTimeout(check, 100);
@@ -75,10 +136,21 @@ export default function CityView({ district }: Props) {
     [setSelectedPledge]
   );
 
+  const handleCandidateClick = useCallback(
+    (candidate: CandidateForMap) => setSelectedCandidate(candidate),
+    []
+  );
+
   return (
     <div className="relative w-full h-[calc(100vh-3.5rem)]">
       {mapReady ? (
-        <NaverMap pledges={pledges} onPledgeClick={handlePledgeClick} />
+        <NaverMap
+          pledges={pledges}
+          candidates={candidates}
+          districts={districts}
+          onPledgeClick={handlePledgeClick}
+          onCandidateClick={handleCandidateClick}
+        />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-background">
           <div className="text-center">
@@ -107,6 +179,13 @@ export default function CityView({ district }: Props) {
       </div>
 
       <PledgePanel />
+
+      {selectedCandidate && (
+        <CandidatePopup
+          candidate={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+        />
+      )}
     </div>
   );
 }
