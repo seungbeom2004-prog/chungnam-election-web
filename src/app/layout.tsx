@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 import AuthProvider from "@/components/layout/AuthProvider";
+import DisclaimerModal from "@/components/layout/DisclaimerModal";
 
 export const metadata: Metadata = {
   title: "개혁 충남 | 우리 동네 공약 지도",
@@ -40,8 +42,10 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
         <AuthProvider>
+          <DisclaimerModal />
           <Navbar />
           <main>{children}</main>
+          <Footer />
         </AuthProvider>
       </body>
     </html>

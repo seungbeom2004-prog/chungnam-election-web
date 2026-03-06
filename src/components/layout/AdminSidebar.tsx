@@ -85,6 +85,27 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/security",
+    label: "보안 리포트",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M10 2l6 3v5c0 4.5-2.5 7.5-6 9-3.5-1.5-6-4.5-6-9V5l6-3z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M10 8v3M10 14h.01"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "관리자 설정",
     icon: (

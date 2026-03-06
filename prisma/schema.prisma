@@ -47,6 +47,7 @@ model Pledge {
   longitude   Float
   address     String?
   visible     Boolean   @default(true)
+  pledgeType  String    @default("map") // "map" | "bylaws"
   candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
@@ -54,6 +55,7 @@ model Pledge {
 
   @@index([candidateId])
   @@index([visible])
+  @@index([pledgeType])
 }
 
 model District {

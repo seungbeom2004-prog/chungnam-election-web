@@ -43,6 +43,7 @@ export interface Pledge {
   longitude: number;
   address: string | null;
   visible: boolean;
+  pledgeType: "map" | "bylaws";
   candidateId: string;
   categoryId: string | null;
   candidate?: Candidate;

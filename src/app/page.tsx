@@ -129,9 +129,9 @@ export default function HomePage() {
     ? candidates.filter((c) => c.district === selectedDistrict || c.district.startsWith(selectedDistrict)).length
     : candidates.length;
 
-  // Fetch all pledges
+  // Fetch map pledges only (exclude bylaws — those show on candidate profiles)
   useEffect(() => {
-    fetch("/api/pledges?limit=1000")
+    fetch("/api/pledges?limit=1000&pledgeType=map")
       .then((res) => res.json())
       .then((json) => {
         const data = json.data ?? json;

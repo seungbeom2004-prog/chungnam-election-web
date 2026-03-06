@@ -95,15 +95,33 @@ export default function ProfilePage() {
       });
   }, [candidateId]);
 
-  // Load wards when currentGun changes and election is ward-level
+  // Load wards when currentGun changes and election is ward-level.
+  // Try synced DB data first (/api/districts/wards), fall back to NEC API.
   useEffect(() => {
     if (!isWardLevel || !currentGun) { setWards([]); setSelectedWard(""); return; }
     setLoadingWards(true);
-    fetch(`/api/nec?type=wards&wiwName=${encodeURIComponent(currentGun)}`)
+
+    fetch(`/api/districts/wards?parent=${encodeURIComponent(currentGun)}`)
       .then((r) => r.json())
-      .then((json) => setWards(json.data ?? []))
-      .catch(() => setWards([]))
-      .finally(() => setLoadingWards(false));
+      .then((json) => {
+        const dbWards = json.data ?? [];
+        if (dbWards.length > 0) {
+          setWards(dbWards);
+          setLoadingWards(false);
+        } else {
+          // Fallback: query NEC API directly
+          return fetch(`/api/nec?type=wards&wiwName=${encodeURIComponent(currentGun)}`)
+            .then((r2) => r2.json())
+            .then((json2) => { setWards(json2.data ?? []); setLoadingWards(false); });
+        }
+      })
+      .catch(() => {
+        fetch(`/api/nec?type=wards&wiwName=${encodeURIComponent(currentGun)}`)
+          .then((r) => r.json())
+          .then((json) => setWards(json.data ?? []))
+          .catch(() => setWards([]))
+          .finally(() => setLoadingWards(false));
+      });
   }, [currentGun, isWardLevel]);
 
   // Save district (구시군 + ward combined)

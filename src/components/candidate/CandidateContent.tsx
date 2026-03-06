@@ -14,6 +14,7 @@ interface PledgeData {
   longitude: number;
   address: string | null;
   createdAt: string;
+  pledgeType?: string;
 }
 
 interface CandidateContentProps {
@@ -23,11 +24,13 @@ interface CandidateContentProps {
     district: string;
     bio: string | null;
     pledges: PledgeData[];
+    bylaws?: PledgeData[];
   };
 }
 
 export default function CandidateContent({ candidate }: CandidateContentProps) {
-  const [activeView, setActiveView] = useState<"list" | "map">("list");
+  const hasBylaws = (candidate.bylaws?.length ?? 0) > 0;
+  const [activeView, setActiveView] = useState<"list" | "bylaws" | "map">("list");
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-8">
@@ -50,8 +53,20 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               : "text-muted hover:text-foreground"
           }`}
         >
-          목록 보기
+          공약 목록
         </button>
+        {hasBylaws && (
+          <button
+            onClick={() => setActiveView("bylaws")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeView === "bylaws"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            조례
+          </button>
+        )}
         <button
           onClick={() => setActiveView("map")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -76,6 +91,30 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               <PledgeCard key={pledge.id} pledge={pledge} />
             ))
           )}
+        </div>
+      ) : activeView === "bylaws" ? (
+        <div className="space-y-3 max-w-2xl">
+          {(candidate.bylaws ?? []).map((b) => (
+            <div
+              key={b.id}
+              className="p-5 border border-border rounded-xl bg-surface"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground text-sm">{b.title}</h3>
+                  <p className="text-sm text-muted mt-2 leading-relaxed whitespace-pre-wrap">
+                    {b.description}
+                  </p>
+                  {b.budget && (
+                    <p className="text-xs text-primary font-medium mt-2">{b.budget}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="h-[500px] rounded-xl overflow-hidden border border-border">

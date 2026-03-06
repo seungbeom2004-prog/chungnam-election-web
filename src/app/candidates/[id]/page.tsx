@@ -39,12 +39,40 @@ export default async function CandidateProfilePage({ params }: Props) {
 
   if (!candidate) notFound();
 
+  // Fetch map pledges
   const { data: pledges } = await supabase
     .from("Pledge")
-    .select("id, title, description, budget, imageUrl, latitude, longitude, address, createdAt")
+    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt")
     .eq("candidateId", id)
     .eq("visible", true)
+    .eq("pledgeType", "map")
     .order("createdAt", { ascending: false });
+
+  // Fetch bylaws pledges
+  const { data: bylawsPledges } = await supabase
+    .from("Pledge")
+    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt")
+    .eq("candidateId", id)
+    .eq("visible", true)
+    .eq("pledgeType", "bylaws")
+    .order("createdAt", { ascending: false });
+
+  const mapPledge = (p: {
+    id: string; title: string; description: string; budget: string | null;
+    imageUrl: string | null; latitude: number; longitude: number;
+    address: string | null; pledgeType?: string; createdAt: string;
+  }) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    budget: p.budget,
+    imageUrl: p.imageUrl,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    address: p.address,
+    pledgeType: p.pledgeType,
+    createdAt: p.createdAt,
+  });
 
   const candidateData = {
     id: candidate.id,
@@ -54,17 +82,8 @@ export default async function CandidateProfilePage({ params }: Props) {
     slogan: candidate.slogan,
     bio: candidate.bio,
     party: candidate.party,
-    pledges: (pledges ?? []).map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      budget: p.budget,
-      imageUrl: p.imageUrl,
-      latitude: p.latitude,
-      longitude: p.longitude,
-      address: p.address,
-      createdAt: p.createdAt,
-    })),
+    pledges: (pledges ?? []).map(mapPledge),
+    bylaws: (bylawsPledges ?? []).map(mapPledge),
   };
 
   return (

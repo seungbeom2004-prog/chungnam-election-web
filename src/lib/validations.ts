@@ -27,6 +27,7 @@ export const createPledgeSchema = z.object({
   longitude: z.number().min(-180).max(180, "올바른 경도를 입력하세요"),
   address: z.string().max(200).optional().nullable(),
   categoryId: z.string().optional().nullable(),
+  pledgeType: z.enum(["map", "bylaws"]).default("map"),
 });
 
 export const updatePledgeSchema = createPledgeSchema.partial().extend({

@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
+    const pledgeType = searchParams.get("pledgeType"); // "map" | "bylaws" | null (all)
+
     let query = supabase
       .from("Pledge")
       .select("*, candidate:Candidate!candidateId(id, name, district, profileImage), category:Category!categoryId(id, name, emoji, color)", { count: "exact" })
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (candidateId) query = query.eq("candidateId", candidateId);
     if (district) query = query.eq("candidate.district", district);
+    if (pledgeType) query = query.eq("pledgeType", pledgeType);
 
     const { data: pledges, count, error } = await query;
 
