@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import AuthProvider from "@/components/layout/AuthProvider";
@@ -30,6 +31,14 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        {/* Naver Maps SDK — loaded via next/script beforeInteractive so it's
+            available in <head> BEFORE React hydration. No crossOrigin attribute
+            (Naver CDN doesn't send CORS headers → crossOrigin="anonymous" causes
+            Chrome incognito to block the script entirely). */}
+        <Script
+          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
+          strategy="beforeInteractive"
+        />
         <AuthProvider>
           <Navbar />
           <main>{children}</main>

@@ -19,17 +19,18 @@ const SECURITY_HEADERS = [
     value: "max-age=63072000; includeSubDomains; preload",
   },
   // Content-Security-Policy: allow self + Naver Maps + Supabase
-  // 'unsafe-eval' is REQUIRED — the Naver Maps SDK uses eval() / new Function() internally;
-  // without it the script loads but the Map constructor fails silently in Chrome incognito.
+  // 'unsafe-eval' is REQUIRED — the Naver Maps SDK uses eval() / new Function() internally.
+  // Naver Maps loads sub-resources from many domains (pstatic.net, naver.com, naver.net,
+  // navercorp.com) — we use broad wildcards to avoid breakage in Chrome incognito.
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://oapi.map.naver.com https://nrbe.map.naver.net https://*.naver.com https://*.naver.net",
-      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-      "font-src 'self' https://cdn.jsdelivr.net",
-      "img-src 'self' data: blob: https: http: http://static.naver.net http://nrbe.map.naver.net",
-      "connect-src 'self' https://*.supabase.co https://oapi.map.naver.com https://nrbe.map.naver.net http://nrbe.map.naver.net https://*.naver.com https://*.naver.net http://*.naver.net https://kr-col-ext.nelo.navercorp.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://oapi.map.naver.com https://*.naver.com https://*.naver.net https://*.pstatic.net https://*.navercorp.com",
+      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.pstatic.net",
+      "font-src 'self' https://cdn.jsdelivr.net https://*.pstatic.net",
+      "img-src 'self' data: blob: https: http:",
+      "connect-src 'self' https://*.supabase.co https://*.naver.com https://*.naver.net https://*.pstatic.net https://*.navercorp.com http://*.naver.net",
       "worker-src 'self' blob:",
       "frame-src 'none'",
     ].join("; "),

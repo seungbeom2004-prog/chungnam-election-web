@@ -190,21 +190,16 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  // Dynamically load Naver Maps SDK — robust for Chrome incognito
+  // Wait for Naver Maps SDK (loaded by next/script in layout.tsx).
+  // Just poll for readiness — no dynamic script injection needed.
   useEffect(() => {
-    const SCRIPT_ID = "__naver_map_sdk__";
-    const SDK_URL = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
-    let retryCount = 0;
-    let retryTimer: ReturnType<typeof setTimeout>;
-    let pollTimer: ReturnType<typeof setInterval>;
-
+    // Auth failure callback — Naver SDK calls this if the API key is invalid
     (window as unknown as Record<string, unknown>).navermap_authFailure = function () {
       setMapError(
         "네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요."
       );
     };
 
-    // Check if SDK is FULLY loaded (Map constructor available, not just namespace)
     const isSdkReady = () => {
       try {
         const w = window as unknown as { naver?: { maps?: { Map?: unknown } } };
@@ -217,57 +212,19 @@ export default function HomePage() {
       return;
     }
 
-    const loadScript = () => {
-      // Remove any previous broken script tag
-      const old = document.getElementById(SCRIPT_ID);
-      if (old) old.remove();
+    // Poll every 200ms for up to 15 seconds (75 polls)
+    let polls = 0;
+    const timer = setInterval(() => {
+      if (isSdkReady()) {
+        clearInterval(timer);
+        setMapReady(true);
+      } else if (++polls > 75) {
+        clearInterval(timer);
+        setMapError("네이버 지도 SDK를 불러올 수 없습니다. 페이지를 새로고침 해주세요.");
+      }
+    }, 200);
 
-      const script = document.createElement("script");
-      script.id = SCRIPT_ID;
-      script.src = SDK_URL;
-      script.async = true;
-      // crossOrigin is critical for Chrome incognito CORS enforcement
-      script.crossOrigin = "anonymous";
-
-      script.onload = () => {
-        // Script loaded but SDK might not be fully initialized yet.
-        // Poll for naver.maps.Map constructor (up to 5 seconds).
-        let polls = 0;
-        pollTimer = setInterval(() => {
-          if (isSdkReady()) {
-            clearInterval(pollTimer);
-            setMapReady(true);
-          } else if (++polls > 50) {
-            clearInterval(pollTimer);
-            // Retry the whole script load
-            if (retryCount < 2) {
-              retryCount++;
-              retryTimer = setTimeout(loadScript, 1000);
-            } else {
-              setMapError("네이버 지도 SDK 초기화에 실패했습니다. 페이지를 새로고침 해주세요.");
-            }
-          }
-        }, 100);
-      };
-
-      script.onerror = () => {
-        if (retryCount < 2) {
-          retryCount++;
-          retryTimer = setTimeout(loadScript, 1500);
-        } else {
-          setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
-        }
-      };
-
-      document.head.appendChild(script);
-    };
-
-    loadScript();
-
-    return () => {
-      clearTimeout(retryTimer);
-      clearInterval(pollTimer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   const handlePledgeClick = useCallback(
