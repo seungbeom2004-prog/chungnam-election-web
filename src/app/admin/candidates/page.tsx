@@ -42,6 +42,15 @@ type FilterTab = "pending" | "approved" | "all";
 
 const CANDIDATE_STATUSES = ["출마예정자", "예비후보자", "후보자"];
 const CAUCUS_STATUSES = ["공천 미확정", "공천 확정"];
+
+/** Returns true for election types that subdivide a 구시군 into named wards */
+function isWardLevelType(type: string | null): boolean {
+  return type === "구·시·군의회의원선거" || type === "시·도의회의원선거";
+}
+/** NEC list endpoint name based on election level */
+function necWardLevel(type: string | null): "wiw1" | "wiw2" {
+  return type === "시·도의회의원선거" ? "wiw1" : "wiw2";
+}
 const ELECTION_TYPES = [
   "시도지사선거",
   "교육감선거",
@@ -84,6 +93,10 @@ export default function AdminCandidatesPage() {
   // Per-candidate temporary pin values (for the map picker)
   const [tempPins, setTempPins] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
 
+  // Ward list for the currently-expanded candidate (only one expanded at a time)
+  const [expandedWards, setExpandedWards] = useState<{ electCode: string; electName: string }[]>([]);
+  const [expandedWardsLoading, setExpandedWardsLoading] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -113,6 +126,30 @@ export default function AdminCandidatesPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Load ward list whenever the expanded candidate changes
+  // (triggered by expandedId, electionType change, or district/gun change)
+  useEffect(() => {
+    const expanded = candidates.find((c) => c.id === expandedId) ?? null;
+    if (!expanded || !isWardLevelType(expanded.electionType)) {
+      setExpandedWards([]);
+      return;
+    }
+    const spaceIdx = (expanded.district ?? "").indexOf(" ");
+    const gun = spaceIdx > -1
+      ? expanded.district.slice(0, spaceIdx)
+      : expanded.district || "";
+    if (!gun) { setExpandedWards([]); return; }
+
+    setExpandedWardsLoading(true);
+    const level = necWardLevel(expanded.electionType);
+    fetch(`/api/districts/wards?parent=${encodeURIComponent(gun)}&level=${level}`)
+      .then((r) => r.json())
+      .then((json) => setExpandedWards(json.data ?? []))
+      .catch(() => setExpandedWards([]))
+      .finally(() => setExpandedWardsLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedId, candidates]);
 
   const handleVerify = async (candidateId: string, verified: boolean) => {
     setActionLoading(candidateId + "verify");
@@ -294,6 +331,14 @@ export default function AdminCandidatesPage() {
               actionLoading === candidate.id + suffix;
             const anyLoading = actionLoading?.startsWith(candidate.id);
 
+            // Parse gun / ward from the stored district value
+            // e.g. "천안시동남구 다선거구" → gun="천안시동남구", ward="다선거구"
+            const distSpaceIdx = (candidate.district ?? "").indexOf(" ");
+            const candidateGun = isWardLevelType(candidate.electionType)
+              ? (distSpaceIdx > -1 ? candidate.district.slice(0, distSpaceIdx) : candidate.district || "")
+              : candidate.district || "";
+            const candidateWard = distSpaceIdx > -1 ? candidate.district.slice(distSpaceIdx + 1) : "";
+
             // Determine district center for map
             const districtInfo = districts.find((d) => d.name === candidate.district)
               ?? districts.find((d) => candidate.district?.startsWith(d.name));
@@ -454,25 +499,94 @@ export default function AdminCandidatesPage() {
                         </select>
                       </div>
 
-                      {/* District — from NEC API */}
-                      <div>
-                        <label className="block text-xs font-medium text-muted mb-1">
-                          선거구
-                        </label>
-                        <select
-                          value={candidate.district}
-                          onChange={(e) =>
-                            handleFieldChange(candidate.id, "district", e.target.value)
-                          }
-                          disabled={!!anyLoading}
-                          className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                        >
-                          <option value="">선거구 미지정</option>
-                          {districts.map((d) => (
-                            <option key={d.name} value={d.name}>{d.name}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {/* District — single select for non-ward elections; cascaded for ward-level */}
+                      {isWardLevelType(candidate.electionType) ? (
+                        <>
+                          {/* Step 1: 구시군 */}
+                          <div>
+                            <label className="block text-xs font-medium text-muted mb-1">
+                              구시군
+                            </label>
+                            <select
+                              value={candidateGun}
+                              onChange={(e) =>
+                                handleFieldChange(candidate.id, "district", e.target.value)
+                              }
+                              disabled={!!anyLoading}
+                              className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                            >
+                              <option value="">구시군 미지정</option>
+                              {districts.map((d) => (
+                                <option key={d.name} value={d.name}>{d.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Step 2: 세부 선거구 */}
+                          <div>
+                            <label className="block text-xs font-medium text-muted mb-1">
+                              세부 선거구{" "}
+                              <span className="font-normal text-muted/60">
+                                ({candidate.electionType === "시·도의회의원선거"
+                                  ? "광역의원 · 제1/2/3선거구"
+                                  : "기초의원 · 가/나/다선거구"})
+                              </span>
+                            </label>
+                            {expandedWardsLoading ? (
+                              <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
+                                선거구 불러오는 중...
+                              </div>
+                            ) : !candidateGun ? (
+                              <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
+                                먼저 구시군을 선택하세요
+                              </div>
+                            ) : expandedWards.length > 0 ? (
+                              <select
+                                value={candidateWard}
+                                onChange={(e) =>
+                                  handleFieldChange(
+                                    candidate.id,
+                                    "district",
+                                    `${candidateGun} ${e.target.value}`
+                                  )
+                                }
+                                disabled={!!anyLoading}
+                                className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                              >
+                                <option value="">세부 선거구 선택</option>
+                                {expandedWards.map((w) => (
+                                  <option key={w.electCode} value={w.electName}>
+                                    {w.electName}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="px-2.5 py-1.5 text-xs text-amber-700 border border-amber-200 rounded-lg bg-amber-50/60">
+                                선거구 정보 없음 — 관리자 설정에서 세부선거구 동기화 필요
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <label className="block text-xs font-medium text-muted mb-1">
+                            선거구
+                          </label>
+                          <select
+                            value={candidate.district}
+                            onChange={(e) =>
+                              handleFieldChange(candidate.id, "district", e.target.value)
+                            }
+                            disabled={!!anyLoading}
+                            className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                          >
+                            <option value="">선거구 미지정</option>
+                            {districts.map((d) => (
+                              <option key={d.name} value={d.name}>{d.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
                       {/* Election */}
                       <div>

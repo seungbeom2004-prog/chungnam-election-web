@@ -28,6 +28,11 @@ interface NecWardItem {
 export async function GET(request: NextRequest) {
   const parent = request.nextUrl.searchParams.get("parent");
   const wiwCode = request.nextUrl.searchParams.get("wiwCode") || "";
+  // "wiw1" → 시·도의회의원선거 (광역의원 선거구: 제1/2/3선거구)
+  // "wiw2" → 구·시·군의회의원선거 (기초의원 선거구: 가/나/다선거구)  ← default
+  const level = request.nextUrl.searchParams.get("level") || "wiw2";
+  const necListEndpoint =
+    level === "wiw1" ? "getCommonWiw1CodeList" : "getCommonWiw2CodeList";
 
   if (!parent) {
     return NextResponse.json(
@@ -113,7 +118,7 @@ export async function GET(request: NextRequest) {
   // ── 3) Fallback to NEC API ──────────────────────────────────────
   try {
     // Build URL — always include wiwCode if we have it
-    const necUrl = `${NEC_BASE_URL}/getCommonWiw2CodeList?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${resolvedWiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`;
+    const necUrl = `${NEC_BASE_URL}/${necListEndpoint}?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${resolvedWiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`;
 
     const necRes = await fetch(necUrl, { cache: "no-store" });
     const necJson = await necRes.json();

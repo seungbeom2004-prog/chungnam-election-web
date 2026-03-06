@@ -55,8 +55,12 @@ export default function ProfilePage() {
   const [loadingWards, setLoadingWards] = useState(false);
   const [districtMessage, setDistrictMessage] = useState("");
 
+  // Both 구·시·군의회의원선거 (기초의원: 가/나/다선거구) and
+  // 시·도의회의원선거 (광역의원: 제1/2/3선거구) have ward-level subdivisions.
   const isWardLevel =
-    electionType.includes("의회의원선거") && !electionType.includes("시·도의회");
+    electionType === "구·시·군의회의원선거" || electionType === "시·도의회의원선거";
+  // wiw1 = 광역의원 선거구, wiw2 = 기초의원 선거구 (default)
+  const wardApiLevel = electionType === "시·도의회의원선거" ? "wiw1" : "wiw2";
 
   // Load all NEC districts for the 구시군 dropdown
   useEffect(() => {
@@ -95,20 +99,24 @@ export default function ProfilePage() {
       });
   }, [candidateId]);
 
-  // Load wards when currentGun changes and election is ward-level.
+  // Load wards when currentGun or electionType changes and election is ward-level.
+  // Passes level=wiw1 for 시·도의회의원선거, wiw2 (default) for 구·시·군의회의원선거.
   // Uses unified /api/districts/wards endpoint (DB first, NEC API fallback).
   useEffect(() => {
-    if (!isWardLevel || !currentGun) { setWards([]); setSelectedWard(""); return; }
+    const wardLevel =
+      electionType === "구·시·군의회의원선거" || electionType === "시·도의회의원선거";
+    if (!wardLevel || !currentGun) { setWards([]); setSelectedWard(""); return; }
     setLoadingWards(true);
 
-    fetch(`/api/districts/wards?parent=${encodeURIComponent(currentGun)}`)
+    const level = electionType === "시·도의회의원선거" ? "wiw1" : "wiw2";
+    fetch(`/api/districts/wards?parent=${encodeURIComponent(currentGun)}&level=${level}`)
       .then((r) => r.json())
       .then((json) => {
         setWards(json.data ?? []);
       })
       .catch(() => setWards([]))
       .finally(() => setLoadingWards(false));
-  }, [currentGun, isWardLevel]);
+  }, [currentGun, electionType]);
 
   // Save district (구시군 + ward combined)
   const handleDistrictSave = async () => {
