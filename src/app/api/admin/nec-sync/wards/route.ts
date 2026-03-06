@@ -39,16 +39,22 @@ async function fetchChungnamDistricts(): Promise<NecGusigunItem[]> {
   return all.filter((item) => item.sdName === "충청남도");
 }
 
-/** Fetch wards for a single district from NEC */
+/** Fetch wards for a single district from NEC (returns [] on any error) */
 async function fetchWards(wiwCode: string): Promise<NecWardItem[]> {
-  const res = await fetch(
-    `${NEC_BASE_URL}/getCommonWiw2CodeList?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${wiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`,
-    { cache: "no-store" }
-  );
-  const json = await res.json();
-  const items = json?.response?.body?.items?.item;
-  const arr: NecWardItem[] = Array.isArray(items) ? items : items ? [items] : [];
-  return arr.filter((w) => w.sdName === "충청남도" && w.wiwCode === wiwCode);
+  try {
+    const res = await fetch(
+      `${NEC_BASE_URL}/getCommonWiw2CodeList?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${wiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const items = json?.response?.body?.items?.item;
+    const arr: NecWardItem[] = Array.isArray(items) ? items : items ? [items] : [];
+    return arr.filter((w) => w.sdName === "충청남도" && w.wiwCode === wiwCode);
+  } catch {
+    // NEC API error or non-JSON response (e.g. election data not yet published)
+    return [];
+  }
 }
 
 /**
