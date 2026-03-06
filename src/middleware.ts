@@ -135,7 +135,7 @@ const SUSPICIOUS_PATHS = [
   /\.backup$/i,
   /etc\/passwd/i,
   /\/\.well-known\/.*\.(php|asp|jsp)/i,
-  /\/(cgi-bin|admin|administrator|manager)/i,
+  /\/(cgi-bin|administrator|manager)\b/i,
 ];
 
 function isSuspiciousPath(path: string): boolean {
