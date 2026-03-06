@@ -54,6 +54,8 @@ export default function ProfilePage() {
   const [wards, setWards] = useState<{ electCode: string; electName: string }[]>([]);
   const [loadingWards, setLoadingWards] = useState(false);
   const [districtMessage, setDistrictMessage] = useState("");
+  const [manualDistrictMode, setManualDistrictMode] = useState(false);
+  const [manualDistrictText, setManualDistrictText] = useState("");
 
   // Both 구·시·군의회의원선거 (기초의원: 가/나/다선거구) and
   // 시·도의회의원선거 (광역의원: 제1/2/3선거구) have ward-level subdivisions.
@@ -96,6 +98,7 @@ export default function ProfilePage() {
           setCurrentGun(district);
           setSelectedWard("");
         }
+        setManualDistrictText(district);
       });
   }, [candidateId]);
 
@@ -118,12 +121,14 @@ export default function ProfilePage() {
       .finally(() => setLoadingWards(false));
   }, [currentGun, electionType]);
 
-  // Save district (구시군 + ward combined)
+  // Save district (구시군 + ward combined, or manual text)
   const handleDistrictSave = async () => {
     if (!candidateId) return;
-    const newDistrict = isWardLevel && selectedWard
-      ? `${currentGun} ${selectedWard}`
-      : currentGun;
+    const newDistrict = manualDistrictMode
+      ? manualDistrictText.trim()
+      : isWardLevel && selectedWard
+        ? `${currentGun} ${selectedWard}`
+        : currentGun;
     if (!newDistrict) return;
     setDistrictMessage("");
     try {
@@ -340,72 +345,143 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* NEC cascade district selector: 시도(fixed) → 구시군 → 선거구 */}
+          {/* NEC cascade district selector: 시도(fixed) → 구시군 → 선거구
+              A "직접 입력" toggle switches to a free-text input for manual entry. */}
           <div className="border border-border rounded-lg p-3 bg-surface/50 space-y-3">
-            <p className="text-sm font-medium text-foreground">선거구 설정</p>
-
-            {/* 시도 — fixed to 충청남도 */}
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1">시도</label>
-              <div className="px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground/70 select-none">
-                충청남도
-              </div>
-            </div>
-
-            {/* 구시군 dropdown */}
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1">구시군</label>
-              <select
-                value={currentGun}
-                onChange={(e) => { setCurrentGun(e.target.value); setSelectedWard(""); }}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-foreground">선거구 설정</p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!manualDistrictMode) {
+                    // pre-fill with current combined value before switching
+                    const cur = isWardLevel && selectedWard
+                      ? `${currentGun} ${selectedWard}`
+                      : currentGun;
+                    setManualDistrictText(cur);
+                  }
+                  setManualDistrictMode((m) => !m);
+                  setDistrictMessage("");
+                }}
+                className="text-xs text-primary hover:underline"
               >
-                <option value="">구시군을 선택하세요</option>
-                {allDistricts.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
-              </select>
+                {manualDistrictMode ? "드롭다운으로 전환" : "직접 입력"}
+              </button>
             </div>
 
-            {/* 선거구 dropdown — only for ward-level elections */}
-            {isWardLevel && currentGun && (
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">
-                  선거구 <span className="text-muted/60 font-normal">(출처: 중앙선관위 · 제9회 전국동시지방선거)</span>
-                </label>
-                {loadingWards ? (
-                  <div className="px-3 py-2 text-xs text-muted border border-border rounded-lg bg-surface/50">
-                    선거구 불러오는 중...
+            {manualDistrictMode ? (
+              /* ── Manual entry mode ─────────────────────────────────────────── */
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">
+                    선거구 직접 입력
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 천안시동남구 다선거구, 공주시"
+                    value={manualDistrictText}
+                    onChange={(e) => setManualDistrictText(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                  <p className="text-xs text-muted mt-1">
+                    선거구 이름을 정확히 입력하세요. 이 값이 지도 후보자 박스와 프로필에 표시됩니다.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-muted">
+                    입력: <span className="text-foreground">{manualDistrictText || "—"}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleDistrictSave}
+                    disabled={!manualDistrictText.trim()}
+                  >
+                    선거구 저장
+                  </Button>
+                </div>
+              </>
+            ) : (
+              /* ── Cascaded dropdown mode ─────────────────────────────────────── */
+              <>
+                {/* 시도 — fixed to 충청남도 */}
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">시도</label>
+                  <div className="px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground/70 select-none">
+                    충청남도
                   </div>
-                ) : wards.length > 0 ? (
+                </div>
+
+                {/* 구시군 dropdown */}
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">구시군</label>
                   <select
-                    value={selectedWard}
-                    onChange={(e) => setSelectedWard(e.target.value)}
+                    value={currentGun}
+                    onChange={(e) => { setCurrentGun(e.target.value); setSelectedWard(""); }}
                     className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   >
-                    <option value="">선거구를 선택하세요</option>
-                    {wards.map((w) => <option key={w.electCode} value={w.electName}>{w.electName}</option>)}
+                    <option value="">구시군을 선택하세요</option>
+                    {allDistricts.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
                   </select>
-                ) : (
-                  <div className="px-3 py-2 text-xs text-muted border border-border rounded-lg bg-surface/50">
-                    선거구 정보를 불러올 수 없습니다. 잠시 후 다시 시도하세요.
+                </div>
+
+                {/* 선거구 dropdown — only for ward-level elections */}
+                {isWardLevel && currentGun && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-muted">
+                        선거구 <span className="text-muted/60 font-normal">(출처: 중앙선관위 · 제9회 전국동시지방선거)</span>
+                      </label>
+                    </div>
+                    {loadingWards ? (
+                      <div className="px-3 py-2 text-xs text-muted border border-border rounded-lg bg-surface/50">
+                        선거구 불러오는 중...
+                      </div>
+                    ) : wards.length > 0 ? (
+                      <select
+                        value={selectedWard}
+                        onChange={(e) => setSelectedWard(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      >
+                        <option value="">선거구를 선택하세요</option>
+                        {wards.map((w) => <option key={w.electCode} value={w.electName}>{w.electName}</option>)}
+                      </select>
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-amber-700 border border-amber-200 rounded-lg bg-amber-50/50">
+                        선거구 정보 없음 —{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualDistrictText(currentGun);
+                            setManualDistrictMode(true);
+                            setDistrictMessage("");
+                          }}
+                          className="underline font-medium hover:text-amber-900"
+                        >
+                          직접 입력하기
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+
+                {/* Save district button */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-muted">
+                    현재: <span className="text-foreground">{currentGun}{isWardLevel && selectedWard ? ` ${selectedWard}` : ""}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleDistrictSave}
+                    disabled={!currentGun || (isWardLevel && !selectedWard)}
+                  >
+                    선거구 저장
+                  </Button>
+                </div>
+              </>
             )}
 
-            {/* Save district button */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs text-muted">
-                현재: <span className="text-foreground">{currentGun}{isWardLevel && selectedWard ? ` ${selectedWard}` : ""}</span>
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleDistrictSave}
-                disabled={!currentGun || (isWardLevel && !selectedWard)}
-              >
-                선거구 저장
-              </Button>
-            </div>
             {districtMessage && (
               <p className={`text-xs ${districtMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{districtMessage}</p>
             )}
