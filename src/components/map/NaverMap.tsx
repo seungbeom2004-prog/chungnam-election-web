@@ -140,9 +140,11 @@ export default function NaverMap({
             color: json.data.color || "#FF5A00",
             iconImage: json.data.iconImage || null,
           });
-          // Apply admin-configured default zoom on first load
+          // Apply admin-configured default zoom on first load.
+          // defaultZoom is stored as a Naver zoom value (5=province-wide, 14=street)
+          // matching the admin UI labels, so convert to store level before applying.
           if (json.data.defaultZoom != null) {
-            setZoomLevel(Number(json.data.defaultZoom));
+            setZoomLevel(toStoreLevel(Number(json.data.defaultZoom)));
           }
           // Default district: use admin setting or fall back to 천안시
           setPendingDefaultDistrict(json.data.defaultDistrict || DEFAULT_DISTRICT);

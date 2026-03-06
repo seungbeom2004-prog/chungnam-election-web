@@ -57,11 +57,11 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Validate defaultZoom (integer 3–18)
+    // Validate defaultZoom — stored as Naver zoom value (5=province-wide … 16=street)
     if (defaultZoom !== undefined) {
       const z = Number(defaultZoom);
-      if (!Number.isInteger(z) || z < 3 || z > 18) {
-        return apiError("유효한 배율을 입력하세요 (3~18)", 400);
+      if (!Number.isInteger(z) || z < 5 || z > 16) {
+        return apiError("유효한 배율을 입력하세요 (5~16)", 400);
       }
     }
 

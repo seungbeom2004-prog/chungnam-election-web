@@ -4,18 +4,20 @@ import { useState, useEffect } from "react";
 import { Button, Input } from "@/components/ui";
 import Card from "@/components/ui/Card";
 
-// Zoom level descriptions for display
+// Zoom level descriptions (Naver Maps zoom values — 5=province-wide, 16=street)
 const ZOOM_LABELS: Record<number, string> = {
-  5: "도 전체 (매우 넓게)",
-  6: "도 전체",
-  7: "광역 지역",
-  8: "시군 전체",
-  9: "시군 (기본값)",
+  5:  "전국 수준 (매우 넓게)",
+  6:  "도 전체",
+  7:  "광역 지역",
+  8:  "시군 전체",
+  9:  "시군 (권장 기본값)",
   10: "읍면동 수준",
   11: "상세 지역",
   12: "동네 수준",
   13: "상세 동네",
   14: "골목 수준",
+  15: "건물 수준",
+  16: "매우 상세",
 };
 
 interface DistrictItem {
@@ -303,7 +305,7 @@ export default function AdminSettingsPage() {
                   <input
                     type="range"
                     min={5}
-                    max={14}
+                    max={16}
                     step={1}
                     value={defaultZoom}
                     onChange={(e) => setDefaultZoom(Number(e.target.value))}
@@ -318,7 +320,7 @@ export default function AdminSettingsPage() {
                 </p>
                 <div className="flex justify-between text-[10px] text-muted px-0.5">
                   <span>넓게 (5)</span>
-                  <span>자세히 (14)</span>
+                  <span>자세히 (16)</span>
                 </div>
               </div>
             </div>
