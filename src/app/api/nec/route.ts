@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(
         `${NEC_BASE_URL}/getCommonWiw2CodeList?sgId=${LOCAL_ELECTION_SGID}&wiwCode=${wiwCode}&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`,
-        { next: { revalidate: 86400 } }
+        { cache: "no-store" }
       );
       const json = await res.json();
       const items = json?.response?.body?.items?.item;

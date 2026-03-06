@@ -121,6 +121,7 @@ export default function SignupPage() {
   }, []);
 
   // When district changes and election type is ward-level, fetch wards
+  // Uses unified /api/districts/wards endpoint (DB first, NEC API fallback)
   useEffect(() => {
     if (districtLevel !== "ward" || !district) {
       setWards([]);
@@ -133,9 +134,11 @@ export default function SignupPage() {
 
     setLoadingWards(true);
     setWard("");
-    const params = new URLSearchParams({ type: "wards", wiwCode });
-    if (!wiwCode) params.set("wiwName", district);
-    fetch(`/api/nec?${params.toString()}`)
+
+    const params = new URLSearchParams({ parent: district });
+    if (wiwCode) params.set("wiwCode", wiwCode);
+
+    fetch(`/api/districts/wards?${params.toString()}`)
       .then((r) => r.json())
       .then((json) => {
         setWards(json.data ?? []);
