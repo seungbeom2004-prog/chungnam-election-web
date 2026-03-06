@@ -45,6 +45,53 @@ export default function AdminSettingsPage() {
   const [defaultDistrict, setDefaultDistrict] = useState<string | null>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
 
+  // NEC sync state
+  const [syncingDistricts, setSyncingDistricts] = useState(false);
+  const [syncingWards, setSyncingWards] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+
+  const handleSyncDistricts = async () => {
+    setSyncingDistricts(true);
+    setSyncMessage("");
+    try {
+      const res = await fetch("/api/admin/nec-sync", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setSyncMessage(json.error || "시군구 동기화 실패");
+      } else {
+        setSyncMessage(json.data?.message || `시군구 ${json.data?.synced}건 동기화 완료`);
+        // Refresh district list
+        const distRes = await fetch("/api/districts");
+        const distJson = await distRes.json();
+        setDistricts((distJson.data ?? []).map(
+          (d: { name: string; centerLat: number; centerLng: number }) => ({
+            name: d.name, centerLat: d.centerLat, centerLng: d.centerLng,
+          })
+        ));
+      }
+    } catch {
+      setSyncMessage("네트워크 오류가 발생했습니다.");
+    }
+    setSyncingDistricts(false);
+  };
+
+  const handleSyncWards = async () => {
+    setSyncingWards(true);
+    setSyncMessage("");
+    try {
+      const res = await fetch("/api/admin/nec-sync/wards", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setSyncMessage(json.error || "선거구 동기화 실패");
+      } else {
+        setSyncMessage(json.data?.message || `선거구 ${json.data?.synced}건 동기화 완료`);
+      }
+    } catch {
+      setSyncMessage("네트워크 오류가 발생했습니다.");
+    }
+    setSyncingWards(false);
+  };
+
   useEffect(() => {
     // Fetch current map settings
     fetch("/api/admin/map-settings")
@@ -358,6 +405,72 @@ export default function AdminSettingsPage() {
             </Button>
           </form>
         )}
+      </Card>
+
+      {/* NEC Sync Card */}
+      <Card className="mt-6">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
+          선관위 데이터 동기화
+        </h2>
+        <p className="text-xs text-muted mb-4">
+          중앙선관위 API에서 시군구 및 세부 선거구 정보를 불러와 저장합니다.
+          선거구 동기화 시 &quot;천안시 가선거구&quot; 등 상세 선거구가 자동으로 등록되어
+          후보자의 세부 지역이 지도에 표시됩니다.
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={handleSyncDistricts}
+              disabled={syncingDistricts || syncingWards}
+            >
+              {syncingDistricts ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  시군구 동기화 중...
+                </span>
+              ) : (
+                "시군구 동기화"
+              )}
+            </Button>
+            <span className="text-xs text-muted">충남 시군구 목록 업데이트</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={handleSyncWards}
+              disabled={syncingDistricts || syncingWards}
+            >
+              {syncingWards ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  선거구 동기화 중...
+                </span>
+              ) : (
+                "세부 선거구 동기화"
+              )}
+            </Button>
+            <span className="text-xs text-muted">가·나·다선거구 등 상세 선거구</span>
+          </div>
+
+          {syncMessage && (
+            <p
+              className={`text-sm px-3 py-2 rounded-lg ${
+                syncMessage.includes("실패") || syncMessage.includes("오류")
+                  ? "text-red-500 bg-red-50"
+                  : "text-green-600 bg-green-50"
+              }`}
+            >
+              {syncMessage}
+            </p>
+          )}
+
+          <p className="text-xs text-muted mt-1">
+            출처: 중앙선관위 · 제9회 전국동시지방선거 (2026.06.03)
+          </p>
+        </div>
       </Card>
     </div>
   );

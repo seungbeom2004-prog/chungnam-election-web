@@ -190,9 +190,13 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  // Dynamically load Naver Maps SDK
+  // Dynamically load Naver Maps SDK — robust for Chrome incognito
   useEffect(() => {
     const SCRIPT_ID = "__naver_map_sdk__";
+    const SDK_URL = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
+    let retryCount = 0;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let pollTimer: ReturnType<typeof setInterval>;
 
     (window as unknown as Record<string, unknown>).navermap_authFailure = function () {
       setMapError(
@@ -200,32 +204,70 @@ export default function HomePage() {
       );
     };
 
-    if ((window as unknown as { naver?: { maps?: unknown } }).naver?.maps) {
+    // Check if SDK is FULLY loaded (Map constructor available, not just namespace)
+    const isSdkReady = () => {
+      try {
+        const w = window as unknown as { naver?: { maps?: { Map?: unknown } } };
+        return !!w.naver?.maps && typeof w.naver.maps.Map === "function";
+      } catch { return false; }
+    };
+
+    if (isSdkReady()) {
       setMapReady(true);
       return;
     }
 
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      const onLoad = () => setMapReady(true);
-      const onError = () =>
-        setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
-      existing.addEventListener("load", onLoad);
-      existing.addEventListener("error", onError);
-      return () => {
-        existing.removeEventListener("load", onLoad);
-        existing.removeEventListener("error", onError);
-      };
-    }
+    const loadScript = () => {
+      // Remove any previous broken script tag
+      const old = document.getElementById(SCRIPT_ID);
+      if (old) old.remove();
 
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`;
-    script.async = true;
-    script.onload = () => setMapReady(true);
-    script.onerror = () =>
-      setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
-    document.head.appendChild(script);
+      const script = document.createElement("script");
+      script.id = SCRIPT_ID;
+      script.src = SDK_URL;
+      script.async = true;
+      // crossOrigin is critical for Chrome incognito CORS enforcement
+      script.crossOrigin = "anonymous";
+
+      script.onload = () => {
+        // Script loaded but SDK might not be fully initialized yet.
+        // Poll for naver.maps.Map constructor (up to 5 seconds).
+        let polls = 0;
+        pollTimer = setInterval(() => {
+          if (isSdkReady()) {
+            clearInterval(pollTimer);
+            setMapReady(true);
+          } else if (++polls > 50) {
+            clearInterval(pollTimer);
+            // Retry the whole script load
+            if (retryCount < 2) {
+              retryCount++;
+              retryTimer = setTimeout(loadScript, 1000);
+            } else {
+              setMapError("네이버 지도 SDK 초기화에 실패했습니다. 페이지를 새로고침 해주세요.");
+            }
+          }
+        }, 100);
+      };
+
+      script.onerror = () => {
+        if (retryCount < 2) {
+          retryCount++;
+          retryTimer = setTimeout(loadScript, 1500);
+        } else {
+          setMapError("네이버 지도 SDK를 불러올 수 없습니다. 네트워크 연결을 확인하세요.");
+        }
+      };
+
+      document.head.appendChild(script);
+    };
+
+    loadScript();
+
+    return () => {
+      clearTimeout(retryTimer);
+      clearInterval(pollTimer);
+    };
   }, []);
 
   const handlePledgeClick = useCallback(
