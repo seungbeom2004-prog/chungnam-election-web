@@ -127,8 +127,14 @@ export default function NaverMap({
     color: "#FF5A00",
     iconImage: null,
   });
-  const [pendingDefaultDistrict, setPendingDefaultDistrict] = useState<string | null>(null);
   const defaultDistrictApplied = useRef(false);
+  // Ref-based settings gate: map is only created after settings are fetched,
+  // so the initial center/zoom are always correct and no visible "jump" occurs.
+  const settingsLoadedRef = useRef(false);
+  const pendingDistrictRef = useRef<string>(DEFAULT_DISTRICT);
+  // Keep a live ref to the districts prop so createMap() can look them up.
+  const districtsRef = useRef<DistrictCoords[]>(districts);
+  useEffect(() => { districtsRef.current = districts; }, [districts]);
 
   useEffect(() => {
     fetch("/api/map-settings/pin")
@@ -140,38 +146,39 @@ export default function NaverMap({
             color: json.data.color || "#FF5A00",
             iconImage: json.data.iconImage || null,
           });
-          // Apply admin-configured default zoom on first load.
-          // defaultZoom is stored as a Naver zoom value (5=province-wide, 14=street)
-          // matching the admin UI labels, so convert to store level before applying.
+          // Apply zoom to store synchronously so createMap() picks it up via getState().
           if (json.data.defaultZoom != null) {
             setZoomLevel(toStoreLevel(Number(json.data.defaultZoom)));
           }
-          // Default district: use admin setting or fall back to 천안시
-          setPendingDefaultDistrict(json.data.defaultDistrict || DEFAULT_DISTRICT);
-        } else {
-          // API returned no data — use hardcoded 천안시
-          setPendingDefaultDistrict(DEFAULT_DISTRICT);
+          // Store district name in a ref; createMap() will resolve the coords.
+          pendingDistrictRef.current = json.data.defaultDistrict || DEFAULT_DISTRICT;
         }
       })
-      .catch(() => {
-        // Network error — still default to 천안시
-        setPendingDefaultDistrict(DEFAULT_DISTRICT);
+      .catch(() => { /* keep defaults */ })
+      .finally(() => {
+        // Signal that settings are ready; the SDK poll will now allow map creation.
+        settingsLoadedRef.current = true;
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Apply the default district once both it and the districts list are ready
+  // Apply the default district when districts become available.
+  // This handles the case where districts load after the map was already created.
   useEffect(() => {
-    if (!pendingDefaultDistrict || districts.length === 0 || defaultDistrictApplied.current) return;
-    // Exact match first, then startsWith match (e.g. "천안시" → "천안시동남구")
+    if (districts.length === 0 || defaultDistrictApplied.current) return;
+    const targetName = pendingDistrictRef.current;
     const found =
-      districts.find((d) => d.name === pendingDefaultDistrict) ||
-      districts.find((d) => d.name.startsWith(pendingDefaultDistrict));
-    if (found) {
-      setCenter(found.centerLat, found.centerLng);
-      setSelectedDistrict(found.name);
-      defaultDistrictApplied.current = true;
+      districts.find((d) => d.name === targetName) ||
+      districts.find((d) => d.name.startsWith(targetName));
+    if (!found) return;
+    defaultDistrictApplied.current = true;
+    setCenter(found.centerLat, found.centerLng);
+    setSelectedDistrict(found.name);
+    // If the map is already created, move it directly so the sync effect
+    // fires with the same coords — no visible pan.
+    if (mapInstance.current) {
+      mapInstance.current.setCenter(new naver.maps.LatLng(found.centerLat, found.centerLng));
     }
-  }, [pendingDefaultDistrict, districts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [districts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Clear helpers ──────────────────────────────────────────────────────────
 
@@ -315,9 +322,31 @@ export default function NaverMap({
         // Thoroughly clean container (fix 3)
         while (container.firstChild) container.removeChild(container.firstChild);
 
+        // Apply the default district now if districts are already loaded.
+        // We call setCenter() synchronously so getState() below sees the new coords.
+        if (!defaultDistrictApplied.current) {
+          const currentDistricts = districtsRef.current;
+          const targetName = pendingDistrictRef.current;
+          if (currentDistricts.length > 0) {
+            const found =
+              currentDistricts.find((d) => d.name === targetName) ||
+              currentDistricts.find((d) => d.name.startsWith(targetName));
+            if (found) {
+              setCenter(found.centerLat, found.centerLng);
+              setSelectedDistrict(found.name);
+              defaultDistrictApplied.current = true;
+            }
+          }
+        }
+
+        // Read the LATEST store state: settings fetch + district lookup above
+        // have already pushed the correct values before we reach this line,
+        // so the map is created at the right position/zoom from the very start.
+        const { center: initialCenter, zoomLevel: initialZoom } = useMapStore.getState();
+
         const map = new naver.maps.Map(container, {
-          center: new naver.maps.LatLng(center.lat, center.lng),
-          zoom: toNaverZoom(zoomLevel),
+          center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
+          zoom: toNaverZoom(initialZoom),
           zoomControl: true,
           zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
         });
@@ -363,7 +392,8 @@ export default function NaverMap({
       if (
         isNaverReady() &&
         container.offsetWidth > 0 &&
-        container.offsetHeight > 0
+        container.offsetHeight > 0 &&
+        settingsLoadedRef.current   // wait for settings before creating the map
       ) {
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = null;

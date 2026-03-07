@@ -74,6 +74,8 @@ export default function SignupPage() {
   const [electionTypes, setElectionTypes] = useState<NecElectionType[]>([]);
   const [wards, setWards] = useState<NecWard[]>([]);
   const [loadingWards, setLoadingWards] = useState(false);
+  const [manualWardMode, setManualWardMode] = useState(false);
+  const [manualWardText, setManualWardText] = useState("");
 
   // NEC pre-check step state
   const [necStep, setNecStep] = useState<"electiontype" | "question" | "district" | "candidates" | "form">("electiontype");
@@ -153,6 +155,8 @@ export default function SignupPage() {
       setDistrict("");
       setWard("");
       setWards([]);
+      setManualWardMode(false);
+      setManualWardText("");
     }
   }, [electionType, necPrefilled]);
 
@@ -164,7 +168,11 @@ export default function SignupPage() {
 
   function buildDistrictValue(): string {
     if (districtLevel === "none") return province;
-    if (districtLevel === "ward" && district && ward) return `${district} ${ward}`;
+    if (districtLevel === "ward" && district) {
+      if (manualWardMode && manualWardText.trim()) return `${district} ${manualWardText.trim()}`;
+      if (ward) return `${district} ${ward}`;
+      return district;
+    }
     return district;
   }
 
@@ -239,8 +247,8 @@ export default function SignupPage() {
       setError("지역을 선택해주세요.");
       return;
     }
-    if (districtLevel === "ward" && !ward) {
-      setError("선거구를 선택해주세요.");
+    if (districtLevel === "ward" && !ward && !(manualWardMode && manualWardText.trim())) {
+      setError("선거구를 선택하거나 직접 입력해주세요.");
       return;
     }
     if (!phone) {
@@ -837,12 +845,34 @@ export default function SignupPage() {
               {/* Ward */}
               {districtLevel === "ward" && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    선거구{" "}
-                    <span className="text-xs text-muted font-normal">(세부 선거구)</span>
-                    <span className="text-red-500">*</span>
-                  </label>
-                  {loadingWards ? (
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                      선거구{" "}
+                      <span className="text-xs text-muted font-normal">(세부 선거구)</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualWardMode((m) => !m);
+                        setManualWardText(ward);
+                      }}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      {manualWardMode ? "드롭다운으로 전환" : "직접 입력"}
+                    </button>
+                  </div>
+
+                  {manualWardMode ? (
+                    /* Manual text input */
+                    <input
+                      type="text"
+                      placeholder="예: 다선거구, 제1선거구"
+                      value={manualWardText}
+                      onChange={(e) => setManualWardText(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    />
+                  ) : loadingWards ? (
                     <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
                       선거구 정보를 불러오는 중...
@@ -866,8 +896,15 @@ export default function SignupPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
-                      선거구 정보를 불러올 수 없습니다. 잠시 후 다시 시도하세요.
+                    <div className="px-3 py-2 text-sm text-amber-700 border border-amber-200 rounded-lg bg-amber-50/50">
+                      선거구 정보 없음 —{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setManualWardMode(true); setManualWardText(""); }}
+                        className="underline font-medium hover:text-amber-900"
+                      >
+                        직접 입력하기
+                      </button>
                     </div>
                   )}
                   <p className="text-xs text-muted mt-1">

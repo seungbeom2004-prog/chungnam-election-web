@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 import { useMapStore } from "@/store/useMapStore";
+import { useUITexts } from "@/hooks/useUITexts";
 
 interface DistrictItem {
   name: string;
@@ -22,6 +23,7 @@ export default function Navbar() {
     useMapStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
+  const t = useUITexts();
 
   // Fetch districts from DB — respects admin-configured order and center coordinates
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function Navbar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">개혁</span>
           </div>
-          <span className="hidden sm:block font-semibold text-foreground">충남</span>
+          <span className="hidden sm:block font-semibold text-foreground">{t.logoSubText}</span>
         </Link>
 
         {/* District tabs — only on map page */}
@@ -95,7 +97,7 @@ export default function Navbar() {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              공약 지도
+              {t.navMapLink}
             </Link>
           </nav>
         )}
@@ -106,14 +108,14 @@ export default function Navbar() {
             href={session.user?.role === "admin" ? "/admin" : "/dashboard"}
             className="shrink-0 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
           >
-            {session.user?.role === "admin" ? "관리자" : "대시보드"}
+            {session.user?.role === "admin" ? t.navAdminButton : t.navDashboardButton}
           </Link>
         ) : (
           <Link
             href="/login"
             className="shrink-0 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-background transition-colors"
           >
-            로그인
+            {t.navLoginButton}
           </Link>
         )}
       </div>

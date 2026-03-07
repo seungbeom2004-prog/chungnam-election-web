@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Button, Input } from "@/components/ui";
 import Card from "@/components/ui/Card";
+import { type UITexts, DEFAULT_UI_TEXTS } from "@/lib/ui-texts";
+import { invalidateUITextsCache } from "@/hooks/useUITexts";
 
 // Zoom level descriptions (Naver Maps zoom values — 5=province-wide, 16=street)
 const ZOOM_LABELS: Record<number, string> = {
@@ -46,6 +48,12 @@ export default function AdminSettingsPage() {
   // Default district
   const [defaultDistrict, setDefaultDistrict] = useState<string | null>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
+
+  // UI texts customization
+  const [uiTexts, setUITexts] = useState<UITexts>(DEFAULT_UI_TEXTS);
+  const [uiTextsLoading, setUITextsLoading] = useState(true);
+  const [uiTextsSaving, setUITextsSaving] = useState(false);
+  const [uiTextsMessage, setUITextsMessage] = useState("");
 
   // NEC sync state
   const [syncingDistricts, setSyncingDistricts] = useState(false);
@@ -111,6 +119,13 @@ export default function AdminSettingsPage() {
       })
       .finally(() => setPinLoading(false));
 
+    // Fetch current UI text overrides
+    fetch("/api/admin/site-texts")
+      .then((r) => r.json())
+      .then((json) => { if (json.data) setUITexts(json.data); })
+      .catch(() => {})
+      .finally(() => setUITextsLoading(false));
+
     // Fetch district list for the district picker
     fetch("/api/districts")
       .then((r) => r.json())
@@ -161,6 +176,29 @@ export default function AdminSettingsPage() {
       setMessage("네트워크 오류가 발생했습니다.");
     }
     setSaving(false);
+  };
+
+  const handleSaveUITexts = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUITextsMessage("");
+    setUITextsSaving(true);
+    try {
+      const res = await fetch("/api/admin/site-texts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(uiTexts),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setUITextsMessage(json.error || "저장에 실패했습니다.");
+      } else {
+        invalidateUITextsCache();
+        setUITextsMessage("UI 텍스트가 저장되었습니다.");
+      }
+    } catch {
+      setUITextsMessage("네트워크 오류가 발생했습니다.");
+    }
+    setUITextsSaving(false);
   };
 
   const handleSavePin = async (e: React.FormEvent) => {
@@ -404,6 +442,101 @@ export default function AdminSettingsPage() {
 
             <Button type="submit" disabled={pinSaving}>
               {pinSaving ? "저장 중..." : "지도 설정 저장"}
+            </Button>
+          </form>
+        )}
+      </Card>
+
+      {/* UI Text Customization Card */}
+      <Card className="mt-6">
+        <h2 className="text-lg font-semibold text-foreground mb-1">UI 텍스트 설정</h2>
+        <p className="text-xs text-muted mb-4">
+          홈페이지 곳곳에 표시되는 텍스트를 변경합니다. 비워두면 기본값이 사용됩니다.
+        </p>
+
+        {uiTextsLoading ? (
+          <div className="flex justify-center py-6">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <form onSubmit={handleSaveUITexts} className="space-y-4">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide">네비게이션</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(
+                [
+                  ["logoSubText",        "로고 부제 (로고 옆 텍스트)",    DEFAULT_UI_TEXTS.logoSubText],
+                  ["navMapLink",         "지도 링크",                   DEFAULT_UI_TEXTS.navMapLink],
+                  ["navLoginButton",     "로그인 버튼",                  DEFAULT_UI_TEXTS.navLoginButton],
+                  ["navAdminButton",     "관리자 버튼",                  DEFAULT_UI_TEXTS.navAdminButton],
+                  ["navDashboardButton", "대시보드 버튼",                DEFAULT_UI_TEXTS.navDashboardButton],
+                ] as [keyof UITexts, string, string][]
+              ).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-muted mb-1">{label}</label>
+                  <input
+                    type="text"
+                    value={uiTexts[key]}
+                    placeholder={placeholder}
+                    onChange={(e) => setUITexts((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide pt-1">지도 페이지 사이드바</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(
+                [
+                  ["sidebarAllCandidates", "전체 후보자 라벨",   DEFAULT_UI_TEXTS.sidebarAllCandidates],
+                  ["sidebarNoCandidate",   "후보 없음 안내 문구", DEFAULT_UI_TEXTS.sidebarNoCandidate],
+                ] as [keyof UITexts, string, string][]
+              ).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-muted mb-1">{label}</label>
+                  <input
+                    type="text"
+                    value={uiTexts[key]}
+                    placeholder={placeholder}
+                    onChange={(e) => setUITexts((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide pt-1">기타</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(
+                [
+                  ["footerCredit", "푸터 저작권 텍스트", DEFAULT_UI_TEXTS.footerCredit],
+                ] as [keyof UITexts, string, string][]
+              ).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-muted mb-1">{label}</label>
+                  <input
+                    type="text"
+                    value={uiTexts[key]}
+                    placeholder={placeholder}
+                    onChange={(e) => setUITexts((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {uiTextsMessage && (
+              <p className={`text-sm px-3 py-2 rounded-lg ${
+                uiTextsMessage.includes("실패") || uiTextsMessage.includes("오류")
+                  ? "text-red-500 bg-red-50"
+                  : "text-green-600 bg-green-50"
+              }`}>
+                {uiTextsMessage}
+              </p>
+            )}
+
+            <Button type="submit" disabled={uiTextsSaving}>
+              {uiTextsSaving ? "저장 중..." : "텍스트 설정 저장"}
             </Button>
           </form>
         )}

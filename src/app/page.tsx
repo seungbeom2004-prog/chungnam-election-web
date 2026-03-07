@@ -6,6 +6,7 @@ import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
 import { useMapStore } from "@/store/useMapStore";
+import { useUITexts } from "@/hooks/useUITexts";
 import type { Pledge } from "@/types";
 
 export interface CandidateForMap {
@@ -32,10 +33,14 @@ function CandidateSidebar({
   candidates,
   selectedDistrict,
   onSelect,
+  allCandidatesLabel,
+  noCandidateLabel,
 }: {
   candidates: CandidateForMap[];
   selectedDistrict: string | null;
   onSelect: (c: CandidateForMap) => void;
+  allCandidatesLabel: string;
+  noCandidateLabel: string;
 }) {
   const filtered = selectedDistrict
     ? candidates.filter(
@@ -50,7 +55,7 @@ function CandidateSidebar({
       {/* Header */}
       <div className="px-3 py-2 border-b border-border sticky top-0 bg-surface/95 backdrop-blur-sm z-10">
         <p className="text-xs font-semibold text-foreground">
-          {selectedDistrict ? selectedDistrict : "전체 후보자"}
+          {selectedDistrict ? selectedDistrict : allCandidatesLabel}
         </p>
         <p className="text-xs text-muted">{filtered.length}명</p>
       </div>
@@ -61,7 +66,7 @@ function CandidateSidebar({
             <circle cx="12" cy="8" r="4" />
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
-          <p className="text-xs">등록된 후보가 없습니다</p>
+          <p className="text-xs">{noCandidateLabel}</p>
         </div>
       ) : (
         <div className="divide-y divide-border">
@@ -123,6 +128,7 @@ export default function HomePage() {
   // Closed by default — mobile users see the full map
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { setSelectedPledge, selectedDistrict } = useMapStore();
+  const t = useUITexts();
 
   // Count candidates visible in sidebar
   const filteredCount = selectedDistrict
@@ -342,6 +348,8 @@ export default function HomePage() {
           candidates={candidates}
           selectedDistrict={selectedDistrict}
           onSelect={handleCandidateClick}
+          allCandidatesLabel={t.sidebarAllCandidates}
+          noCandidateLabel={t.sidebarNoCandidate}
         />
       </div>
 
@@ -365,6 +373,8 @@ export default function HomePage() {
                 candidates={candidates}
                 selectedDistrict={selectedDistrict}
                 onSelect={(c) => { handleCandidateClick(c); setSidebarOpen(false); }}
+                allCandidatesLabel={t.sidebarAllCandidates}
+                noCandidateLabel={t.sidebarNoCandidate}
               />
             </div>
           </div>
