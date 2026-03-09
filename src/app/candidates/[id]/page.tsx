@@ -39,29 +39,26 @@ export default async function CandidateProfilePage({ params }: Props) {
 
   if (!candidate) notFound();
 
-  // Fetch map pledges
+  // Fetch map pledges (with category for icons)
   const { data: pledges } = await supabase
     .from("Pledge")
-    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt")
+    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
     .eq("candidateId", id)
     .eq("visible", true)
     .eq("pledgeType", "map")
     .order("createdAt", { ascending: false });
 
-  // Fetch bylaws pledges
+  // Fetch bylaws pledges (with category for icons)
   const { data: bylawsPledges } = await supabase
     .from("Pledge")
-    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt")
+    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
     .eq("candidateId", id)
     .eq("visible", true)
     .eq("pledgeType", "bylaws")
     .order("createdAt", { ascending: false });
 
-  const mapPledge = (p: {
-    id: string; title: string; description: string; budget: string | null;
-    imageUrl: string | null; latitude: number; longitude: number;
-    address: string | null; pledgeType?: string; createdAt: string;
-  }) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapPledge = (p: any) => ({
     id: p.id,
     title: p.title,
     description: p.description,
@@ -72,6 +69,7 @@ export default async function CandidateProfilePage({ params }: Props) {
     address: p.address,
     pledgeType: p.pledgeType,
     createdAt: p.createdAt,
+    category: p.category ?? null,
   });
 
   const candidateData = {

@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import PledgeCard from "./PledgeCard";
 import CandidateMiniMap from "./CandidateMiniMap";
+
+interface PledgeCategory {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string;
+  iconImage: string | null;
+}
 
 interface PledgeData {
   id: string;
@@ -15,6 +22,7 @@ interface PledgeData {
   address: string | null;
   createdAt: string;
   pledgeType?: string;
+  category?: PledgeCategory | null;
 }
 
 interface CandidateContentProps {
@@ -31,16 +39,44 @@ interface CandidateContentProps {
   };
 }
 
+/** Renders a category icon the same way the map marker does:
+ *  CSS background-image for the uploaded icon (never <img> which can crash
+ *  in some contexts), or the emoji as text fallback. */
+function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
+  const color = category?.color || "#FF5A00";
+  const emoji = category?.emoji || "📌";
+  const iconImage = category?.iconImage || null;
+
+  return (
+    <div
+      className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center overflow-hidden relative mt-0.5"
+      style={{ backgroundColor: color + "22", border: `2px solid ${color}` }}
+    >
+      <span className="text-lg leading-none">{emoji}</span>
+      {iconImage && (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url('${iconImage.replace(/'/g, "\\'")}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function CandidateContent({ candidate }: CandidateContentProps) {
   const hasBylaws = (candidate.bylaws?.length ?? 0) > 0;
   const [activeView, setActiveView] = useState<"list" | "bylaws" | "map">("list");
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-8">
-      {/* Bio */}
+      {/* Bio — whitespace-pre-wrap preserves line breaks entered in the dashboard */}
       {candidate.bio && (
         <div className="mb-8 p-6 bg-surface rounded-xl border border-border">
-          <p className="text-sm text-foreground leading-relaxed">
+          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
             {candidate.bio}
           </p>
         </div>
@@ -84,18 +120,50 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
 
       {/* Content */}
       {activeView === "list" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        /* ── Pledge list ─────────────────────────────────────────────── */
+        <div className="space-y-3 max-w-2xl">
           {candidate.pledges.length === 0 ? (
-            <p className="col-span-full text-center text-muted py-12">
+            <p className="text-center text-muted py-12">
               등록된 공약이 없습니다.
             </p>
           ) : (
             candidate.pledges.map((pledge) => (
-              <PledgeCard key={pledge.id} pledge={pledge} />
+              <div
+                key={pledge.id}
+                className="p-5 border border-border rounded-xl bg-surface"
+              >
+                <div className="flex items-start gap-3">
+                  <PledgeIcon category={pledge.category} />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground text-sm leading-snug">
+                      {pledge.title}
+                    </h3>
+                    <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                      {pledge.description}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      {pledge.budget && (
+                        <span className="text-xs text-primary font-medium">
+                          {pledge.budget}
+                        </span>
+                      )}
+                      {pledge.address && (
+                        <span className="text-xs text-muted truncate">
+                          📍 {pledge.address}
+                        </span>
+                      )}
+                      <time className="text-xs text-muted ml-auto">
+                        {new Date(pledge.createdAt).toLocaleDateString("ko-KR")}
+                      </time>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))
           )}
         </div>
       ) : activeView === "bylaws" ? (
+        /* ── Bylaws list ─────────────────────────────────────────────── */
         <div className="space-y-3 max-w-2xl">
           {(candidate.bylaws ?? []).map((b) => (
             <div
@@ -103,12 +171,16 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               className="p-5 border border-border rounded-xl bg-surface"
             >
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>
-                </div>
+                {b.category ? (
+                  <PledgeIcon category={b.category} />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-sm">{b.title}</h3>
-                  <p className="text-sm text-muted mt-2 leading-relaxed whitespace-pre-wrap">
+                  <h3 className="font-semibold text-foreground text-sm leading-snug">{b.title}</h3>
+                  <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap">
                     {b.description}
                   </p>
                   {b.budget && (
@@ -120,6 +192,7 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           ))}
         </div>
       ) : (
+        /* ── Map view ────────────────────────────────────────────────── */
         <div className="h-[500px] rounded-xl overflow-hidden border border-border">
           <CandidateMiniMap
             pledges={candidate.pledges}

@@ -228,17 +228,24 @@ export default function AdminCategoriesPage() {
                 className="flex items-center justify-between px-4 py-3"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {/* Icon preview */}
+                  {/* Emoji chip — always shown */}
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
                     style={{ backgroundColor: (cat.color || "#FF5A00") + "20", border: `2px solid ${cat.color || "#FF5A00"}` }}
+                    title="이모지 (지도 핀 기본)"
                   >
-                    {cat.iconImage ? (
-                      <Image src={cat.iconImage} alt={cat.name} width={36} height={36} className="w-full h-full object-cover" />
-                    ) : (
-                      cat.emoji || "📌"
-                    )}
+                    {cat.emoji || "📌"}
                   </div>
+                  {/* Icon image — shown in parallel when uploaded */}
+                  {cat.iconImage && (
+                    <div
+                      className="w-9 h-9 rounded-lg shrink-0 overflow-hidden border-2"
+                      style={{ borderColor: cat.color || "#FF5A00" }}
+                      title="아이콘 이미지"
+                    >
+                      <Image src={cat.iconImage} alt={cat.name} width={36} height={36} className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">
