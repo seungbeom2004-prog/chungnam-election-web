@@ -71,6 +71,15 @@ export default function CityView({ district }: Props) {
           profileImage: string | null;
           electionType: string | null;
           candidateStatus: string;
+          pinLat?: number | null;
+          pinLng?: number | null;
+          youtube?: string | null;
+          instagram?: string | null;
+          twitter?: string | null;
+          facebook?: string | null;
+          tiktok?: string | null;
+          kakao?: string | null;
+          naverBlog?: string | null;
           election?: { id: string; name: string } | null;
         }> = json.data ?? [];
         setCandidates(
@@ -82,8 +91,15 @@ export default function CityView({ district }: Props) {
             electionType: c.electionType ?? null,
             electionName: c.election?.name ?? null,
             candidateStatus: c.candidateStatus ?? "",
-            pinLat: (c as { pinLat?: number | null }).pinLat ?? null,
-            pinLng: (c as { pinLng?: number | null }).pinLng ?? null,
+            pinLat: c.pinLat ?? null,
+            pinLng: c.pinLng ?? null,
+            youtube: c.youtube ?? null,
+            instagram: c.instagram ?? null,
+            twitter: c.twitter ?? null,
+            facebook: c.facebook ?? null,
+            tiktok: c.tiktok ?? null,
+            kakao: c.kakao ?? null,
+            naverBlog: c.naverBlog ?? null,
           }))
         );
       })
