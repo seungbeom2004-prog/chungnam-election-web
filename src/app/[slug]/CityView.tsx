@@ -10,7 +10,7 @@ import PledgePanel from "@/components/map/PledgePanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
-import type { CandidateForMap, DistrictCoords } from "@/app/page";
+import type { CandidateForMap, DistrictCoords } from "@/components/map/MapPageContent";
 
 interface DistrictInfo {
   name: string;

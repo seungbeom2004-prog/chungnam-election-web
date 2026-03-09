@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
-import type { CandidateForMap, DistrictCoords } from "@/app/page";
+import type { CandidateForMap, DistrictCoords } from "@/components/map/MapPageContent";
 
 interface NaverMapProps {
   pledges: Pledge[];
@@ -11,6 +11,7 @@ interface NaverMapProps {
   districts: DistrictCoords[];
   onPledgeClick: (pledge: Pledge) => void;
   onCandidateClick: (candidate: CandidateForMap) => void;
+  isCute?: boolean;
 }
 
 interface PinSettings {
@@ -46,9 +47,12 @@ function escapeHtml(str: string): string {
 }
 
 const BRAND_COLOR = "#FF5A00";
+const CUTE_COLOR = "#FF6B9D";
+
+// ─── Regular marker builders ────────────────────────────────────────────────
 
 /**
- * Build HTML for a pledge/category map marker.
+ * Build HTML for a pledge/category map marker (regular mode).
  * Uses a rounded-square pin (no circle). Supports photo icon.
  */
 function buildPledgeMarkerHTML(
@@ -69,11 +73,10 @@ function buildPledgeMarkerHTML(
 }
 
 /**
- * Build HTML for a candidate map marker.
+ * Build HTML for a candidate map marker (regular mode).
  * Shows election type and district in the info box.
  */
 function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
-  // Show election type first, then status
   const electionLabel = candidate.electionType || candidate.electionName || "";
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
@@ -98,6 +101,84 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   );
 }
 
+// ─── Cute marker builders ───────────────────────────────────────────────────
+
+/**
+ * Build HTML for a pledge/category map marker (cute mode).
+ * Round shape, pink border, softer shadow, sparkle accent.
+ */
+function buildCutePledgeMarkerHTML(
+  emoji: string,
+  color: string,
+  iconImage: string | null
+): string {
+  // Soften the color by mixing with pink
+  const cuteColor = color === BRAND_COLOR ? CUTE_COLOR : color;
+
+  const inner = iconImage
+    ? `<img src="${escapeHtml(iconImage)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+    : `<span style="font-size:22px;line-height:1;">${emoji}</span>`;
+
+  return (
+    `<div style="position:relative;width:44px;height:44px;">` +
+    // Sparkle accent
+    `<div style="position:absolute;top:-4px;right:-4px;font-size:12px;z-index:1;">✨</div>` +
+    // Main circle
+    `<div style="width:44px;height:44px;background:${cuteColor};border-radius:50%;` +
+    `border:3px solid #FFB6D5;display:flex;align-items:center;justify-content:center;` +
+    `overflow:hidden;box-shadow:0 3px 12px rgba(255,107,157,0.35);cursor:pointer;">` +
+    inner +
+    `</div>` +
+    `</div>`
+  );
+}
+
+/**
+ * Build HTML for a candidate map marker (cute mode).
+ * Rounder frame, pink accents, speech-bubble-style info box, Bingre font.
+ */
+function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
+  const electionLabel = candidate.electionType || candidate.electionName || "";
+  const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
+  const statusLine = statusParts.join(" · ");
+
+  const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
+
+  const imgContent = candidate.profileImage
+    ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" />`
+    : `<span style="font-size:22px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>`;
+
+  return (
+    `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;">` +
+    // Profile image with cute round frame + decorative border
+    `<div style="position:relative;display:inline-block;">` +
+    `<div style="display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;overflow:hidden;` +
+    `border:4px solid ${CUTE_COLOR};background:linear-gradient(135deg,${CUTE_COLOR},#FFB6D5);` +
+    `box-shadow:0 4px 16px rgba(255,107,157,0.4);">` +
+    imgContent +
+    `</div>` +
+    // Star decoration
+    `<div style="position:absolute;top:-2px;right:-2px;font-size:14px;">⭐</div>` +
+    `</div>` +
+    // Speech-bubble info box
+    `<div style="position:relative;background:#fff;border:2px solid #FFB6D5;border-radius:16px;padding:6px 10px;margin-top:6px;` +
+    `box-shadow:0 2px 10px rgba(255,182,213,0.25);">` +
+    // Bubble tail
+    `<div style="position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:0;height:0;` +
+    `border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid #FFB6D5;"></div>` +
+    `<div style="position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;` +
+    `border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #fff;"></div>` +
+    // Name
+    `<div style="font-weight:800;font-size:13px;color:#5B4A6B;line-height:1.3;${cuteFont}">${escapeHtml(candidate.name)}</div>` +
+    (statusLine
+      ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(statusLine)}</div>`
+      : "") +
+    `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(candidate.district)}</div>` +
+    `</div>` +
+    `</div>`
+  );
+}
+
 // ─── Hardcoded fallback: 천안시 is always the default first city ────────────
 const DEFAULT_DISTRICT = "천안시";
 
@@ -107,6 +188,7 @@ export default function NaverMap({
   districts,
   onPledgeClick,
   onCandidateClick,
+  isCute = false,
 }: NaverMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<naver.maps.Map | null>(null);
@@ -211,12 +293,16 @@ export default function NaverMap({
           (pledge.category as { iconImage?: string | null } | undefined)?.iconImage ??
           pinSettings.iconImage;
 
+        const markerHtml = isCute
+          ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
+          : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+
         const marker = new naver.maps.Marker({
           map,
           position,
           icon: {
-            content: buildPledgeMarkerHTML(emoji, color, iconImage ?? null),
-            anchor: new naver.maps.Point(20, 20),
+            content: markerHtml,
+            anchor: new naver.maps.Point(isCute ? 22 : 20, isCute ? 22 : 20),
           },
           zIndex: 50,
         });
@@ -230,7 +316,7 @@ export default function NaverMap({
         pledgeListenersRef.current.push(listener);
       });
     },
-    [pledges, onPledgeClick, clearPledgeMarkers, pinSettings]
+    [pledges, onPledgeClick, clearPledgeMarkers, pinSettings, isCute]
   );
 
   // ─── Candidate markers ─────────────────────────────────────────────────────
@@ -272,13 +358,17 @@ export default function NaverMap({
           lng = districtInfo.centerLng + (idx - (total - 1) / 2) * 0.004;
         }
 
+        const markerHtml = isCute
+          ? buildCuteCandidateMarkerHTML(candidate)
+          : buildCandidateMarkerHTML(candidate);
+
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(lat, lng),
           icon: {
-            content: buildCandidateMarkerHTML(candidate),
-            // Anchor at center of the 64px profile image within the 110px wrapper
-            anchor: new naver.maps.Point(55, 35),
+            content: markerHtml,
+            // Anchor at center of the profile image within the wrapper
+            anchor: new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35),
           },
           zIndex: 100,
         });
@@ -292,7 +382,7 @@ export default function NaverMap({
         candidateListenersRef.current.push(listener);
       });
     },
-    [candidates, districts, onCandidateClick, clearCandidateMarkers]
+    [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute]
   );
 
   useEffect(() => { addPledgeMarkersRef.current = addPledgeMarkers; }, [addPledgeMarkers]);
@@ -426,13 +516,13 @@ export default function NaverMap({
     mapInstance.current.setZoom(toNaverZoom(zoomLevel));
   }, [center, zoomLevel]);
 
-  // Refresh pledge markers when data or pin settings change
+  // Refresh pledge markers when data, pin settings, or theme change
   useEffect(() => {
     if (!mapInstance.current) return;
     addPledgeMarkers(mapInstance.current);
   }, [pledges, addPledgeMarkers]);
 
-  // Refresh candidate markers when data or districts change
+  // Refresh candidate markers when data, districts, or theme change
   useEffect(() => {
     if (!mapInstance.current) return;
     addCandidateMarkers(mapInstance.current);

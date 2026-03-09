@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CandidateForMap } from "@/app/page";
+import type { CandidateForMap } from "@/components/map/MapPageContent";
 
 interface Props {
   candidate: CandidateForMap;

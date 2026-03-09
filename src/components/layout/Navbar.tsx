@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 import { useMapStore } from "@/store/useMapStore";
 import { useUITexts } from "@/hooks/useUITexts";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DistrictItem {
   name: string;
@@ -19,11 +21,13 @@ const CITY_ZOOM = 6; // storeLevel 6 → naverZoom ≈ city scale
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const { selectedDistrict, setCenter, setZoomLevel, setSelectedDistrict, reset } =
     useMapStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
   const t = useUITexts();
+  const { isCute } = useTheme();
 
   // Fetch districts from DB — respects admin-configured order and center coordinates
   useEffect(() => {
@@ -47,16 +51,37 @@ export default function Navbar() {
     setSelectedDistrict(district.name);
   };
 
-  const isMapPage = pathname === "/";
+  const isMapPage = pathname === "/" || pathname === "/regular" || pathname === "/cute";
+
+  const handleThemeToggle = () => {
+    router.push(isCute ? "/regular" : "/cute");
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center gap-3">
         {/* Logo */}
         <Link href="/" onClick={reset} className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">개혁</span>
-          </div>
+          {isCute ? (
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-pink-100">
+              <Image
+                src="/themes/cute/images/logo-cute.png"
+                width={32}
+                height={32}
+                alt="개혁"
+                onError={(e) => {
+                  // Fallback to text if cute logo not available
+                  const el = e.target as HTMLImageElement;
+                  el.style.display = "none";
+                  el.parentElement!.innerHTML = '<span class="text-pink-500 font-bold text-sm">개혁</span>';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">개혁</span>
+            </div>
+          )}
           <span className="hidden sm:block font-semibold text-foreground">{t.logoSubText}</span>
         </Link>
 
@@ -101,6 +126,18 @@ export default function Navbar() {
             </Link>
           </nav>
         )}
+
+        {/* Theme toggle — desktop only */}
+        <button
+          onClick={handleThemeToggle}
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors shrink-0 ${
+            isCute
+              ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
+              : "border-border bg-background text-muted hover:text-foreground hover:bg-border/50"
+          }`}
+        >
+          {isCute ? "🏛️ 일반 모드" : "✨ 귀여운 모드"}
+        </button>
 
         {/* Auth Button */}
         {session ? (

@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import type { MapState } from "@/types";
 
-// Default: 천안시 center — matches the hardcoded DEFAULT_DISTRICT in NaverMap.tsx
+// Default center — matches the hardcoded DEFAULT_DISTRICT in NaverMap.tsx
 // so the map starts at the designated spot immediately (no visible "jump").
-const CHUNGNAM_CENTER = { lat: 36.8151, lng: 127.1139 };
+const CHUNGNAM_CENTER = { lat: 36.81333, lng: 127.133274 };
 
 // storeLevel 6 → naverZoom 15 → approx. 3 km height on a typical monitor.
 const DEFAULT_ZOOM = 6;
