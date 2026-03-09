@@ -75,7 +75,7 @@ function buildPledgeMarkerHTML(
   iconImage: string | null
 ): string {
   const inner = iconImage
-    ? `<img src="${escapeHtml(iconImage)}" style="width:100%;height:100%;object-fit:cover;" />`
+    ? `<img src="${escapeHtml(iconImage)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />`
     : `<span style="font-size:20px;line-height:1;font-family:sans-serif;">${emoji}</span>`;
   return (
     `<div style="width:40px;height:40px;background:${color};border-radius:10px;` +
@@ -94,7 +94,7 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   const statusLine = statusParts.join(" · ");
 
   const imgContent = candidate.profileImage
-    ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" />`
+    ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" onerror="this.style.display='none'" />`
     : `<span style="font-size:22px;font-weight:800;color:white;font-family:sans-serif;">${escapeHtml(candidate.name.charAt(0))}</span>`;
 
   return (
@@ -130,7 +130,7 @@ function buildCutePledgeMarkerHTML(
     return (
       `<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;` +
       `animation:markerFadeIn 0.2s ease-out both;">` +
-      `<img src="${escapeHtml(iconImage)}" style="max-width:44px;max-height:44px;object-fit:contain;filter:${shadow};" />` +
+      `<img src="${escapeHtml(iconImage)}" style="max-width:44px;max-height:44px;object-fit:contain;filter:${shadow};" onerror="this.style.display='none'" />` +
       `</div>`
     );
   }
@@ -150,7 +150,7 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
 
   const imgContent = candidate.profileImage
-    ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" />`
+    ? `<img src="${escapeHtml(candidate.profileImage)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" onerror="this.style.display='none'" />`
     : `<span style="font-size:22px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>`;
 
   return (
@@ -297,38 +297,47 @@ export default function NaverMap({
 
   // ── Clear helpers ─────────────────────────────────────────────────────────
 
+  // Safe wrappers: Naver Maps SDK may throw if a marker/listener is
+  // already detached (race between image-load callbacks and our cleanup).
+  const safeRemoveListener = (l: naver.maps.MapEventListener) => {
+    try { naver.maps.Event.removeListener(l); } catch { /* already removed */ }
+  };
+  const safeSetMapNull = (m: naver.maps.Marker) => {
+    try { m.setMap(null); } catch { /* already detached */ }
+  };
+
   const clearPledgeMarkers = useCallback(() => {
-    pledgeListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    pledgeListenersRef.current.forEach(safeRemoveListener);
     pledgeListenersRef.current = [];
-    pledgeMarkersRef.current.forEach((m) => m.setMap(null));
+    pledgeMarkersRef.current.forEach(safeSetMapNull);
     pledgeMarkersRef.current = [];
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearClusterMarkers = useCallback(() => {
-    clusterListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    clusterListenersRef.current.forEach(safeRemoveListener);
     clusterListenersRef.current = [];
-    clusterMarkersRef.current.forEach((m) => m.setMap(null));
+    clusterMarkersRef.current.forEach(safeSetMapNull);
     clusterMarkersRef.current = [];
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearSpiderfy = useCallback(() => {
     // Remove the map-level collapse listener if one is active
     if (collapseListenerRef.current) {
-      naver.maps.Event.removeListener(collapseListenerRef.current);
+      safeRemoveListener(collapseListenerRef.current);
       collapseListenerRef.current = null;
     }
-    spiderfyListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    spiderfyListenersRef.current.forEach(safeRemoveListener);
     spiderfyListenersRef.current = [];
-    spiderfyMarkersRef.current.forEach((m) => m.setMap(null));
+    spiderfyMarkersRef.current.forEach(safeSetMapNull);
     spiderfyMarkersRef.current = [];
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearCandidateMarkers = useCallback(() => {
-    candidateListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    candidateListenersRef.current.forEach(safeRemoveListener);
     candidateListenersRef.current = [];
-    candidateMarkersRef.current.forEach((m) => m.setMap(null));
+    candidateMarkersRef.current.forEach(safeSetMapNull);
     candidateMarkersRef.current = [];
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Pledge cluster rendering ───────────────────────────────────────────────
   //
@@ -402,6 +411,9 @@ export default function NaverMap({
 
             if (allSameCoord && leaves.length > 1) {
               // ── Spiderfy ───────────────────────────────────────────────
+              // Defer one tick so the SDK can finish restoring the clicked
+              // marker's visual state before we call setMap(null) on it.
+              setTimeout(() => {
               clearClusterMarkers();
               clearSpiderfy();
 
@@ -442,12 +454,13 @@ export default function NaverMap({
 
               // Collapse spider on next map background click
               const collapse = naver.maps.Event.addListener(map, "click", () => {
-                naver.maps.Event.removeListener(collapse);
+                safeRemoveListener(collapse);
                 collapseListenerRef.current = null;
                 clearSpiderfy();
                 renderClustersRef.current(map);
               });
               collapseListenerRef.current = collapse;
+              }, 0); // end deferred spiderfy
 
             } else {
               // ── Zoom into cluster ──────────────────────────────────────
@@ -641,8 +654,10 @@ export default function NaverMap({
     const createMap = () => {
       if (destroyed) return;
       try {
-        // Thoroughly clean container (fix 3)
-        while (container.firstChild) container.removeChild(container.firstChild);
+        // Thoroughly clean container (fix 3); guarded for SDK race conditions
+        try {
+          while (container.firstChild) container.removeChild(container.firstChild);
+        } catch { /* SDK may have already removed some nodes */ }
 
         // Apply the default district now if districts are already loaded.
         if (!defaultDistrictApplied.current) {
@@ -682,11 +697,10 @@ export default function NaverMap({
           );
         });
 
-        // zoom_changed: recompute clusters (new zoom = different grouping)
+        // zoom_changed: recompute clusters only (candidate positions are static)
         naver.maps.Event.addListener(map, "zoom_changed", () => {
           setZoomLevel(toStoreLevel(map.getZoom()));
           renderClustersRef.current(map);
-          addCandidateMarkersRef.current(map);
         });
 
         // dragend: recompute clusters for the new viewport bbox
