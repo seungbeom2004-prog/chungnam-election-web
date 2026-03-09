@@ -346,17 +346,23 @@ export default function NaverMap({
       const sc = superclusterRef.current;
       if (!sc) return;
 
-      const naverZoom = map.getZoom();
+      let naverZoom: number;
+      let bbox: [number, number, number, number];
 
-      // getBounds() can theoretically return null before tiles load; guard it.
-      const rawBounds = map.getBounds();
-      if (!rawBounds) return;
-      const bounds = rawBounds as naver.maps.LatLngBounds;
-      const sw = bounds.getSW();
-      const ne = bounds.getNE();
-      const bbox: [number, number, number, number] = [
-        sw.lng(), sw.lat(), ne.lng(), ne.lat(),
-      ];
+      try {
+        naverZoom = map.getZoom();
+
+        // getBounds() can return null before tiles load; guard it.
+        const rawBounds = map.getBounds();
+        if (!rawBounds) return;
+        const bounds = rawBounds as naver.maps.LatLngBounds;
+        // getSW / getNE are standard in Naver Maps SDK v3
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+        bbox = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+      } catch {
+        return; // SDK not fully ready yet; skip this render cycle
+      }
 
       const clusters = sc.getClusters(bbox, naverZoom);
 

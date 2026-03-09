@@ -40,6 +40,9 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // supercluster is CJS-only; tell Next.js to transpile it for client bundles
+  transpilePackages: ["supercluster"],
+
   images: {
     remotePatterns: [
       {
