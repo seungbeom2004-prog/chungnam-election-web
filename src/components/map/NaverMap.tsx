@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import Supercluster from "supercluster";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge } from "@/types";
 import type { CandidateForMap, DistrictCoords } from "@/components/map/MapPageContent";
@@ -12,6 +13,8 @@ interface NaverMapProps {
   onPledgeClick: (pledge: Pledge) => void;
   onCandidateClick: (candidate: CandidateForMap) => void;
   isCute?: boolean;
+  /** Category name to filter pledge markers. 'all' = show everything. */
+  selectedCategory?: string;
 }
 
 interface PinSettings {
@@ -20,7 +23,10 @@ interface PinSettings {
   iconImage: string | null;
 }
 
-// Naver Maps zoom: higher = more zoomed in; naverZoom ≈ 21 - storeLevel
+// Supercluster point-properties type
+type PledgePointProps = { pledge: Pledge };
+
+// Naver Maps zoom: higher = more zoomed in. naverZoom ≈ 21 - storeLevel
 function toNaverZoom(storeLevel: number): number { return 21 - storeLevel; }
 function toStoreLevel(naverZoom: number): number { return 21 - naverZoom; }
 
@@ -47,14 +53,22 @@ function escapeHtml(str: string): string {
 }
 
 const BRAND_COLOR = "#FF5A00";
-const CUTE_COLOR = "#FF6B9D";
+const CUTE_COLOR  = "#FF6B9D";
 
-// ─── Regular marker builders ────────────────────────────────────────────────
+// CSS keyframe to inject once so all dynamically-built marker HTML can use it.
+const MARKER_ANIM_CSS =
+  "@keyframes markerFadeIn{" +
+  "0%{opacity:0;transform:scale(0.75)}" +
+  "100%{opacity:1;transform:scale(1)}" +
+  "}" +
+  "@-webkit-keyframes markerFadeIn{" +
+  "0%{opacity:0;-webkit-transform:scale(0.75)}" +
+  "100%{opacity:1;-webkit-transform:scale(1)}" +
+  "}";
 
-/**
- * Build HTML for a pledge/category map marker (regular mode).
- * Uses a rounded-square pin (no circle). Supports photo icon.
- */
+// ─── Marker HTML builders ────────────────────────────────────────────────────
+
+/** Regular pledge/category pin (rounded square). */
 function buildPledgeMarkerHTML(
   emoji: string,
   color: string,
@@ -66,16 +80,14 @@ function buildPledgeMarkerHTML(
   return (
     `<div style="width:40px;height:40px;background:${color};border-radius:10px;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;">` +
+    `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
     inner +
     `</div>`
   );
 }
 
-/**
- * Build HTML for a candidate map marker (regular mode).
- * Shows election type and district in the info box.
- */
+/** Regular candidate pin (photo + name label). */
 function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   const electionLabel = candidate.electionType || candidate.electionName || "";
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
@@ -86,7 +98,8 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
     : `<span style="font-size:22px;font-weight:800;color:white;font-family:sans-serif;">${escapeHtml(candidate.name.charAt(0))}</span>`;
 
   return (
-    `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;">` +
+    `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:14px;overflow:hidden;border:3px solid ${BRAND_COLOR};background:${BRAND_COLOR};box-shadow:0 4px 12px rgba(0,0,0,0.35);">` +
     imgContent +
     `</div>` +
@@ -101,22 +114,13 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   );
 }
 
-// ─── Cute marker builders ───────────────────────────────────────────────────
-
-/**
- * Build HTML for a pledge/category map marker (cute mode).
- * - If the category has a custom iconImage: show it with a pink contour outline
- *   (drop-shadow follows the image shape — works best with transparent PNGs).
- *   No circle wrapper.
- * - If only the default emoji is available: show just the emoji, no outline.
- */
+/** Cute pledge pin (custom icon with pink contour glow, or bare emoji). */
 function buildCutePledgeMarkerHTML(
   emoji: string,
   _color: string,
   iconImage: string | null
 ): string {
   if (iconImage) {
-    // Contour outline via 8-direction drop-shadow so the glow follows the image edge.
     const shadow =
       `drop-shadow(2px 0 0 #FFB6D5) drop-shadow(-2px 0 0 #FFB6D5) ` +
       `drop-shadow(0 2px 0 #FFB6D5) drop-shadow(0 -2px 0 #FFB6D5) ` +
@@ -124,30 +128,25 @@ function buildCutePledgeMarkerHTML(
       `drop-shadow(1px -1px 0 #FFB6D5) drop-shadow(-1px -1px 0 #FFB6D5) ` +
       `drop-shadow(0 0 6px rgba(255,107,157,0.4))`;
     return (
-      `<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;">` +
+      `<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;` +
+      `animation:markerFadeIn 0.2s ease-out both;">` +
       `<img src="${escapeHtml(iconImage)}" style="max-width:44px;max-height:44px;object-fit:contain;filter:${shadow};" />` +
       `</div>`
     );
   }
-
-  // Default emoji — no circle, no outline, just the glyph.
   return (
     `<div style="width:44px;height:44px;display:flex;align-items:center;` +
-    `justify-content:center;cursor:pointer;">` +
+    `justify-content:center;cursor:pointer;animation:markerFadeIn 0.2s ease-out both;">` +
     `<span style="font-size:26px;line-height:1;">${emoji}</span>` +
     `</div>`
   );
 }
 
-/**
- * Build HTML for a candidate map marker (cute mode).
- * Rounder frame, pink accents, speech-bubble-style info box, Bingre font.
- */
+/** Cute candidate pin (circular photo + speech-bubble label). */
 function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
   const electionLabel = candidate.electionType || candidate.electionName || "";
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
-
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
 
   const imgContent = candidate.profileImage
@@ -155,26 +154,22 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
     : `<span style="font-size:22px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>`;
 
   return (
-    `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;">` +
-    // Profile image with cute round frame + decorative border
+    `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="position:relative;display:inline-block;">` +
     `<div style="display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;overflow:hidden;` +
     `border:4px solid ${CUTE_COLOR};background:linear-gradient(135deg,${CUTE_COLOR},#FFB6D5);` +
     `box-shadow:0 4px 16px rgba(255,107,157,0.4);">` +
     imgContent +
     `</div>` +
-    // Star decoration
     `<div style="position:absolute;top:-2px;right:-2px;font-size:14px;">⭐</div>` +
     `</div>` +
-    // Speech-bubble info box
     `<div style="position:relative;background:#fff;border:2px solid #FFB6D5;border-radius:16px;padding:6px 10px;margin-top:6px;` +
     `box-shadow:0 2px 10px rgba(255,182,213,0.25);">` +
-    // Bubble tail
     `<div style="position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:0;height:0;` +
     `border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid #FFB6D5;"></div>` +
     `<div style="position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;` +
     `border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #fff;"></div>` +
-    // Name
     `<div style="font-weight:800;font-size:13px;color:#5B4A6B;line-height:1.3;${cuteFont}">${escapeHtml(candidate.name)}</div>` +
     (statusLine
       ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(statusLine)}</div>`
@@ -185,7 +180,32 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
   );
 }
 
-// ─── Hardcoded fallback: 천안시 is always the default first city ────────────
+/**
+ * Cluster bubble marker.
+ * Size scales with point count; glow matches active theme.
+ * disableClusteringAtZoom = 17: supercluster maxZoom 16 ensures individual
+ * markers are returned at naverZoom >= 17.
+ */
+function buildClusterMarkerHTML(count: number, isCute: boolean): string {
+  const size = count < 10 ? 38 : count < 50 ? 46 : 54;
+  const color = isCute ? CUTE_COLOR : BRAND_COLOR;
+  const glow  = isCute
+    ? "rgba(255,107,157,0.28)"
+    : "rgba(255,90,0,0.28)";
+  const fontSize = count < 10 ? 14 : count < 100 ? 12 : 10;
+
+  return (
+    `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;` +
+    `display:flex;align-items:center;justify-content:center;` +
+    `color:#fff;font-weight:700;font-size:${fontSize}px;font-family:sans-serif;` +
+    `box-shadow:0 0 0 8px ${glow},0 2px 10px rgba(0,0,0,0.2);` +
+    `cursor:pointer;animation:markerFadeIn 0.2s ease-out both;">` +
+    count +
+    `</div>`
+  );
+}
+
+// ─── Hardcoded fallback: 천안시 is always the default first city ─────────────
 const DEFAULT_DISTRICT = "천안시";
 
 export default function NaverMap({
@@ -195,17 +215,33 @@ export default function NaverMap({
   onPledgeClick,
   onCandidateClick,
   isCute = false,
+  selectedCategory = "all",
 }: NaverMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<naver.maps.Map | null>(null);
+  const mapRef         = useRef<HTMLDivElement>(null);
+  const mapInstance    = useRef<naver.maps.Map | null>(null);
 
-  const pledgeMarkersRef = useRef<naver.maps.Marker[]>([]);
+  // ── Marker collections ────────────────────────────────────────────────────
+  // Individual pledge markers (from cluster leaf rendering)
+  const pledgeMarkersRef   = useRef<naver.maps.Marker[]>([]);
   const pledgeListenersRef = useRef<naver.maps.MapEventListener[]>([]);
-  const candidateMarkersRef = useRef<naver.maps.Marker[]>([]);
+  // Cluster bubble markers
+  const clusterMarkersRef   = useRef<naver.maps.Marker[]>([]);
+  const clusterListenersRef = useRef<naver.maps.MapEventListener[]>([]);
+  // Spiderfy spread markers (same-coord cluster expansion)
+  const spiderfyMarkersRef   = useRef<naver.maps.Marker[]>([]);
+  const spiderfyListenersRef = useRef<naver.maps.MapEventListener[]>([]);
+  // Listener that collapses the active spider on map click
+  const collapseListenerRef  = useRef<naver.maps.MapEventListener | null>(null);
+  // Candidate markers
+  const candidateMarkersRef   = useRef<naver.maps.Marker[]>([]);
   const candidateListenersRef = useRef<naver.maps.MapEventListener[]>([]);
 
-  // Keep refs to latest callbacks to avoid stale closures in stable listeners
-  const addPledgeMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
+  // ── Supercluster ──────────────────────────────────────────────────────────
+  const superclusterRef = useRef<Supercluster<PledgePointProps> | null>(null);
+
+  // Stable ref-based callbacks so the long-lived map event listeners never
+  // hold stale closures.
+  const renderClustersRef      = useRef<(map: naver.maps.Map) => void>(() => {});
   const addCandidateMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
 
   const { center, zoomLevel, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
@@ -215,42 +251,35 @@ export default function NaverMap({
     color: "#FF5A00",
     iconImage: null,
   });
+
   const defaultDistrictApplied = useRef(false);
-  // Ref-based settings gate: map is only created after settings are fetched,
-  // so the initial center/zoom are always correct and no visible "jump" occurs.
-  const settingsLoadedRef = useRef(false);
-  const pendingDistrictRef = useRef<string>(DEFAULT_DISTRICT);
-  // Keep a live ref to the districts prop so createMap() can look them up.
-  const districtsRef = useRef<DistrictCoords[]>(districts);
+  const settingsLoadedRef      = useRef(false);
+  const pendingDistrictRef     = useRef<string>(DEFAULT_DISTRICT);
+  const districtsRef           = useRef<DistrictCoords[]>(districts);
   useEffect(() => { districtsRef.current = districts; }, [districts]);
 
+  // ── Fetch pin settings ────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/api/map-settings/pin")
       .then((r) => r.json())
       .then((json) => {
         if (json.data) {
           setPinSettings({
-            emoji: json.data.emoji || "📍",
-            color: json.data.color || "#FF5A00",
+            emoji:     json.data.emoji     || "📍",
+            color:     json.data.color     || "#FF5A00",
             iconImage: json.data.iconImage || null,
           });
-          // Apply zoom to store synchronously so createMap() picks it up via getState().
           if (json.data.defaultZoom != null) {
             setZoomLevel(toStoreLevel(Number(json.data.defaultZoom)));
           }
-          // Store district name in a ref; createMap() will resolve the coords.
           pendingDistrictRef.current = json.data.defaultDistrict || DEFAULT_DISTRICT;
         }
       })
       .catch(() => { /* keep defaults */ })
-      .finally(() => {
-        // Signal that settings are ready; the SDK poll will now allow map creation.
-        settingsLoadedRef.current = true;
-      });
+      .finally(() => { settingsLoadedRef.current = true; });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply the default district when districts become available.
-  // This handles the case where districts load after the map was already created.
   useEffect(() => {
     if (districts.length === 0 || defaultDistrictApplied.current) return;
     const targetName = pendingDistrictRef.current;
@@ -261,20 +290,37 @@ export default function NaverMap({
     defaultDistrictApplied.current = true;
     setCenter(found.centerLat, found.centerLng);
     setSelectedDistrict(found.name);
-    // If the map is already created, move it directly so the sync effect
-    // fires with the same coords — no visible pan.
     if (mapInstance.current) {
       mapInstance.current.setCenter(new naver.maps.LatLng(found.centerLat, found.centerLng));
     }
   }, [districts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Clear helpers ──────────────────────────────────────────────────────────
+  // ── Clear helpers ─────────────────────────────────────────────────────────
 
   const clearPledgeMarkers = useCallback(() => {
     pledgeListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
     pledgeListenersRef.current = [];
     pledgeMarkersRef.current.forEach((m) => m.setMap(null));
     pledgeMarkersRef.current = [];
+  }, []);
+
+  const clearClusterMarkers = useCallback(() => {
+    clusterListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    clusterListenersRef.current = [];
+    clusterMarkersRef.current.forEach((m) => m.setMap(null));
+    clusterMarkersRef.current = [];
+  }, []);
+
+  const clearSpiderfy = useCallback(() => {
+    // Remove the map-level collapse listener if one is active
+    if (collapseListenerRef.current) {
+      naver.maps.Event.removeListener(collapseListenerRef.current);
+      collapseListenerRef.current = null;
+    }
+    spiderfyListenersRef.current.forEach((l) => naver.maps.Event.removeListener(l));
+    spiderfyListenersRef.current = [];
+    spiderfyMarkersRef.current.forEach((m) => m.setMap(null));
+    spiderfyMarkersRef.current = [];
   }, []);
 
   const clearCandidateMarkers = useCallback(() => {
@@ -284,55 +330,170 @@ export default function NaverMap({
     candidateMarkersRef.current = [];
   }, []);
 
-  // ─── Pledge markers ────────────────────────────────────────────────────────
-
-  const addPledgeMarkers = useCallback(
+  // ── Pledge cluster rendering ───────────────────────────────────────────────
+  //
+  // Supercluster options:
+  //   maxZoom: 16  → at naverZoom ≥ 17, getClusters() returns individual points
+  //                   (implements "disableClusteringAtZoom: 17")
+  //   radius: 60   → pixels at which nearby points are grouped into a cluster
+  //
+  const renderPledgeClusters = useCallback(
     (map: naver.maps.Map) => {
+      clearClusterMarkers();
       clearPledgeMarkers();
-      if (!Array.isArray(pledges)) return;
+      clearSpiderfy();
 
-      pledges.forEach((pledge) => {
-        const position = new naver.maps.LatLng(pledge.latitude, pledge.longitude);
-        const emoji = pledge.category?.emoji ?? pinSettings.emoji;
-        const color = pledge.category?.color ?? pinSettings.color;
-        const iconImage =
-          (pledge.category as { iconImage?: string | null } | undefined)?.iconImage ??
-          pinSettings.iconImage;
+      const sc = superclusterRef.current;
+      if (!sc) return;
 
-        const markerHtml = isCute
-          ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
-          : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+      const naverZoom = map.getZoom();
 
-        const marker = new naver.maps.Marker({
-          map,
-          position,
-          icon: {
-            content: markerHtml,
-            anchor: new naver.maps.Point(isCute ? 22 : 20, isCute ? 22 : 20),
-          },
-          zIndex: 50,
-        });
+      // getBounds() can theoretically return null before tiles load; guard it.
+      const rawBounds = map.getBounds();
+      if (!rawBounds) return;
+      const bounds = rawBounds as naver.maps.LatLngBounds;
+      const sw = bounds.getSW();
+      const ne = bounds.getNE();
+      const bbox: [number, number, number, number] = [
+        sw.lng(), sw.lat(), ne.lng(), ne.lat(),
+      ];
 
-        const listener = naver.maps.Event.addListener(
-          marker,
-          "click",
-          () => onPledgeClick(pledge)
-        );
-        pledgeMarkersRef.current.push(marker);
-        pledgeListenersRef.current.push(listener);
+      const clusters = sc.getClusters(bbox, naverZoom);
+
+      clusters.forEach((cluster) => {
+        const [lng, lat] = cluster.geometry.coordinates;
+        const position   = new naver.maps.LatLng(lat, lng);
+
+        // ── Cluster bubble ────────────────────────────────────────────────
+        if ((cluster.properties as Supercluster.ClusterProperties).cluster) {
+          const cp        = cluster.properties as Supercluster.ClusterProperties;
+          const count     = cp.point_count;
+          const clusterId = cp.cluster_id;
+          const size      = count < 10 ? 38 : count < 50 ? 46 : 54;
+          const half      = size / 2;
+
+          const marker = new naver.maps.Marker({
+            map,
+            position,
+            icon: {
+              content: buildClusterMarkerHTML(count, isCute),
+              anchor: new naver.maps.Point(half, half),
+            },
+            zIndex: 45,
+          });
+
+          const listener = naver.maps.Event.addListener(marker, "click", () => {
+            const expansionZoom = sc.getClusterExpansionZoom(clusterId);
+            const leaves        = sc.getLeaves(clusterId, Infinity);
+
+            // Detect all-same-coordinate cluster → trigger spiderfy
+            const [cx, cy]  = leaves[0].geometry.coordinates;
+            const allSameCoord = leaves.every(
+              (l) =>
+                Math.abs(l.geometry.coordinates[0] - cx) < 0.000001 &&
+                Math.abs(l.geometry.coordinates[1] - cy) < 0.000001
+            );
+
+            if (allSameCoord && leaves.length > 1) {
+              // ── Spiderfy ───────────────────────────────────────────────
+              clearClusterMarkers();
+              clearSpiderfy();
+
+              const total  = leaves.length;
+              // Spread radius scales with number of leaves; min ~25 m
+              const radius = Math.max(0.00025, total * 0.000045);
+
+              leaves.forEach((leaf, i) => {
+                const angle = (2 * Math.PI * i) / total - Math.PI / 2;
+                const sLat  = cy + radius * Math.sin(angle);
+                const sLng  = cx + radius * Math.cos(angle);
+                const pledge    = (leaf.properties as PledgePointProps).pledge;
+                const emoji     = pledge.category?.emoji     ?? pinSettings.emoji;
+                const color     = pledge.category?.color     ?? pinSettings.color;
+                const iconImage =
+                  (pledge.category as { iconImage?: string | null } | undefined)?.iconImage ??
+                  pinSettings.iconImage;
+
+                const mHtml = isCute
+                  ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
+                  : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+
+                const sMarker = new naver.maps.Marker({
+                  map,
+                  position: new naver.maps.LatLng(sLat, sLng),
+                  icon: {
+                    content: mHtml,
+                    anchor: new naver.maps.Point(isCute ? 22 : 20, isCute ? 22 : 20),
+                  },
+                  zIndex: 60,
+                });
+                const sListener = naver.maps.Event.addListener(
+                  sMarker, "click", () => onPledgeClick(pledge)
+                );
+                spiderfyMarkersRef.current.push(sMarker);
+                spiderfyListenersRef.current.push(sListener);
+              });
+
+              // Collapse spider on next map background click
+              const collapse = naver.maps.Event.addListener(map, "click", () => {
+                naver.maps.Event.removeListener(collapse);
+                collapseListenerRef.current = null;
+                clearSpiderfy();
+                renderClustersRef.current(map);
+              });
+              collapseListenerRef.current = collapse;
+
+            } else {
+              // ── Zoom into cluster ──────────────────────────────────────
+              map.setZoom(Math.min(expansionZoom, 20));
+              map.setCenter(new naver.maps.LatLng(lat, lng));
+            }
+          });
+
+          clusterMarkersRef.current.push(marker);
+          clusterListenersRef.current.push(listener);
+
+        } else {
+          // ── Individual pledge marker ───────────────────────────────────
+          const pledge    = (cluster.properties as PledgePointProps).pledge;
+          const emoji     = pledge.category?.emoji     ?? pinSettings.emoji;
+          const color     = pledge.category?.color     ?? pinSettings.color;
+          const iconImage =
+            (pledge.category as { iconImage?: string | null } | undefined)?.iconImage ??
+            pinSettings.iconImage;
+
+          const html = isCute
+            ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
+            : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+
+          const marker = new naver.maps.Marker({
+            map,
+            position,
+            icon: {
+              content: html,
+              anchor: new naver.maps.Point(isCute ? 22 : 20, isCute ? 22 : 20),
+            },
+            zIndex: 50,
+          });
+          const listener = naver.maps.Event.addListener(
+            marker, "click", () => onPledgeClick(pledge)
+          );
+          pledgeMarkersRef.current.push(marker);
+          pledgeListenersRef.current.push(listener);
+        }
       });
     },
-    [pledges, onPledgeClick, clearPledgeMarkers, pinSettings, isCute]
+    // pinSettings and isCute must be in deps so the closure always uses fresh values.
+    [clearClusterMarkers, clearPledgeMarkers, clearSpiderfy, isCute, onPledgeClick, pinSettings]
   );
 
-  // ─── Candidate markers ─────────────────────────────────────────────────────
+  // ── Candidate markers (unchanged logic) ───────────────────────────────────
 
   const addCandidateMarkers = useCallback(
     (map: naver.maps.Map) => {
       clearCandidateMarkers();
       if (!Array.isArray(candidates) || !Array.isArray(districts)) return;
 
-      // Group by district for spread calculation
       const byDistrict: Record<string, CandidateForMap[]> = {};
       candidates.forEach((c) => {
         if (!byDistrict[c.district]) byDistrict[c.district] = [];
@@ -344,20 +505,16 @@ export default function NaverMap({
         let lng: number;
 
         if (candidate.pinLat != null && candidate.pinLng != null) {
-          // Admin-configured custom pin position
           lat = candidate.pinLat;
           lng = candidate.pinLng;
         } else {
-          // Fall back to district center, with spreading for co-district candidates
           const districtInfo =
             districts.find((d) => d.name === candidate.district) ||
-            // Partial match for ward-level districts (e.g. "천안시동남구 다선거구" → "천안시동남구")
             districts.find((d) => candidate.district.startsWith(d.name));
-
           if (!districtInfo) return;
 
           const sameDistrict = byDistrict[candidate.district];
-          const idx = sameDistrict.findIndex((c) => c.id === candidate.id);
+          const idx   = sameDistrict.findIndex((c) => c.id === candidate.id);
           const total = sameDistrict.length;
 
           lat = districtInfo.centerLat;
@@ -373,16 +530,13 @@ export default function NaverMap({
           position: new naver.maps.LatLng(lat, lng),
           icon: {
             content: markerHtml,
-            // Anchor at center of the profile image within the wrapper
             anchor: new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35),
           },
           zIndex: 100,
         });
 
         const listener = naver.maps.Event.addListener(
-          marker,
-          "click",
-          () => onCandidateClick(candidate)
+          marker, "click", () => onCandidateClick(candidate)
         );
         candidateMarkersRef.current.push(marker);
         candidateListenersRef.current.push(listener);
@@ -391,42 +545,107 @@ export default function NaverMap({
     [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute]
   );
 
-  useEffect(() => { addPledgeMarkersRef.current = addPledgeMarkers; }, [addPledgeMarkers]);
-  useEffect(() => { addCandidateMarkersRef.current = addCandidateMarkers; }, [addCandidateMarkers]);
+  // Keep stable refs updated after every render that changes the callback.
+  useEffect(() => { renderClustersRef.current      = renderPledgeClusters; }, [renderPledgeClusters]);
+  useEffect(() => { addCandidateMarkersRef.current = addCandidateMarkers;  }, [addCandidateMarkers]);
 
-  // ─── Initialize map ────────────────────────────────────────────────────────
+  // ── Build / rebuild supercluster when pledges or category changes ──────────
+  //
+  // Also handles the fade-out → fade-in transition:
+  //   1. Fade current visible markers to opacity 0 via DOM transition.
+  //   2. After 150 ms, clear & re-render with the new supercluster.
+  //
+  useEffect(() => {
+    // Filter pledges by selected category
+    const filtered =
+      !selectedCategory || selectedCategory === "all"
+        ? pledges
+        : pledges.filter((p) => p.category?.name === selectedCategory);
+
+    // (Re-)build supercluster index
+    const sc = new Supercluster<PledgePointProps>({
+      radius:  60,
+      maxZoom: 16, // naverZoom >= 17 → individual points (disableClusteringAtZoom)
+      minZoom: 1,
+    });
+    sc.load(
+      filtered.map((p) => ({
+        type:     "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [p.longitude, p.latitude] },
+        properties: { pledge: p },
+      }))
+    );
+    superclusterRef.current = sc;
+
+    if (!mapInstance.current) return;
+    const map = mapInstance.current;
+
+    // ── Fade out current markers before replacing them ─────────────────────
+    const current = [
+      ...clusterMarkersRef.current,
+      ...pledgeMarkersRef.current,
+    ];
+    current.forEach((m) => {
+      const el = m.getElement();
+      if (el) {
+        (el as HTMLElement).style.transition = "opacity 0.15s ease";
+        (el as HTMLElement).style.opacity    = "0";
+      }
+    });
+
+    const timer = setTimeout(() => {
+      if (mapInstance.current === map) {
+        renderClustersRef.current(map);
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [pledges, selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-render clusters when pinSettings or isCute changes (new callback ref).
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    renderPledgeClusters(mapInstance.current);
+  }, [renderPledgeClusters]);
+
+  // ── Initialise map ────────────────────────────────────────────────────────
   //
   // Robust initialisation that handles:
-  //  1. SDK race  — naver.maps.Map might not be a constructor yet when the
-  //                 script onload fires; we check typeof === "function".
+  //  1. SDK race  — naver.maps.Map might not be a constructor yet.
   //  2. Slow paint — container may have 0×0 dims on first frame (mobile).
   //  3. Dirty DOM  — previous map.destroy() leaves child nodes.
   //  4. Tile blank — deferred resize at 300 ms, 800 ms, and 2 000 ms.
-  //  5. Timeout    — polls every 100 ms for up to 10 s (not 1 s).
+  //  5. Timeout    — polls every 100 ms for up to 10 s.
   //
   useEffect(() => {
     if (!mapRef.current) return;
     const container = mapRef.current;
-    let destroyed = false;
+    let destroyed   = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     const resizeTimers: ReturnType<typeof setTimeout>[] = [];
 
+    // Inject marker fade-in keyframe CSS once into the document
+    if (!document.getElementById("naver-marker-animations")) {
+      const style = document.createElement("style");
+      style.id          = "naver-marker-animations";
+      style.textContent = MARKER_ANIM_CSS;
+      document.head.appendChild(style);
+    }
+
     const createMap = () => {
       if (destroyed) return;
-
       try {
         // Thoroughly clean container (fix 3)
         while (container.firstChild) container.removeChild(container.firstChild);
 
         // Apply the default district now if districts are already loaded.
-        // We call setCenter() synchronously so getState() below sees the new coords.
         if (!defaultDistrictApplied.current) {
-          const currentDistricts = districtsRef.current;
-          const targetName = pendingDistrictRef.current;
-          if (currentDistricts.length > 0) {
+          const cur = districtsRef.current;
+          const target = pendingDistrictRef.current;
+          if (cur.length > 0) {
             const found =
-              currentDistricts.find((d) => d.name === targetName) ||
-              currentDistricts.find((d) => d.name.startsWith(targetName));
+              cur.find((d) => d.name === target) ||
+              cur.find((d) => d.name.startsWith(target));
             if (found) {
               setCenter(found.centerLat, found.centerLng);
               setSelectedDistrict(found.name);
@@ -435,14 +654,11 @@ export default function NaverMap({
           }
         }
 
-        // Read the LATEST store state: settings fetch + district lookup above
-        // have already pushed the correct values before we reach this line,
-        // so the map is created at the right position/zoom from the very start.
         const { center: initialCenter, zoomLevel: initialZoom } = useMapStore.getState();
 
         const map = new naver.maps.Map(container, {
           center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
-          zoom: toNaverZoom(initialZoom),
+          zoom:   toNaverZoom(initialZoom),
           zoomControl: true,
           zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
         });
@@ -460,42 +676,40 @@ export default function NaverMap({
           );
         });
 
+        // zoom_changed: recompute clusters (new zoom = different grouping)
         naver.maps.Event.addListener(map, "zoom_changed", () => {
           setZoomLevel(toStoreLevel(map.getZoom()));
-          addPledgeMarkersRef.current(map);
+          renderClustersRef.current(map);
           addCandidateMarkersRef.current(map);
         });
 
+        // dragend: recompute clusters for the new viewport bbox
         naver.maps.Event.addListener(map, "dragend", () => {
           const c = map.getCenter() as naver.maps.LatLng;
           setCenter(c.lat(), c.lng());
+          renderClustersRef.current(map);
         });
 
-        addPledgeMarkersRef.current(map);
+        renderClustersRef.current(map);
         addCandidateMarkersRef.current(map);
       } catch (e) {
         console.error("[NaverMap] Map creation failed:", e);
       }
     };
 
-    // Poll until SDK is fully ready AND container has real dimensions (fix 1, 2, 5)
     let attempts = 0;
     pollTimer = setInterval(() => {
-      if (destroyed) {
-        if (pollTimer) clearInterval(pollTimer);
-        return;
-      }
+      if (destroyed) { if (pollTimer) clearInterval(pollTimer); return; }
       if (
         isNaverReady() &&
-        container.offsetWidth > 0 &&
+        container.offsetWidth  > 0 &&
         container.offsetHeight > 0 &&
-        settingsLoadedRef.current   // wait for settings before creating the map
+        settingsLoadedRef.current
       ) {
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = null;
         createMap();
       } else if (++attempts > 100) {
-        // 100 × 100 ms = 10 s — give up
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = null;
         console.error("[NaverMap] Timed out waiting for Naver Maps SDK or container dimensions");
@@ -507,6 +721,8 @@ export default function NaverMap({
       if (pollTimer) clearInterval(pollTimer);
       resizeTimers.forEach(clearTimeout);
       clearPledgeMarkers();
+      clearClusterMarkers();
+      clearSpiderfy();
       clearCandidateMarkers();
       if (mapInstance.current) {
         mapInstance.current.destroy();
@@ -515,18 +731,12 @@ export default function NaverMap({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync external center/zoom changes to map
+  // Sync external center / zoom changes to map
   useEffect(() => {
     if (!mapInstance.current) return;
     mapInstance.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
     mapInstance.current.setZoom(toNaverZoom(zoomLevel));
   }, [center, zoomLevel]);
-
-  // Refresh pledge markers when data, pin settings, or theme change
-  useEffect(() => {
-    if (!mapInstance.current) return;
-    addPledgeMarkers(mapInstance.current);
-  }, [pledges, addPledgeMarkers]);
 
   // Refresh candidate markers when data, districts, or theme change
   useEffect(() => {

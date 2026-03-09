@@ -5,6 +5,7 @@ import Image from "next/image";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
+import CategoryFilter from "@/components/map/CategoryFilter";
 import { useMapStore } from "@/store/useMapStore";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -127,6 +128,7 @@ export default function MapPageContent() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   // Closed by default — mobile users see the full map
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { setSelectedPledge, selectedDistrict } = useMapStore();
@@ -257,6 +259,7 @@ export default function MapPageContent() {
             onPledgeClick={handlePledgeClick}
             onCandidateClick={handleCandidateClick}
             isCute={isCute}
+            selectedCategory={selectedCategory}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">
@@ -287,6 +290,13 @@ export default function MapPageContent() {
             </div>
           </div>
         )}
+
+        {/* Category filter chips — overlaid at the top of the map */}
+        <CategoryFilter
+          selected={selectedCategory}
+          onChange={setSelectedCategory}
+          isCute={isCute}
+        />
 
         <PledgePanel />
 
