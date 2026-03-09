@@ -27,7 +27,7 @@ export default function Navbar() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
   const t = useUITexts();
-  const { isCute } = useTheme();
+  const { isCute, setTheme } = useTheme();
 
   // Fetch districts from DB — respects admin-configured order and center coordinates
   useEffect(() => {
@@ -54,7 +54,9 @@ export default function Navbar() {
   const isMapPage = pathname === "/" || pathname === "/regular" || pathname === "/cute";
 
   const handleThemeToggle = () => {
-    router.push(isCute ? "/regular" : "/cute");
+    const next = isCute ? "regular" : "cute";
+    setTheme(next);          // apply immediately — don't wait for the route page's useEffect
+    router.push(`/${next}`);
   };
 
   return (

@@ -105,30 +105,36 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
 
 /**
  * Build HTML for a pledge/category map marker (cute mode).
- * Round shape, pink border, softer shadow, sparkle accent.
+ * - If the category has a custom iconImage: show it with a pink contour outline
+ *   (drop-shadow follows the image shape — works best with transparent PNGs).
+ *   No circle wrapper.
+ * - If only the default emoji is available: show just the emoji, no outline.
  */
 function buildCutePledgeMarkerHTML(
   emoji: string,
-  color: string,
+  _color: string,
   iconImage: string | null
 ): string {
-  // Soften the color by mixing with pink
-  const cuteColor = color === BRAND_COLOR ? CUTE_COLOR : color;
+  if (iconImage) {
+    // Contour outline via 8-direction drop-shadow so the glow follows the image edge.
+    const shadow =
+      `drop-shadow(2px 0 0 #FFB6D5) drop-shadow(-2px 0 0 #FFB6D5) ` +
+      `drop-shadow(0 2px 0 #FFB6D5) drop-shadow(0 -2px 0 #FFB6D5) ` +
+      `drop-shadow(1px 1px 0 #FFB6D5) drop-shadow(-1px 1px 0 #FFB6D5) ` +
+      `drop-shadow(1px -1px 0 #FFB6D5) drop-shadow(-1px -1px 0 #FFB6D5) ` +
+      `drop-shadow(0 0 6px rgba(255,107,157,0.4))`;
+    return (
+      `<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;">` +
+      `<img src="${escapeHtml(iconImage)}" style="max-width:44px;max-height:44px;object-fit:contain;filter:${shadow};" />` +
+      `</div>`
+    );
+  }
 
-  const inner = iconImage
-    ? `<img src="${escapeHtml(iconImage)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    : `<span style="font-size:22px;line-height:1;">${emoji}</span>`;
-
+  // Default emoji — no circle, no outline, just the glyph.
   return (
-    `<div style="position:relative;width:44px;height:44px;">` +
-    // Sparkle accent
-    `<div style="position:absolute;top:-4px;right:-4px;font-size:12px;z-index:1;">✨</div>` +
-    // Main circle
-    `<div style="width:44px;height:44px;background:${cuteColor};border-radius:50%;` +
-    `border:3px solid #FFB6D5;display:flex;align-items:center;justify-content:center;` +
-    `overflow:hidden;box-shadow:0 3px 12px rgba(255,107,157,0.35);cursor:pointer;">` +
-    inner +
-    `</div>` +
+    `<div style="width:44px;height:44px;display:flex;align-items:center;` +
+    `justify-content:center;cursor:pointer;">` +
+    `<span style="font-size:26px;line-height:1;">${emoji}</span>` +
     `</div>`
   );
 }

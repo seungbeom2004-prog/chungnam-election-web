@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const { data: categories, error } = await supabase
       .from("Category")
-      .select("id, name, description, emoji, color")
+      .select("id, name, description, emoji, color, iconImage")
       .eq("visible", true)
       .order("sortOrder");
 
