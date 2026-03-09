@@ -33,6 +33,17 @@ export default function ProfilePage() {
     bio: "",
     profileImage: "",
   });
+  const [socialForm, setSocialForm] = useState({
+    youtube: "",
+    instagram: "",
+    twitter: "",
+    facebook: "",
+    tiktok: "",
+    kakao: "",
+    naverBlog: "",
+  });
+  const [socialSaving, setSocialSaving] = useState(false);
+  const [socialMessage, setSocialMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -87,6 +98,15 @@ export default function ProfilePage() {
           slogan: data.slogan || "",
           bio: data.bio || "",
           profileImage: data.profileImage || "",
+        });
+        setSocialForm({
+          youtube: data.youtube || "",
+          instagram: data.instagram || "",
+          twitter: data.twitter || "",
+          facebook: data.facebook || "",
+          tiktok: data.tiktok || "",
+          kakao: data.kakao || "",
+          naverBlog: data.naverBlog || "",
         });
         setElectionType(data.electionType || "");
         const district: string = data.district || "";
@@ -158,6 +178,37 @@ export default function ProfilePage() {
       setElectionTypeMessage("저장에 실패했습니다.");
     }
     setElectionTypeSaving(false);
+  };
+
+  const handleSocialSave = async () => {
+    if (!candidateId) return;
+    setSocialSaving(true);
+    setSocialMessage("");
+    try {
+      const payload = {
+        youtube: socialForm.youtube || null,
+        instagram: socialForm.instagram || null,
+        twitter: socialForm.twitter || null,
+        facebook: socialForm.facebook || null,
+        tiktok: socialForm.tiktok || null,
+        kakao: socialForm.kakao || null,
+        naverBlog: socialForm.naverBlog || null,
+      };
+      const res = await fetch(`/api/candidates/${candidateId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setSocialMessage("소셜 계정이 저장되었습니다.");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setSocialMessage(json.error || "저장에 실패했습니다.");
+      }
+    } catch {
+      setSocialMessage("저장에 실패했습니다.");
+    }
+    setSocialSaving(false);
   };
 
   const checkHandle = useCallback(
@@ -491,6 +542,45 @@ export default function ProfilePage() {
           <div className="px-3 py-2 bg-muted/10 border border-border rounded-lg">
             <p className="text-xs text-muted">📍 핀 위치 변경은 관리자에게 문의하세요.</p>
           </div>
+        </div>
+      </Card>
+
+      {/* Social accounts card */}
+      <Card className="mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">소셜 계정</h2>
+          <Button type="button" size="sm" onClick={handleSocialSave} disabled={socialSaving}>
+            {socialSaving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {([
+            { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@채널명" },
+            { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/아이디" },
+            { key: "twitter", label: "X (Twitter)", placeholder: "https://x.com/아이디" },
+            { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/페이지명" },
+            { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@아이디" },
+            { key: "kakao", label: "KakaoTalk", placeholder: "오픈채팅 URL 또는 카카오 ID" },
+            { key: "naverBlog", label: "Naver Blog", placeholder: "https://blog.naver.com/아이디" },
+          ] as { key: keyof typeof socialForm; label: string; placeholder: string }[]).map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-muted mb-1">{label}</label>
+              <input
+                type="text"
+                value={socialForm[key]}
+                onChange={(e) => setSocialForm((f) => ({ ...f, [key]: e.target.value }))}
+                placeholder={placeholder}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
+          ))}
+          {socialMessage && (
+            <p className={`text-xs px-3 py-2 rounded-lg ${
+              socialMessage.includes("실패") ? "text-red-500 bg-red-50" : "text-green-600 bg-green-50"
+            }`}>
+              {socialMessage}
+            </p>
+          )}
         </div>
       </Card>
 

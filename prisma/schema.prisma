@@ -29,6 +29,14 @@ model Candidate {
   verified        Boolean  @default(false)
   pinLat          Float?   // admin-set map pin latitude (overrides district center)
   pinLng          Float?   // admin-set map pin longitude (overrides district center)
+  // Social accounts
+  youtube         String?  // YouTube channel URL
+  instagram       String?  // Instagram profile URL
+  twitter         String?  // X (Twitter) profile URL
+  facebook        String?  // Facebook profile URL
+  tiktok          String?  // TikTok profile URL
+  kakao           String?  // KakaoTalk open chat URL or ID
+  naverBlog       String?  // Naver Blog URL
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   pledges         Pledge[]

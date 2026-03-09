@@ -97,6 +97,20 @@ export default function PledgesPage() {
   const [editingBylaws, setEditingBylaws] = useState<Pledge | null>(null);
 
   const candidateId = (session?.user as { id?: string })?.id;
+  const [candidatePin, setCandidatePin] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!candidateId) return;
+    fetch(`/api/candidates/${candidateId}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json.data ?? json;
+        if (data.pinLat != null && data.pinLng != null) {
+          setCandidatePin({ lat: data.pinLat, lng: data.pinLng });
+        }
+      })
+      .catch(() => {});
+  }, [candidateId]);
 
   const fetchPledges = useCallback(async () => {
     if (!candidateId) return;
@@ -247,6 +261,8 @@ export default function PledgesPage() {
               pledges={pledges}
               draftPin={draftPin}
               onMapClick={handleMapClick}
+              pinLat={candidatePin?.lat ?? null}
+              pinLng={candidatePin?.lng ?? null}
             />
             {showForm && (
               <PledgeForm

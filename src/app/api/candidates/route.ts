@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Candidate")
-      .select("id, name, district, profileImage, slogan, party, candidateStatus, caucusStatus, electionId, electionType, pinLat, pinLng, election:Election!electionId(id, name)", { count: "exact" })
+      .select("id, name, district, profileImage, slogan, party, candidateStatus, caucusStatus, electionId, electionType, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog, election:Election!electionId(id, name)", { count: "exact" })
       .eq("verified", true)
       .eq("role", "candidate")   // exclude admin accounts from public listing
       .order("name", { ascending: true })

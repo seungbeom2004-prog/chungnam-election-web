@@ -74,6 +74,13 @@ export const updateCandidateSchema = z.object({
     .enum(["공천 미확정", "공천 확정"])
     .optional(),
   electionType: z.string().max(100).optional().nullable(),
+  youtube: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  instagram: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  twitter: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  facebook: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  tiktok: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  kakao: z.string().max(200, "200자 이내여야 합니다").optional().nullable(),
+  naverBlog: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
 });
 
 export const registerCandidateSchema = z.object({

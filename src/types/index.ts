@@ -8,6 +8,13 @@ export interface Candidate {
   slogan: string | null;
   bio: string | null;
   phone: string | null;
+  youtube: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  facebook: string | null;
+  tiktok: string | null;
+  kakao: string | null;
+  naverBlog: string | null;
   party: string;
   role: string;
   verified: boolean;

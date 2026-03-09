@@ -23,6 +23,9 @@ interface CandidateContentProps {
     name: string;
     district: string;
     bio: string | null;
+    profileImage?: string | null;
+    pinLat?: number | null;
+    pinLng?: number | null;
     pledges: PledgeData[];
     bylaws?: PledgeData[];
   };
@@ -121,6 +124,10 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           <CandidateMiniMap
             pledges={candidate.pledges}
             district={candidate.district}
+            pinLat={candidate.pinLat ?? null}
+            pinLng={candidate.pinLng ?? null}
+            profileImage={candidate.profileImage ?? null}
+            candidateName={candidate.name}
           />
         </div>
       )}

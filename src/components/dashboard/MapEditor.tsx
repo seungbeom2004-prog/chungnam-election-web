@@ -9,6 +9,8 @@ interface MapEditorProps {
   pledges: Pledge[];
   draftPin: { lat: number; lng: number } | null;
   onMapClick: (lat: number, lng: number) => void;
+  pinLat?: number | null;
+  pinLng?: number | null;
 }
 
 const ORANGE_PIN_SVG =
@@ -27,6 +29,8 @@ export default function MapEditor({
   pledges,
   draftPin,
   onMapClick,
+  pinLat,
+  pinLng,
 }: MapEditorProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<naver.maps.Map | null>(null);
@@ -40,9 +44,13 @@ export default function MapEditor({
     if (!mapRef.current || typeof naver === "undefined") return;
 
     const districtData = CHUNGNAM_DISTRICTS.find((d) => d.name === district);
-    const center = districtData
+    const districtCenter = districtData
       ? { lat: districtData.centerLat, lng: districtData.centerLng }
       : { lat: 36.5184, lng: 126.8 };
+    const center =
+      pinLat != null && pinLng != null
+        ? { lat: pinLat, lng: pinLng }
+        : districtCenter;
 
     const map = new naver.maps.Map(mapRef.current, {
       center: new naver.maps.LatLng(center.lat, center.lng),
@@ -65,7 +73,7 @@ export default function MapEditor({
       map.destroy();
       mapInstance.current = null;
     };
-  }, [district]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [district, pinLat, pinLng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Render existing pledge markers + draft pin
   useEffect(() => {

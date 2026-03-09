@@ -22,6 +22,13 @@ export interface CandidateForMap {
   candidateStatus: string;
   pinLat: number | null;
   pinLng: number | null;
+  youtube: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  facebook: string | null;
+  tiktok: string | null;
+  kakao: string | null;
+  naverBlog: string | null;
 }
 
 export interface DistrictCoords {
@@ -165,6 +172,13 @@ export default function MapPageContent() {
           candidateStatus: string;
           pinLat: number | null;
           pinLng: number | null;
+          youtube: string | null;
+          instagram: string | null;
+          twitter: string | null;
+          facebook: string | null;
+          tiktok: string | null;
+          kakao: string | null;
+          naverBlog: string | null;
           election?: { id: string; name: string } | null;
         }> = json.data ?? [];
         setCandidates(
@@ -178,6 +192,13 @@ export default function MapPageContent() {
             candidateStatus: c.candidateStatus ?? "",
             pinLat: c.pinLat ?? null,
             pinLng: c.pinLng ?? null,
+            youtube: c.youtube ?? null,
+            instagram: c.instagram ?? null,
+            twitter: c.twitter ?? null,
+            facebook: c.facebook ?? null,
+            tiktok: c.tiktok ?? null,
+            kakao: c.kakao ?? null,
+            naverBlog: c.naverBlog ?? null,
           }))
         );
       })
