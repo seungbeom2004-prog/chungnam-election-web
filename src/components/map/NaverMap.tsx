@@ -456,7 +456,7 @@ export default function NaverMap({
 
                 const mHtml = isCute
                   ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
-                  : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+                  : buildPledgeMarkerHTML(emoji, color, null); // regular: emoji only, no sticker overlay
 
                 const sMarker = new naver.maps.Marker({
                   map,
@@ -505,7 +505,7 @@ export default function NaverMap({
 
           const html = isCute
             ? buildCutePledgeMarkerHTML(emoji, color, iconImage ?? null)
-            : buildPledgeMarkerHTML(emoji, color, iconImage ?? null);
+            : buildPledgeMarkerHTML(emoji, color, null); // regular: emoji only, no sticker overlay
 
           const marker = new naver.maps.Marker({
             map,
