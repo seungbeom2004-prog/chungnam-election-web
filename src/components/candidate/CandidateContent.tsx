@@ -68,8 +68,10 @@ function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
 }
 
 export default function CandidateContent({ candidate }: CandidateContentProps) {
-  const hasBylaws = (candidate.bylaws?.length ?? 0) > 0;
-  const [activeView, setActiveView] = useState<"list" | "bylaws" | "map">("list");
+  const [activeView, setActiveView] = useState<"list" | "map">("list");
+
+  const allPledges = candidate.pledges;
+  const bylaws = candidate.bylaws ?? [];
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-8">
@@ -92,20 +94,8 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               : "text-muted hover:text-foreground"
           }`}
         >
-          공약 목록
+          공약
         </button>
-        {hasBylaws && (
-          <button
-            onClick={() => setActiveView("bylaws")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeView === "bylaws"
-                ? "bg-surface text-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            조례
-          </button>
-        )}
         <button
           onClick={() => setActiveView("map")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -120,76 +110,90 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
 
       {/* Content */}
       {activeView === "list" ? (
-        /* ── Pledge list ─────────────────────────────────────────────── */
-        <div className="space-y-3 max-w-2xl">
-          {candidate.pledges.length === 0 ? (
+        /* ── Pledge + Bylaws combined list ───────────────────────────── */
+        <div>
+          {allPledges.length === 0 && bylaws.length === 0 ? (
             <p className="text-center text-muted py-12">
               등록된 공약이 없습니다.
             </p>
           ) : (
-            candidate.pledges.map((pledge) => (
-              <div
-                key={pledge.id}
-                className="p-5 border border-border rounded-xl bg-surface"
-              >
-                <div className="flex items-start gap-3">
-                  <PledgeIcon category={pledge.category} />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm leading-snug">
-                      {pledge.title}
-                    </h3>
-                    <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap line-clamp-3">
-                      {pledge.description}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      {pledge.budget && (
-                        <span className="text-xs text-primary font-medium">
-                          {pledge.budget}
-                        </span>
-                      )}
-                      {pledge.address && (
-                        <span className="text-xs text-muted truncate">
-                          📍 {pledge.address}
-                        </span>
-                      )}
-                      <time className="text-xs text-muted ml-auto">
-                        {new Date(pledge.createdAt).toLocaleDateString("ko-KR")}
-                      </time>
+            <>
+              {/* Regular pledges — 2-column grid */}
+              {allPledges.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                  {allPledges.map((pledge) => (
+                    <div
+                      key={pledge.id}
+                      className="p-5 border border-border rounded-xl bg-surface"
+                    >
+                      <div className="flex items-start gap-3">
+                        <PledgeIcon category={pledge.category} />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground text-sm leading-snug">
+                            {pledge.title}
+                          </h3>
+                          <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                            {pledge.description}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            {pledge.budget && (
+                              <span className="text-xs text-primary font-medium">
+                                {pledge.budget}
+                              </span>
+                            )}
+                            {pledge.address && (
+                              <span className="text-xs text-muted truncate">
+                                📍 {pledge.address}
+                              </span>
+                            )}
+                            <time className="text-xs text-muted ml-auto">
+                              {new Date(pledge.createdAt).toLocaleDateString("ko-KR")}
+                            </time>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            ))
+              )}
+
+              {/* Bylaws — 2-column grid with tag */}
+              {bylaws.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {bylaws.map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-5 border border-border rounded-xl bg-surface"
+                    >
+                      <div className="flex items-start gap-3">
+                        {b.category ? (
+                          <PledgeIcon category={b.category} />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center shrink-0 mt-0.5">
+                            <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                              조례 입법 공약
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-foreground text-sm leading-snug">{b.title}</h3>
+                          <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                            {b.description}
+                          </p>
+                          {b.budget && (
+                            <p className="text-xs text-primary font-medium mt-2">{b.budget}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-        </div>
-      ) : activeView === "bylaws" ? (
-        /* ── Bylaws list ─────────────────────────────────────────────── */
-        <div className="space-y-3 max-w-2xl">
-          {(candidate.bylaws ?? []).map((b) => (
-            <div
-              key={b.id}
-              className="p-5 border border-border rounded-xl bg-surface"
-            >
-              <div className="flex items-start gap-3">
-                {b.category ? (
-                  <PledgeIcon category={b.category} />
-                ) : (
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-sm leading-snug">{b.title}</h3>
-                  <p className="text-sm text-muted mt-1.5 leading-relaxed whitespace-pre-wrap">
-                    {b.description}
-                  </p>
-                  {b.budget && (
-                    <p className="text-xs text-primary font-medium mt-2">{b.budget}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       ) : (
         /* ── Map view ────────────────────────────────────────────────── */
