@@ -76,7 +76,7 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 py-8">
+    <div className="max-w-screen-xl mx-auto px-4 pt-8 pb-24 md:pb-8">
       {/* Bio — whitespace-pre-wrap preserves line breaks entered in the dashboard */}
       {candidate.bio && (
         <div className="mb-8 p-6 bg-surface rounded-xl border border-border">
@@ -86,8 +86,9 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
         </div>
       )}
 
-      {/* Toggle */}
-      <div className="flex items-center gap-1 mb-6 bg-background rounded-lg p-1 w-fit">
+      {/* Toggle — sticky below the top navbar (h-14 = 3.5rem) */}
+      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 mb-4 bg-background/95 backdrop-blur-sm border-b border-border">
+      <div className="flex items-center gap-1 bg-background rounded-lg p-1 w-fit">
         <button
           onClick={() => setActiveView("list")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -108,6 +109,7 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
         >
           지도 보기
         </button>
+      </div>
       </div>
 
       {/* Content */}
