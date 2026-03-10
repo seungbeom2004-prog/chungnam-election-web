@@ -86,9 +86,8 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
         </div>
       )}
 
-      {/* Toggle — sticky below the top navbar (h-14 = 3.5rem) */}
-      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 mb-4 bg-background/95 backdrop-blur-sm border-b border-border">
-      <div className="flex items-center gap-1 bg-background rounded-lg p-1 w-fit">
+      {/* Toggle */}
+      <div className="flex items-center gap-1 mb-6 bg-background rounded-lg p-1 w-fit">
         <button
           onClick={() => setActiveView("list")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -110,12 +109,11 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           지도 보기
         </button>
       </div>
-      </div>
 
       {/* Content */}
       {activeView === "list" ? (
         /* ── Pledge + Bylaws combined list ───────────────────────────── */
-        <div>
+        <div className="relative z-50">
           {allPledges.length === 0 ? (
             <p className="text-center text-muted py-12">
               등록된 공약이 없습니다.
