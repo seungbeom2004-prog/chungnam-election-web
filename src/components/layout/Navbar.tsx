@@ -26,6 +26,7 @@ export default function Navbar() {
     useMapStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
+  const [cuteLogoError, setCuteLogoError] = useState(false);
   const t = useUITexts();
   const { isCute, setTheme } = useTheme();
 
@@ -55,6 +56,7 @@ export default function Navbar() {
 
   const handleThemeToggle = () => {
     const next = isCute ? "regular" : "cute";
+    if (next === "cute") setCuteLogoError(false);
     setTheme(next);          // apply immediately — don't wait for the route page's useEffect
     router.push(`/${next}`);
   };
@@ -66,18 +68,17 @@ export default function Navbar() {
         <Link href="/" onClick={reset} className="flex items-center gap-2 shrink-0">
           {isCute ? (
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-pink-100">
-              <Image
-                src="/themes/cute/images/logo-cute.png"
-                width={32}
-                height={32}
-                alt="개혁"
-                onError={(e) => {
-                  // Fallback to text if cute logo not available
-                  const el = e.target as HTMLImageElement;
-                  el.style.display = "none";
-                  el.parentElement!.innerHTML = '<span class="text-pink-500 font-bold text-sm">개혁</span>';
-                }}
-              />
+              {cuteLogoError ? (
+                <span className="text-pink-500 font-bold text-sm">개혁</span>
+              ) : (
+                <Image
+                  src="/themes/cute/images/logo-cute.png"
+                  width={32}
+                  height={32}
+                  alt="개혁"
+                  onError={() => setCuteLogoError(true)}
+                />
+              )}
             </div>
           ) : (
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
