@@ -138,7 +138,7 @@ export default function MapPageContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   // Closed by default — mobile users see the full map
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { setSelectedPledge, selectedDistrict } = useMapStore();
+  const { setSelectedPledge, selectedDistrict, isPanelOpen } = useMapStore();
   const t = useUITexts();
   const { isCute } = useTheme();
 
@@ -350,10 +350,11 @@ export default function MapPageContent() {
           후보자 {filteredCount}명
         </button>
 
-        {/* Mobile bottom tab — shows count, tap to expand list */}
+        {/* Mobile bottom tab — shows count, tap to expand list.
+            Shifts up above the PledgePanel bottom sheet when a pledge is open. */}
         <button
           onClick={() => setSidebarOpen((o) => !o)}
-          className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-lg text-sm font-semibold text-foreground"
+          className={`md:hidden absolute ${isPanelOpen ? "bottom-[calc(70vh+1rem)]" : "bottom-4"} left-1/2 -translate-x-1/2 z-20 transition-all duration-300 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-lg text-sm font-semibold text-foreground`}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
