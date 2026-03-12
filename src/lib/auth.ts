@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { supabase } from "./supabase";
+import { supabaseAdmin } from "./supabaseAdmin";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const { data: candidate } = await supabase
+        const { data: candidate } = await supabaseAdmin
           .from("Candidate")
           .select("id, email, password, name, district, verified, role")
           .eq("email", credentials.email)

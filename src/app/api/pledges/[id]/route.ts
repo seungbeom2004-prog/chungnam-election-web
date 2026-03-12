@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminAdmin } from "@/lib/supabaseAdminAdmin";
 import { updatePledgeSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
 async function verifyOwnership(pledgeId: string, userId: string) {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from("Pledge")
     .select("candidateId")
     .eq("id", pledgeId)
@@ -35,7 +35,7 @@ export async function PUT(
     const body = await request.json();
     const validated = updatePledgeSchema.parse(body);
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await supabaseAdmin
       .from("Pledge")
       .update({ ...validated, updatedAt: new Date().toISOString() })
       .eq("id", id)
@@ -72,7 +72,7 @@ export async function DELETE(
       return apiError("권한이 없습니다", 403);
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("Pledge")
       .delete()
       .eq("id", id);

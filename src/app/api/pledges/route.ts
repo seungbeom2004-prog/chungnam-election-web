@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createPledgeSchema, paginationSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError, paginationMeta } from "@/lib/api-utils";
 
@@ -22,19 +23,31 @@ export async function GET(request: NextRequest) {
 
     const pledgeType = searchParams.get("pledgeType"); // "map" | "bylaws" | null (all)
 
-    let query = supabase
+    // Check if the requesting user is fetching their own pledges (dashboard)
+    const session = await getServerSession(authOptions);
+    const sessionUserId = (session?.user as { id?: string })?.id;
+    const isOwnPledges = !!candidateId && sessionUserId === candidateId;
+
+    // Use admin client for own pledges (shows all including hidden); anon for public
+    const client = isOwnPledges ? supabaseAdmin : supabase;
+
+    let query = client
       .from("Pledge")
       .select("*, candidate:Candidate!candidateId(id, name, district, profileImage), category:Category!categoryId(id, name, emoji, color, iconImage)", { count: "exact" })
-      .eq("visible", true)
       .order("createdAt", { ascending: false })
       .range(from, to);
+
+    // Public requests: only visible pledges
+    if (!isOwnPledges) {
+      query = query.eq("visible", true);
+    }
 
     if (candidateId) {
       query = query.eq("candidateId", candidateId);
     } else {
       // Public map: only show pledges from officially registered candidates.
       // Conditions: caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
-      const { data: eligible } = await supabase
+      const { data: eligible } = await supabaseAdmin
         .from("Candidate")
         .select("id")
         .eq("caucusStatus", "공천 확정")
@@ -78,7 +91,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createPledgeSchema.parse(body);
 
-    const { data: pledge, error } = await supabase
+    const { data: pledge, error } = await supabaseAdmin
       .from("Pledge")
       .insert({
         ...validated,

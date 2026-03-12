@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { updateCandidateSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
@@ -13,7 +14,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data: candidate, error } = await supabase
+    const { data: candidate, error } = await supabaseAdmin
       .from("Candidate")
       .select("id, name, district, handle, profileImage, slogan, bio, party, candidateStatus, caucusStatus, electionId, electionType, phone, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog, election:Election!electionId(id, name, type)")
       .eq("id", id)
@@ -24,7 +25,7 @@ export async function GET(
     }
 
     // Fetch pledges with collaborators
-    const { data: pledges } = await supabase
+    const { data: pledges } = await supabaseAdmin
       .from("Pledge")
       .select("*, collaborators:PledgeCollaboration(id, candidateId, candidate:Candidate!candidateId(id, name, district, profileImage))")
       .eq("candidateId", id)
@@ -63,7 +64,7 @@ export async function PUT(
           }
         : { ...validated, updatedAt: new Date().toISOString() };
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await supabaseAdmin
       .from("Candidate")
       .update(updatePayload)
       .eq("id", id)
