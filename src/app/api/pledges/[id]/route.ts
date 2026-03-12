@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
-import { supabaseAdminAdmin } from "@/lib/supabaseAdminAdmin";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { updatePledgeSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
