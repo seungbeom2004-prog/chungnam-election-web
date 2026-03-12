@@ -23,8 +23,8 @@ export default function Footer() {
             />
           )}
           <p>
-            &copy; 2026. 손승범 모든 권리 보유
-            {isCute && " 💕"}
+            <span className="text-muted/60">© 2026. 개혁신당 제9회 전국동시지방선거 천안시의원 천안시다선거구 후보 </span><span className="font-bold text-black dark:text-white">손승범</span><span className="text-muted/60"> 모든 권리 보유</span>
+            {isCute && <span className="text-muted/60"> 💕</span>}
           </p>
         </div>
       </div>

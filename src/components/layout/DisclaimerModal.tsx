@@ -59,9 +59,7 @@ export default function DisclaimerModal() {
           공식 사이트가 아닙니다.
         </h2>
         <p className="text-sm text-muted mb-6 leading-relaxed">
-          이 사이트는 충남 지역 후보자들의 공약을
-          <br />
-          시각화하기 위해 개인이 제작한 페이지입니다.
+          본 홈페이지는 이번 지방선거에 출마하는 개혁신당 충남 지역 (예비)후보자들의 공동 정책 홍보 홈페이지입니다.
         </p>
 
         {/* Accept button */}
