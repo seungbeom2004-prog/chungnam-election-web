@@ -33,29 +33,42 @@ export default async function CandidateProfilePage({ params }: Props) {
 
   const { data: candidate } = await supabase
     .from("Candidate")
-    .select("id, name, district, profileImage, slogan, bio, party, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog")
+    .select("id, name, district, profileImage, slogan, bio, party, caucusStatus, candidateStatus, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog")
     .eq("id", id)
     .single();
 
   if (!candidate) notFound();
 
+  // Only show pledges for officially registered candidates:
+  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+  const isPledgeEligible =
+    candidate.caucusStatus === "공천 확정" &&
+    ["예비 후보자", "후보자"].includes(candidate.candidateStatus ?? "");
+
   // Fetch map pledges (with category for icons)
-  const { data: pledges } = await supabase
-    .from("Pledge")
-    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
-    .eq("candidateId", id)
-    .eq("visible", true)
-    .eq("pledgeType", "map")
-    .order("createdAt", { ascending: false });
+  const { data: pledgesRaw } = isPledgeEligible
+    ? await supabase
+        .from("Pledge")
+        .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
+        .eq("candidateId", id)
+        .eq("visible", true)
+        .eq("pledgeType", "map")
+        .order("createdAt", { ascending: false })
+    : { data: [] };
 
   // Fetch bylaws pledges (with category for icons)
-  const { data: bylawsPledges } = await supabase
-    .from("Pledge")
-    .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
-    .eq("candidateId", id)
-    .eq("visible", true)
-    .eq("pledgeType", "bylaws")
-    .order("createdAt", { ascending: false });
+  const { data: bylawsPledgesRaw } = isPledgeEligible
+    ? await supabase
+        .from("Pledge")
+        .select("id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage)")
+        .eq("candidateId", id)
+        .eq("visible", true)
+        .eq("pledgeType", "bylaws")
+        .order("createdAt", { ascending: false })
+    : { data: [] };
+
+  const pledges = pledgesRaw;
+  const bylawsPledges = bylawsPledgesRaw;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapPledge = (p: any) => ({

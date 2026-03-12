@@ -98,6 +98,10 @@ export default function PledgesPage() {
 
   const candidateId = (session?.user as { id?: string })?.id;
   const [candidatePin, setCandidatePin] = useState<{ lat: number; lng: number } | null>(null);
+  const [candidateEligibility, setCandidateEligibility] = useState<{
+    caucusStatus: string | null;
+    candidateStatus: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!candidateId) return;
@@ -108,9 +112,20 @@ export default function PledgesPage() {
         if (data.pinLat != null && data.pinLng != null) {
           setCandidatePin({ lat: data.pinLat, lng: data.pinLng });
         }
+        setCandidateEligibility({
+          caucusStatus: data.caucusStatus ?? null,
+          candidateStatus: data.candidateStatus ?? null,
+        });
       })
       .catch(() => {});
   }, [candidateId]);
+
+  // Pledges are publicly visible only when the candidate is officially registered:
+  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+  const isPledgeVisible =
+    candidateEligibility !== null &&
+    candidateEligibility.caucusStatus === "공천 확정" &&
+    ["예비 후보자", "후보자"].includes(candidateEligibility.candidateStatus ?? "");
 
   const fetchPledges = useCallback(async () => {
     if (!candidateId) return;
@@ -223,6 +238,16 @@ export default function PledgesPage() {
   return (
     <div className="max-w-screen-xl mx-auto">
       <h1 className="text-xl font-bold text-foreground mb-4">공약 관리</h1>
+
+      {/* Eligibility warning — shown when status is not yet confirmed */}
+      {candidateEligibility !== null && !isPledgeVisible && (
+        <div className="mb-4 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 leading-relaxed">
+          <span className="text-base shrink-0">⚠️</span>
+          <p>
+            공천이 확정되지 않았거나, 아직 예비 후보자 등록을 선관위에 하지 않으신 출마자분들은 선거법상 공약이 노출되지 않습니다. 양해바랍니다.
+          </p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-border">

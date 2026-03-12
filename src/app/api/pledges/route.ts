@@ -29,7 +29,23 @@ export async function GET(request: NextRequest) {
       .order("createdAt", { ascending: false })
       .range(from, to);
 
-    if (candidateId) query = query.eq("candidateId", candidateId);
+    if (candidateId) {
+      query = query.eq("candidateId", candidateId);
+    } else {
+      // Public map: only show pledges from officially registered candidates.
+      // Conditions: caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+      const { data: eligible } = await supabase
+        .from("Candidate")
+        .select("id")
+        .eq("caucusStatus", "공천 확정")
+        .in("candidateStatus", ["예비 후보자", "후보자"]);
+      const eligibleIds = (eligible ?? []).map((c: { id: string }) => c.id);
+      if (eligibleIds.length === 0) {
+        return NextResponse.json({ success: true, data: [], pagination: paginationMeta(0, page, limit) });
+      }
+      query = query.in("candidateId", eligibleIds);
+    }
+
     if (district) query = query.eq("candidate.district", district);
     if (pledgeType) query = query.eq("pledgeType", pledgeType);
 
