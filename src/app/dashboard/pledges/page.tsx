@@ -121,11 +121,11 @@ export default function PledgesPage() {
   }, [candidateId]);
 
   // Pledges are publicly visible only when the candidate is officially registered:
-  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비후보자", "후보자")
   const isPledgeVisible =
     candidateEligibility !== null &&
     candidateEligibility.caucusStatus === "공천 확정" &&
-    ["예비 후보자", "후보자"].includes(candidateEligibility.candidateStatus ?? "");
+    ["예비후보자", "후보자"].includes(candidateEligibility.candidateStatus ?? "");
 
   const fetchPledges = useCallback(async () => {
     if (!candidateId) return;

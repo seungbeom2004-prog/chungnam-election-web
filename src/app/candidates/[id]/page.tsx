@@ -40,10 +40,10 @@ export default async function CandidateProfilePage({ params }: Props) {
   if (!candidate) notFound();
 
   // Only show pledges for officially registered candidates:
-  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+  // caucusStatus = "공천 확정" AND candidateStatus IN ("예비후보자", "후보자")
   const isPledgeEligible =
     candidate.caucusStatus === "공천 확정" &&
-    ["예비 후보자", "후보자"].includes(candidate.candidateStatus ?? "");
+    ["예비후보자", "후보자"].includes(candidate.candidateStatus ?? "");
 
   // Fetch map pledges (with category for icons)
   const { data: pledgesRaw } = isPledgeEligible

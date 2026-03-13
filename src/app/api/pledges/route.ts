@@ -46,12 +46,12 @@ export async function GET(request: NextRequest) {
       query = query.eq("candidateId", candidateId);
     } else {
       // Public map: only show pledges from officially registered candidates.
-      // Conditions: caucusStatus = "공천 확정" AND candidateStatus IN ("예비 후보자", "후보자")
+      // Conditions: caucusStatus = "공천 확정" AND candidateStatus IN ("예비후보자", "후보자")
       const { data: eligible } = await supabaseAdmin
         .from("Candidate")
         .select("id")
         .eq("caucusStatus", "공천 확정")
-        .in("candidateStatus", ["예비 후보자", "후보자"]);
+        .in("candidateStatus", ["예비후보자", "후보자"]);
       const eligibleIds = (eligible ?? []).map((c: { id: string }) => c.id);
       if (eligibleIds.length === 0) {
         return NextResponse.json({ success: true, data: [], pagination: paginationMeta(0, page, limit) });
