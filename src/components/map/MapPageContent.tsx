@@ -1,16 +1,27 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
-import CategoryFilter from "@/components/map/CategoryFilter";
 import { useMapStore } from "@/store/useMapStore";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggleFAB from "@/components/theme/ThemeToggle";
 import type { Pledge } from "@/types";
+
+const CITY_ZOOM = 6;
+
+// Icon map for categories
+const CATEGORY_ICONS: Record<string, string> = {
+  "교통": "🚌",
+  "안전": "⚠️",
+  "교육": "📚",
+  "복지": "🏥",
+  "경제": "📈",
+  "조례": "📜",
+};
 
 export interface CandidateForMap {
   id: string;
@@ -86,7 +97,7 @@ function CandidateSidebar({
               onClick={() => onSelect(c)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-background/60 transition-colors text-left"
             >
-              {/* Profile image — auto-fit regardless of source image size */}
+              {/* Profile image */}
               <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border-2 border-primary/30">
                 {c.profileImage ? (
                   <Image
@@ -139,18 +150,38 @@ export default function MapPageContent() {
   const [emptyOverlayDismissed, setEmptyOverlayDismissed] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  // Closed by default — mobile users see the full map
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { setSelectedPledge, selectedDistrict, isPanelOpen } = useMapStore();
+  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const districtDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { setSelectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
   const t = useUITexts();
   const { isCute } = useTheme();
+
+  const primaryColor = isCute ? "#FF6B9D" : "#FF5A00";
 
   // Count candidates visible in sidebar
   const filteredCount = selectedDistrict
     ? candidates.filter((c) => c.district === selectedDistrict || c.district.startsWith(selectedDistrict)).length
     : candidates.length;
 
-  // Fetch map pledges only (exclude bylaws — those show on candidate profiles)
+  // Compute active categories from pledges (only those with > 0 pledges)
+  const activeCategories = (() => {
+    const map = new Map<string, { icon: string; count: number }>();
+    pledges.forEach((p) => {
+      const name = p.category?.name;
+      if (name) {
+        const existing = map.get(name);
+        map.set(name, {
+          icon: p.category?.emoji || CATEGORY_ICONS[name] || "📌",
+          count: (existing?.count ?? 0) + 1,
+        });
+      }
+    });
+    return Array.from(map.entries()).map(([name, info]) => ({ id: name, ...info }));
+  })();
+
+  // Fetch map pledges
   useEffect(() => {
     fetch("/api/pledges?limit=1000&pledgeType=map")
       .then((res) => res.json())
@@ -161,7 +192,7 @@ export default function MapPageContent() {
       .catch(console.error);
   }, []);
 
-  // Fetch all verified candidates with election + pin data
+  // Fetch all verified candidates
   useEffect(() => {
     fetch("/api/candidates?limit=500")
       .then((res) => res.json())
@@ -209,7 +240,7 @@ export default function MapPageContent() {
       .finally(() => setCandidatesLoaded(true));
   }, []);
 
-  // Fetch district center coordinates for candidate marker placement
+  // Fetch district center coordinates
   useEffect(() => {
     fetch("/api/districts")
       .then((res) => res.json())
@@ -226,10 +257,8 @@ export default function MapPageContent() {
       .catch(console.error);
   }, []);
 
-  // Wait for Naver Maps SDK (loaded by next/script in layout.tsx).
-  // Just poll for readiness — no dynamic script injection needed.
+  // Wait for Naver Maps SDK
   useEffect(() => {
-    // Auth failure callback — Naver SDK calls this if the API key is invalid
     (window as unknown as Record<string, unknown>).navermap_authFailure = function () {
       setMapError(
         "네이버 지도 인증에 실패했습니다. NCP 콘솔에서 Web Dynamic Map API 활성화 및 도메인 등록을 확인하세요."
@@ -248,7 +277,6 @@ export default function MapPageContent() {
       return;
     }
 
-    // Poll every 200ms for up to 15 seconds (75 polls)
     let polls = 0;
     const timer = setInterval(() => {
       if (isSdkReady()) {
@@ -263,6 +291,24 @@ export default function MapPageContent() {
     return () => clearInterval(timer);
   }, []);
 
+  // Close district dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (districtDropdownRef.current && !districtDropdownRef.current.contains(e.target as Node)) {
+        setDistrictDropdownOpen(false);
+      }
+    };
+    if (districtDropdownOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [districtDropdownOpen]);
+
+  const handleDistrictSelect = useCallback((district: DistrictCoords) => {
+    setCenter(district.centerLat, district.centerLng);
+    setZoomLevel(CITY_ZOOM);
+    setSelectedDistrict(district.name);
+    setDistrictDropdownOpen(false);
+  }, [setCenter, setZoomLevel, setSelectedDistrict]);
+
   const handlePledgeClick = useCallback(
     (pledge: Pledge) => { setSelectedPledge(pledge); },
     [setSelectedPledge]
@@ -273,7 +319,7 @@ export default function MapPageContent() {
   }, []);
 
   return (
-    <div className="flex w-full h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="flex w-full overflow-hidden" style={{ height: "calc(100dvh - 3.5rem)" }}>
       {/* Map area */}
       <div className="flex-1 relative min-w-0">
         {mapReady && !mapError ? (
@@ -316,12 +362,54 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Category filter chips — overlaid at the top of the map */}
-        <CategoryFilter
-          selected={selectedCategory}
-          onChange={setSelectedCategory}
-          isCute={isCute}
-        />
+        {/* City (시군구) selector — top-left of map */}
+        <div ref={districtDropdownRef} className="absolute top-3 left-3 z-20">
+          <button
+            onClick={() => setDistrictDropdownOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md text-xs font-medium text-foreground hover:bg-background transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            {selectedDistrict ?? "도시 (시군구) 별"}
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              style={{ transition: "transform 0.15s", transform: districtDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {districtDropdownOpen && districts.length > 0 && (
+            <div className="absolute top-full left-0 mt-1.5 bg-white/98 backdrop-blur-sm border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px] max-h-64 overflow-y-auto">
+              <button
+                onClick={() => { setSelectedDistrict(null); setDistrictDropdownOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
+                  !selectedDistrict ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
+                }`}
+              >
+                전체 지역
+              </button>
+              {districts.map((d) => (
+                <button
+                  key={d.name}
+                  onClick={() => handleDistrictSelect(d)}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
+                    selectedDistrict === d.name ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
+                  }`}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Empty city state overlay */}
         {mapReady && !mapError && candidatesLoaded && candidates.length === 0 && !emptyOverlayDismissed && (
@@ -347,29 +435,58 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Icon legend — shifts up above the pledge panel bottom sheet when open */}
-        <div className={`absolute ${isPanelOpen ? "bottom-[calc(70vh+1rem)]" : "bottom-24"} left-3 z-10 transition-all duration-300`}>
+        {/* Legend — bottom-left, fixed position for safe area */}
+        <div
+          className="absolute left-3 z-10"
+          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
           {legendOpen ? (
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 text-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-foreground">범례</span>
-                <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3">✕</button>
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 min-w-[140px]">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-semibold text-foreground">카테고리</span>
+                <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3 text-xs">✕</button>
               </div>
-              <div className="space-y-1">
-                {[["🚌","교통"],["⚠️","안전"],["📚","교육"],["🏥","복지"],["📈","경제"],["📜","조례"]].map(([icon, label]) => (
-                  <div key={label} className="flex items-center gap-2 text-foreground">
-                    <span className="w-5 text-center">{icon}</span>
-                    <span>{label}</span>
-                  </div>
-                ))}
-              </div>
+              {/* "전체" option */}
+              <button
+                onClick={() => setSelectedCategory("all")}
+                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                  selectedCategory === "all"
+                    ? "font-semibold"
+                    : "text-foreground hover:bg-background/60"
+                }`}
+                style={selectedCategory === "all" ? { background: `${primaryColor}18`, color: primaryColor } : {}}
+              >
+                <span className="w-5 text-center text-sm">🗺️</span>
+                <span className="flex-1 text-left">전체</span>
+              </button>
+              {activeCategories.map(({ id, icon, count }) => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                    selectedCategory === id
+                      ? "font-semibold"
+                      : "text-foreground hover:bg-background/60"
+                  }`}
+                  style={selectedCategory === id ? { background: `${primaryColor}18`, color: primaryColor } : {}}
+                >
+                  <span className="w-5 text-center text-sm">{icon}</span>
+                  <span className="flex-1 text-left">{id}</span>
+                  <span
+                    className="text-[10px] px-1 rounded-full"
+                    style={{ background: `${primaryColor}18`, color: primaryColor }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              ))}
             </div>
           ) : (
             <button
               onClick={() => setLegendOpen(true)}
               className="bg-white/95 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs font-medium text-foreground shadow-md hover:bg-background transition-colors"
             >
-              범례
+              카테고리
             </button>
           )}
         </div>
@@ -383,7 +500,7 @@ export default function MapPageContent() {
           />
         )}
 
-        {/* Desktop sidebar toggle — chevron rotates 180° on toggle, no continuous spinning */}
+        {/* Desktop sidebar toggle */}
         <button
           onClick={() => setSidebarOpen((o) => !o)}
           className="hidden md:flex absolute top-3 right-3 z-20 items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md hover:bg-background transition-colors text-xs font-medium text-foreground"
@@ -405,34 +522,36 @@ export default function MapPageContent() {
           후보자 {filteredCount}명
         </button>
 
-        {/* Mobile bottom tab — shows count, tap to expand list.
-            Shifts up above the PledgePanel bottom sheet when a pledge is open. */}
-        <button
-          onClick={() => setSidebarOpen((o) => !o)}
-          className={`md:hidden absolute ${isPanelOpen ? "bottom-[calc(70vh+1rem)]" : "bottom-4"} left-1/2 -translate-x-1/2 z-20 transition-all duration-300 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-lg text-sm font-semibold text-foreground`}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-          </svg>
-          후보자 {filteredCount}명
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            style={{ transition: "transform 0.2s", transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+        {/* Mobile bottom candidate button — fixed to avoid Chrome UI overlap */}
+        {!isPanelOpen && (
+          <button
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="md:hidden fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-lg text-sm font-semibold text-foreground"
+            style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
           >
-            <path d="M18 15l-6-6-6 6" />
-          </svg>
-        </button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+            </svg>
+            후보자 {filteredCount}명
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              style={{ transition: "transform 0.2s", transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              <path d="M18 15l-6-6-6 6" />
+            </svg>
+          </button>
+        )}
 
         {/* Mobile theme toggle FAB */}
         <ThemeToggleFAB />
       </div>
 
-      {/* Desktop: right candidate sidebar — smooth slide */}
+      {/* Desktop: right candidate sidebar */}
       <div
         className={`hidden md:flex shrink-0 border-l border-border bg-surface flex-col overflow-hidden transition-all duration-200 ${
           sidebarOpen ? "w-64" : "w-0 border-l-0"
@@ -452,12 +571,13 @@ export default function MapPageContent() {
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/30" />
           <div
-            className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl max-h-[70vh] flex flex-col"
+            className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl flex flex-col"
+            style={{ maxHeight: "70dvh" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle */}
             <div
-              className="flex justify-center pt-3 pb-1 cursor-pointer"
+              className="flex justify-center pt-3 pb-1 cursor-pointer shrink-0"
               onClick={() => setSidebarOpen(false)}
             >
               <div className="w-10 h-1 bg-border rounded-full" />
