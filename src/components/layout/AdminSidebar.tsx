@@ -8,6 +8,7 @@ const navItems = [
   {
     href: "/admin/candidates",
     label: "후보 관리",
+    shortLabel: "후보",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -23,6 +24,7 @@ const navItems = [
   {
     href: "/admin/elections",
     label: "선거 관리",
+    shortLabel: "선거",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -38,6 +40,7 @@ const navItems = [
   {
     href: "/admin/districts",
     label: "지역 관리",
+    shortLabel: "지역",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -58,6 +61,7 @@ const navItems = [
   {
     href: "/admin/categories",
     label: "카테고리 관리",
+    shortLabel: "카테고리",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -72,6 +76,7 @@ const navItems = [
   {
     href: "/admin/nec-sync",
     label: "선관위 동기화",
+    shortLabel: "선관위",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -87,6 +92,7 @@ const navItems = [
   {
     href: "/admin/security",
     label: "보안 리포트",
+    shortLabel: "보안",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -108,6 +114,7 @@ const navItems = [
   {
     href: "/admin/settings",
     label: "관리자 설정",
+    shortLabel: "설정",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -212,7 +219,10 @@ export default function AdminSidebar() {
 
       {/* Mobile Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-40">
-        <div className="flex">
+        <div
+          className="flex overflow-x-auto"
+          style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+        >
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -220,15 +230,49 @@ export default function AdminSidebar() {
                 key={item.href}
                 href={item.href}
                 className={`
-                  flex-1 flex flex-col items-center gap-1 py-2 text-xs
+                  shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px]
                   ${isActive ? "text-primary" : "text-muted"}
                 `}
               >
                 {item.icon}
-                {item.label}
+                <span className="leading-tight">{item.shortLabel}</span>
               </Link>
             );
           })}
+          {/* Separator */}
+          <div className="shrink-0 w-px bg-border my-2" />
+          {/* Home */}
+          <Link
+            href="/"
+            className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px] text-muted hover:text-foreground"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 10l7-7 7 7M5 8v8a1 1 0 001 1h3v-4h2v4h3a1 1 0 001-1V8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="leading-tight">메인</span>
+          </Link>
+          {/* Logout */}
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px] text-muted hover:text-red-500"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M13 14l4-4m0 0l-4-4m4 4H5m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4a2 2 0 012 2v1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="leading-tight">로그아웃</span>
+          </button>
         </div>
       </nav>
     </>

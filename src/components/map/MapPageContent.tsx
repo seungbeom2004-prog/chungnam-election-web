@@ -356,7 +356,7 @@ export default function MapPageContent() {
                 <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3">✕</button>
               </div>
               <div className="space-y-1">
-                {[["🚌","교통"],["⚠️","안전"],["📚","교육"],["🏥","복지"],["📈","경제"],["§","조례"]].map(([icon, label]) => (
+                {[["🚌","교통"],["⚠️","안전"],["📚","교육"],["🏥","복지"],["📈","경제"],["📜","조례"]].map(([icon, label]) => (
                   <div key={label} className="flex items-center gap-2 text-foreground">
                     <span className="w-5 text-center">{icon}</span>
                     <span>{label}</span>
