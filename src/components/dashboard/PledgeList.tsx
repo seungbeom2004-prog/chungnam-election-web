@@ -169,23 +169,27 @@ export default function PledgeList({
               {onToggleType && (
                 <button
                   onClick={() => onToggleType(pledge)}
-                  className="px-2.5 py-1 text-xs font-medium text-muted hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경" : "조례로 변경"}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                    pledge.pledgeType === "bylaws"
+                      ? "border-green-300 text-green-700 bg-green-50 hover:bg-green-100"
+                      : "border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+                  }`}
+                  title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경" : "조례 공약으로 변경"}
                 >
-                  {pledge.pledgeType === "bylaws" ? "→지역" : "→조례"}
+                  {pledge.pledgeType === "bylaws" ? "지역 공약으로 전환" : "조례 공약으로 전환"}
                 </button>
               )}
               {onToggleBylawTag && pledge.pledgeType !== "bylaws" && (
                 <button
                   onClick={() => onToggleBylawTag(pledge)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                  className={`px-2 py-1 text-[11px] font-medium rounded transition-colors flex items-center gap-0.5 ${
                     (pledge as Pledge & { bylawTagged?: boolean }).bylawTagged
-                      ? "text-blue-700 bg-blue-50 hover:bg-blue-100"
-                      : "text-muted hover:text-blue-600 hover:bg-blue-50"
+                      ? "text-amber-700 bg-amber-50 border border-amber-300 hover:bg-amber-100"
+                      : "text-muted border border-dashed border-border hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50"
                   }`}
-                  title="조례 목록에도 표시 (조례 태그)"
+                  title="조례 목록에도 함께 표시 (타입은 유지)"
                 >
-                  조례태그
+                  <span>{(pledge as Pledge & { bylawTagged?: boolean }).bylawTagged ? "🏷 조례태그 ✓" : "🏷 조례태그"}</span>
                 </button>
               )}
               {onManageCollaboration && (

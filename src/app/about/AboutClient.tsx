@@ -112,10 +112,14 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
                   href={`/candidates/${c.id}`}
                   className="flex items-center gap-4 p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-colors"
                 >
-                  {/* Rank */}
-                  <span className="text-sm font-bold text-muted w-6 text-center shrink-0" aria-label={sortOrder !== "signup" ? `${i + 1}위` : undefined}>
-                    {sortOrder !== "signup" ? i + 1 : ""}
-                  </span>
+                  {/* Rank — only rendered when a ranked sort is active */}
+                  {sortOrder !== "signup" ? (
+                    <span className="text-sm font-bold text-muted w-6 text-center shrink-0" aria-label={`${i + 1}위`}>
+                      {i + 1}
+                    </span>
+                  ) : (
+                    <span className="w-6 shrink-0" aria-hidden="true" />
+                  )}
                   {/* Avatar */}
                   <div className="w-12 h-12 rounded-full bg-primary-light overflow-hidden shrink-0 flex items-center justify-center">
                     {c.profileImage ? (
@@ -134,7 +138,10 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-foreground">{c.name}</span>
-                      <span className="text-xs text-muted bg-background px-2 py-0.5 rounded-full border border-border">
+                      <span
+                        className="text-xs text-muted bg-background px-2 py-0.5 rounded-full border border-border max-w-[12rem] truncate"
+                        title={c.district}
+                      >
                         {c.district}
                       </span>
                     </div>

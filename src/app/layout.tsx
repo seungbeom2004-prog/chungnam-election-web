@@ -15,6 +15,14 @@ export const metadata: Metadata = {
     title: "개혁 충남 | 우리 동네 공약 지도",
     description: "충남 후보자들의 공약을 지도에서 확인하세요.",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "개혁 충남 | 우리 동네 공약 지도",
+      },
+    ],
   },
 };
 

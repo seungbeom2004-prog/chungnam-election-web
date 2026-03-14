@@ -357,7 +357,7 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
             ? "border-blue-200 text-blue-600 bg-blue-50"
             : "border-green-200 text-green-600 bg-green-50"
         }`}>
-          {tile.pledgeType === "bylaws" ? "조례" : "지역"}
+          {tile.pledgeType === "bylaws" ? "조례" : "지역 공약"}
         </span>
       </div>
 

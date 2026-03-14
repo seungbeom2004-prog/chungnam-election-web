@@ -106,7 +106,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/proposals"
-            className={`hidden sm:block shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
+            className={`shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
               pathname.startsWith("/proposals")
                 ? "text-primary"
                 : "text-muted hover:text-foreground"

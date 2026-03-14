@@ -87,6 +87,7 @@ function PledgeModal({
   const [activeTab, setActiveTab] = useState<ModalTab>("description");
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const embedUrl = tile.youtubeUrl || "";
   const youtubeId = embedUrl ? extractYouTubeId(embedUrl) : null;
@@ -104,6 +105,12 @@ function PledgeModal({
     }).catch(() => {});
   };
 
+  // Move focus to close button when modal opens
+  useEffect(() => {
+    const id = setTimeout(() => closeButtonRef.current?.focus(), 50);
+    return () => clearTimeout(id);
+  }, []);
+
   // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -117,6 +124,9 @@ function PledgeModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pledge-modal-title"
         className="bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -124,8 +134,8 @@ function PledgeModal({
         <div className="overflow-y-auto flex-1 p-5">
           {/* Close + Title */}
           <div className="flex items-start gap-3 mb-3">
-            <h3 className="text-lg font-bold text-foreground flex-1 leading-snug">{tile.title}</h3>
-            <button onClick={onClose} aria-label="닫기" className="shrink-0 text-muted hover:text-foreground transition-colors mt-0.5">
+            <h3 id="pledge-modal-title" className="text-lg font-bold text-foreground flex-1 leading-snug">{tile.title}</h3>
+            <button ref={closeButtonRef} onClick={onClose} aria-label="닫기" className="shrink-0 text-muted hover:text-foreground transition-colors mt-0.5">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -253,7 +263,7 @@ function PledgeModal({
                   <iframe
                     className="absolute inset-0 w-full h-full"
                     src={`https://www.youtube.com/embed/${youtubeId}`}
-                    title="관련 영상"
+                    title={`${tile.title} - 관련 영상`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
@@ -343,10 +353,21 @@ function TileCard({ tile, onClick }: { tile: PledgeTile; onClick: () => void }) 
   const extraCollabs = tile.collaborators.length - visibleCollabs.length;
   const totalParticipants = 1 + tile.collaborators.length; // author + collabs
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
-      className="flex-shrink-0 w-72 flex flex-col gap-2 p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-colors mx-2 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`${tile.candidateName}의 공약: ${tile.title}`}
+      className="flex-shrink-0 w-72 flex flex-col gap-2 p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-colors mx-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
       onClick={onClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Candidate header */}
       <div className="flex items-center gap-2 min-w-0">
@@ -412,7 +433,7 @@ function TileCard({ tile, onClick }: { tile: PledgeTile; onClick: () => void }) 
               : "border-green-200 text-green-600 bg-green-50"
           }`}
         >
-          {tile.pledgeType === "bylaws" ? "조례" : "지역"}
+          {tile.pledgeType === "bylaws" ? "조례" : "지역 공약"}
         </span>
         {isShared && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium ml-auto shrink-0">
@@ -535,6 +556,8 @@ export default function PledgeTicker({
           </div>
           <button
             onClick={() => setPaused((p) => !p)}
+            aria-pressed={paused}
+            aria-label={paused ? "공약 슬라이더 재생" : "공약 슬라이더 일시정지"}
             className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface hover:bg-primary/5 hover:border-primary/30 transition-colors"
           >
             {paused ? (

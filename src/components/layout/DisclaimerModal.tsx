@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const STORAGE_KEY = "disclaimer_accepted";
 
 export default function DisclaimerModal() {
   const [show, setShow] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     // Check if user already accepted
@@ -18,6 +19,23 @@ export default function DisclaimerModal() {
       setShow(true);
     }
   }, []);
+
+  // Move focus to confirm button when modal opens
+  useEffect(() => {
+    if (show) {
+      // Small delay ensures the DOM is painted before we focus
+      const id = setTimeout(() => btnRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+  }, [show]);
+
+  // Trap Tab/Shift-Tab inside the modal
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    // The modal only has one focusable element (the button), so just absorb Tab
+    e.preventDefault();
+    btnRef.current?.focus();
+  };
 
   const handleAccept = () => {
     try {
@@ -39,7 +57,13 @@ export default function DisclaimerModal() {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
       {/* Modal */}
-      <div className="relative bg-surface rounded-2xl shadow-2xl border border-border max-w-sm w-full mx-4 p-8 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="disclaimer-title"
+        onKeyDown={handleKeyDown}
+        className="relative bg-surface rounded-2xl shadow-2xl border border-border max-w-sm w-full mx-4 p-8 text-center animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Icon */}
         <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-5">
           <span className="text-white font-bold text-xl">개혁</span>
@@ -56,7 +80,7 @@ export default function DisclaimerModal() {
         </div>
 
         {/* Message */}
-        <h2 className="text-lg font-bold text-foreground mb-2">
+        <h2 id="disclaimer-title" className="text-lg font-bold text-foreground mb-2">
           이 사이트는 개혁신당의
           <br />
           공식 사이트가 아닙니다.
@@ -67,6 +91,7 @@ export default function DisclaimerModal() {
 
         {/* Accept button */}
         <button
+          ref={btnRef}
           onClick={handleAccept}
           className="w-full px-6 py-3 bg-primary text-white font-semibold text-sm rounded-xl hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20"
         >

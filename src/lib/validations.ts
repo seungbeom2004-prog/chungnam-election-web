@@ -33,6 +33,7 @@ export const createPledgeSchema = z.object({
 
 export const updatePledgeSchema = createPledgeSchema.partial().extend({
   visible: z.boolean().optional(),
+  bylawTagged: z.boolean().optional(),
 });
 
 // ── Candidate Schemas ───────────────────────────────────────

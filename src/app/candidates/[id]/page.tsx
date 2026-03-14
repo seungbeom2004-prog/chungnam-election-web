@@ -123,7 +123,7 @@ export default async function CandidateProfilePage({ params }: Props) {
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-14 z-10 bg-white/80 backdrop-blur-sm">
-        <Link href="/cute" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-4 py-2">
+        <Link href="/" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-4 py-2">
           ← 지도로 돌아가기
         </Link>
       </div>
