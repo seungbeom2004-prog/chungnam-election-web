@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 
 interface Props {
   candidateId: string;
+  /** "light" = white text for dark hero backgrounds (default).
+   *  "surface" = colored text for white/light card backgrounds. */
+  variant?: "light" | "surface";
 }
 
-export default function CandidateLikeButton({ candidateId }: Props) {
+export default function CandidateLikeButton({ candidateId, variant = "light" }: Props) {
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,7 +77,9 @@ export default function CandidateLikeButton({ candidateId }: Props) {
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
           hasLiked
             ? "bg-red-500 text-white cursor-default"
-            : "bg-white/20 text-white hover:bg-white/30"
+            : variant === "surface"
+              ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+              : "bg-white/20 text-white hover:bg-white/30"
         }`}
         aria-label={hasLiked ? "이미 응원했습니다" : "응원하기"}
         title={hasLiked ? "이미 응원했습니다" : "응원하기"}

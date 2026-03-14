@@ -149,9 +149,10 @@ export default function PledgeTicker({
   const [paused, setPaused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Distribute tiles across 2 rows (interleaved)
-  const row1 = tiles.filter((_, i) => i % 2 === 0);
-  const row2 = tiles.filter((_, i) => i % 2 === 1);
+  // Distribute tiles across 3 rows (interleaved so all candidates appear in each row)
+  const row1 = tiles.filter((_, i) => i % 3 === 0);
+  const row2 = tiles.filter((_, i) => i % 3 === 1);
+  const row3 = tiles.filter((_, i) => i % 3 === 2);
 
   // Speed: ~40s for ~10 tiles, scales with count
   const speed = Math.max(20, Math.min(80, tiles.length * 4));
@@ -222,6 +223,9 @@ export default function PledgeTicker({
             <TickerRow tiles={row1} paused={paused} speed={speed} />
             {row2.length > 0 && (
               <TickerRow tiles={row2} paused={paused} speed={speed} reverse />
+            )}
+            {row3.length > 0 && (
+              <TickerRow tiles={row3} paused={paused} speed={speed} />
             )}
 
             {/* Pause hint overlay */}

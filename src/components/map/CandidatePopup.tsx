@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CandidateForMap } from "@/components/map/MapPageContent";
+import CandidateLikeButton from "@/components/candidate/CandidateLikeButton";
 
 interface Props {
   candidate: CandidateForMap;
@@ -198,8 +199,11 @@ export default function CandidatePopup({ candidate, onClose }: Props) {
           )}
         </div>
 
-        {/* CTA Button */}
-        <div className="px-5 pb-5">
+        {/* 응원하기 + CTA */}
+        <div className="px-5 pb-5 flex flex-col gap-2.5">
+          <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+            <CandidateLikeButton candidateId={candidate.id} variant="surface" />
+          </div>
           <Link
             href={`/candidates/${candidate.id}`}
             className="block w-full py-3.5 bg-primary text-white font-bold text-base text-center rounded-xl hover:bg-primary/90 transition-colors"

@@ -153,12 +153,16 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {allPledges.map((pledge) => (
+              {allPledges.map((pledge, index) => (
                 <div
                   key={pledge.id}
                   className="p-5 border border-border rounded-xl bg-surface"
                 >
                   <div className="flex items-start gap-3">
+                    {/* Rank number */}
+                    <div className="shrink-0 w-6 h-6 mt-0.5 flex items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold leading-none">
+                      {index + 1}
+                    </div>
                     {pledge.isBylaw && !pledge.category ? (
                       <div className="w-10 h-10 rounded-xl bg-blue-50 border-2 border-blue-200 flex items-center justify-center shrink-0 mt-0.5">
                         <span className="text-blue-600 text-sm font-bold">{"\u00A7"}</span>

@@ -106,8 +106,9 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   // Most specific district: the ward portion after the first space (e.g. "다선거구" from "천안시서북구 다선거구")
   const spaceIdx = candidate.district ? candidate.district.indexOf(" ") : -1;
   const specificDistrict = spaceIdx > -1 ? candidate.district.slice(spaceIdx + 1) : candidate.district;
-  const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
-  const statusLine = statusParts.join(" · ");
+  // Line after detailed election: specific district + candidate status
+  const detailLineParts = [specificDistrict, candidate.candidateStatus].filter(Boolean);
+  const detailLine = detailLineParts.join(" · ");
   const isConfirmed = candidate.caucusStatus === "공천 확정";
 
   const bgLayer = candidate.profileImage
@@ -133,10 +134,12 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
     `</div>` +
     `<div style="background:#fff;border:2px solid ${BRAND_COLOR};border-radius:10px;padding:5px 8px;margin-top:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">` +
     `<div style="font-weight:800;font-size:13px;color:#111;line-height:1.3;font-family:sans-serif;">${escapeHtml(candidate.name)}</div>` +
-    (statusLine
-      ? `<div style="font-size:9px;color:#666;margin-top:2px;line-height:1.3;font-family:sans-serif;">${escapeHtml(statusLine)}</div>`
+    (electionLabel
+      ? `<div style="font-size:9px;color:#666;margin-top:2px;line-height:1.3;font-family:sans-serif;">${escapeHtml(electionLabel)}</div>`
       : "") +
-    `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(specificDistrict)}</div>` +
+    (detailLine
+      ? `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(detailLine)}</div>`
+      : "") +
     `</div>` +
     `</div>`
   );
@@ -182,8 +185,9 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
   const electionLabel = candidate.detailedElectionName || candidate.electionType || candidate.electionName || "";
   const spaceIdx2 = candidate.district ? candidate.district.indexOf(" ") : -1;
   const specificDistrict2 = spaceIdx2 > -1 ? candidate.district.slice(spaceIdx2 + 1) : candidate.district;
-  const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
-  const statusLine = statusParts.join(" · ");
+  // Line after detailed election: specific district + candidate status
+  const detailLineParts2 = [specificDistrict2, candidate.candidateStatus].filter(Boolean);
+  const detailLine2 = detailLineParts2.join(" · ");
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
   const isConfirmed = candidate.caucusStatus === "공천 확정";
 
@@ -218,10 +222,12 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
     `<div style="position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;` +
     `border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #fff;"></div>` +
     `<div style="font-weight:800;font-size:13px;color:#5B4A6B;line-height:1.3;${cuteFont}">${escapeHtml(candidate.name)}</div>` +
-    (statusLine
-      ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(statusLine)}</div>`
+    (electionLabel
+      ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(electionLabel)}</div>`
       : "") +
-    `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(specificDistrict2)}</div>` +
+    (detailLine2
+      ? `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(detailLine2)}</div>`
+      : "") +
     `</div>` +
     `</div>`
   );
