@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,13 +16,51 @@ export interface PledgeTile {
   candidateName: string;
   candidateDistrict: string;
   candidateProfileImage: string | null;
+  /** Co-proposers (excludes the original author). */
+  collaborators: { id: string; name: string; profileImage: string | null }[];
 }
 
 function truncate(text: string, max: number) {
   return text.length > max ? text.slice(0, max) + "…" : text;
 }
 
+/** Single round avatar bubble — shared by author and collaborators. */
+function AvatarBubble({
+  image,
+  name,
+  size = 28,
+}: {
+  image: string | null;
+  name: string;
+  size?: number;
+}) {
+  return (
+    <div
+      className="rounded-full bg-primary/10 border-2 border-surface overflow-hidden flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {image ? (
+        <Image
+          src={image}
+          alt={name}
+          width={size}
+          height={size}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <span className="text-primary font-bold" style={{ fontSize: size * 0.36 }}>
+          {name.charAt(0)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function TileCard({ tile }: { tile: PledgeTile }) {
+  const isShared = tile.collaborators.length > 0;
+  const visibleCollabs = tile.collaborators.slice(0, 2);
+  const extraCollabs = tile.collaborators.length - visibleCollabs.length;
+
   return (
     <Link
       href={`/candidates/${tile.candidateId}`}
@@ -32,29 +70,52 @@ function TileCard({ tile }: { tile: PledgeTile }) {
     >
       {/* Candidate header */}
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-7 h-7 rounded-full bg-primary/10 overflow-hidden shrink-0 flex items-center justify-center">
-          {tile.candidateProfileImage ? (
-            <Image
-              src={tile.candidateProfileImage}
-              alt={tile.candidateName}
-              width={28}
-              height={28}
-              className="w-full h-full object-cover"
+        {isShared ? (
+          /* Stacked avatars for shared pledge */
+          <>
+            <div className="flex -space-x-2 shrink-0">
+              <AvatarBubble
+                image={tile.candidateProfileImage}
+                name={tile.candidateName}
+              />
+              {visibleCollabs.map((c) => (
+                <AvatarBubble key={c.id} image={c.profileImage} name={c.name} />
+              ))}
+              {extraCollabs > 0 && (
+                <div
+                  className="rounded-full bg-muted/20 border-2 border-surface flex items-center justify-center text-[9px] font-bold text-muted shrink-0"
+                  style={{ width: 28, height: 28 }}
+                >
+                  +{extraCollabs}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate block">
+                {tile.candidateName} 외 {tile.collaborators.length}명
+              </span>
+              <span className="text-[10px] text-muted truncate block">
+                {tile.candidateDistrict}
+              </span>
+            </div>
+          </>
+        ) : (
+          /* Single candidate */
+          <>
+            <AvatarBubble
+              image={tile.candidateProfileImage}
+              name={tile.candidateName}
             />
-          ) : (
-            <span className="text-primary font-bold text-xs">
-              {tile.candidateName.charAt(0)}
-            </span>
-          )}
-        </div>
-        <div className="min-w-0">
-          <span className="text-xs font-semibold text-foreground truncate block">
-            {tile.candidateName}
-          </span>
-          <span className="text-[10px] text-muted truncate block">
-            {tile.candidateDistrict}
-          </span>
-        </div>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate block">
+                {tile.candidateName}
+              </span>
+              <span className="text-[10px] text-muted truncate block">
+                {tile.candidateDistrict}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Badges */}
@@ -80,8 +141,13 @@ function TileCard({ tile }: { tile: PledgeTile }) {
         >
           {tile.pledgeType === "bylaws" ? "조례" : "지역"}
         </span>
+        {isShared && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium ml-auto shrink-0">
+            공동공약
+          </span>
+        )}
         {tile.youtubeUrl && (
-          <span className="text-[10px] text-red-500 flex items-center gap-0.5 ml-auto shrink-0">
+          <span className="text-[10px] text-red-500 flex items-center gap-0.5 shrink-0">
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
             </svg>

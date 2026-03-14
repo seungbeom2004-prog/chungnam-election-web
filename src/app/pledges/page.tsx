@@ -58,10 +58,40 @@ export default async function PledgesPage() {
     category: { name: string; emoji: string | null; color: string } | { name: string; emoji: string | null; color: string }[] | null;
   };
 
+  const pledgesList = (pledgesRaw ?? []) as unknown as RawPledge[];
+  const pledgeIds = pledgesList.map((p) => p.id);
+
+  // Fetch all collaborations for these pledges (includes candidate info for stacked avatars)
+  type RawCollab = {
+    pledgeId: string;
+    candidateId: string;
+    candidate: { id: string; name: string; profileImage: string | null } | null;
+  };
+
+  const { data: collabsRaw } = pledgeIds.length > 0
+    ? await supabase
+        .from("PledgeCollaboration")
+        .select("pledgeId, candidateId, candidate:Candidate!candidateId(id, name, profileImage)")
+        .in("pledgeId", pledgeIds)
+    : { data: [] };
+
+  // Build a map: pledgeId → collaborators[]
+  const collabsByPledge: Record<string, { id: string; name: string; profileImage: string | null }[]> = {};
+  for (const c of ((collabsRaw ?? []) as unknown as RawCollab[])) {
+    if (!collabsByPledge[c.pledgeId]) collabsByPledge[c.pledgeId] = [];
+    if (c.candidate) {
+      collabsByPledge[c.pledgeId]!.push({
+        id: c.candidateId,
+        name: c.candidate.name,
+        profileImage: c.candidate.profileImage,
+      });
+    }
+  }
+
   // Build flat tile list ordered by candidate (interleave candidates)
   // Group pledges by candidate first
   const byCandidate: Record<string, RawPledge[]> = {};
-  for (const p of ((pledgesRaw ?? []) as unknown as RawPledge[])) {
+  for (const p of pledgesList) {
     if (!byCandidate[p.candidateId]) byCandidate[p.candidateId] = [];
     byCandidate[p.candidateId]!.push(p);
   }
@@ -90,6 +120,7 @@ export default async function PledgesPage() {
         candidateName: candidate.name,
         candidateDistrict: candidate.district,
         candidateProfileImage: candidate.profileImage,
+        collaborators: collabsByPledge[p.id] ?? [],
       });
     }
   }

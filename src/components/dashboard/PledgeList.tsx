@@ -13,6 +13,53 @@ interface PledgeListProps {
   onManageCollaboration?: (pledge: Pledge) => void;
 }
 
+/** Stacked overlapping avatar bubbles for collaborator display. */
+function CollabAvatars({ pledge, onClick }: { pledge: Pledge; onClick?: () => void }) {
+  const collabs = pledge.collaborators ?? [];
+  if (collabs.length === 0) return null;
+  const visible = collabs.slice(0, 3);
+  const extra = collabs.length - visible.length;
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+    >
+      <div className="flex -space-x-2">
+        {visible.map((c) => (
+          <div
+            key={c.id}
+            className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-white border-2 border-surface overflow-hidden"
+          >
+            {c.candidate?.profileImage ? (
+              <Image
+                src={c.candidate.profileImage}
+                alt={c.candidate.name}
+                width={24}
+                height={24}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>{(c.candidate?.name ?? "?").charAt(0)}</span>
+            )}
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="w-6 h-6 rounded-full bg-muted/30 border-2 border-surface flex items-center justify-center text-[9px] font-bold text-muted">
+            +{extra}
+          </div>
+        )}
+      </div>
+      <span className="text-xs text-muted whitespace-nowrap">
+        공동공약: {collabs.length}명
+      </span>
+      <svg className="w-3 h-3 text-muted" viewBox="0 0 16 16" fill="none">
+        <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
 export default function PledgeList({
   pledges,
   onEdit,
@@ -59,10 +106,10 @@ export default function PledgeList({
               {pledge.category?.emoji || "📌"}
             </div>
 
-            {/* Thumbnail + Content */}
+            {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-medium text-foreground text-sm truncate">
+                <h3 className="font-semibold text-foreground text-sm leading-snug">
                   {pledge.title}
                 </h3>
                 {!pledge.visible && <Badge variant="muted">숨김</Badge>}
@@ -78,14 +125,9 @@ export default function PledgeList({
                   {pledge.category.name}
                 </span>
               )}
-              <p className="text-xs text-muted line-clamp-1 mt-0.5">
+              <p className="text-xs text-muted line-clamp-2 mt-1 leading-relaxed">
                 {pledge.description}
               </p>
-              {pledge.budget && (
-                <Badge variant="primary" className="mt-1.5">
-                  {pledge.budget}
-                </Badge>
-              )}
             </div>
 
             {/* Thumbnail image */}
@@ -101,42 +143,43 @@ export default function PledgeList({
             )}
           </div>
 
-          {/* Collaborators badge */}
-          {pledge.collaborators && pledge.collaborators.length > 0 && (
-            <div className="mt-1.5 flex items-center gap-1">
-              <span className="text-xs text-primary font-medium">공동공약</span>
-              <span className="text-xs text-muted">+{pledge.collaborators.length}명 참여</span>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
-            <button
-              onClick={() => onEdit(pledge)}
-              className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
-            >
-              수정
-            </button>
-            <button
-              onClick={() => onToggleVisibility(pledge)}
-              className="px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-background rounded transition-colors"
-            >
-              {pledge.visible ? "숨기기" : "공개"}
-            </button>
-            {onManageCollaboration && (
+          {/* Actions row */}
+          <div className="flex items-center mt-2 pt-2 border-t border-border gap-1">
+            {/* Left: action buttons */}
+            <div className="flex items-center gap-0.5 flex-1 min-w-0">
               <button
-                onClick={() => onManageCollaboration(pledge)}
+                onClick={() => onEdit(pledge)}
                 className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
               >
-                공동공약
+                수정
               </button>
-            )}
-            <button
-              onClick={() => onDelete(pledge.id)}
-              className="px-2.5 py-1 text-xs font-medium text-muted hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-            >
-              삭제
-            </button>
+              <button
+                onClick={() => onToggleVisibility(pledge)}
+                className="px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-background rounded transition-colors"
+              >
+                {pledge.visible ? "숨기기" : "공개"}
+              </button>
+              {onManageCollaboration && (
+                <button
+                  onClick={() => onManageCollaboration(pledge)}
+                  className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
+                >
+                  공동공약
+                </button>
+              )}
+              <button
+                onClick={() => onDelete(pledge.id)}
+                className="px-2.5 py-1 text-xs font-medium text-muted hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+
+            {/* Right: stacked collaborator avatars + count */}
+            <CollabAvatars
+              pledge={pledge}
+              onClick={() => onManageCollaboration?.(pledge)}
+            />
           </div>
         </Card>
       ))}

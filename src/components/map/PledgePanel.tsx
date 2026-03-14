@@ -6,6 +6,7 @@ import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import { useMapStore } from "@/store/useMapStore";
 import { Badge } from "@/components/ui";
+import type { PledgeCollaboration } from "@/types";
 
 /** Extract YouTube video ID from a URL embedded in any text. */
 function extractYouTubeId(text: string): string | null {
@@ -79,20 +80,12 @@ export default function PledgePanel() {
 
       <style jsx>{`
         @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
         }
         @keyframes slideRight {
-          from {
-            transform: translateX(-100%);
-          }
-          to {
-            transform: translateX(0);
-          }
+          from { transform: translateX(-100%); }
+          to   { transform: translateX(0); }
         }
       `}</style>
     </>
@@ -109,8 +102,12 @@ function PledgePanelContent({
   panelRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"description" | "sns">("description");
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [collaborators, setCollaborators] = useState<PledgeCollaboration[]>([]);
+  const [collabLoading, setCollabLoading] = useState(false);
+
   const embedUrl = pledge.youtubeUrl || "";
   const mediaType = embedUrl ? detectMediaType(embedUrl) : null;
   const youtubeId =
@@ -118,9 +115,23 @@ function PledgePanelContent({
       ? extractYouTubeId(embedUrl)
       : extractYouTubeId(pledge.description ?? "");
 
-  const pledgeUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/?pledge=${pledge.id}`
-    : "";
+  const hasMedia = !!youtubeId || !!pledge.imageUrl || mediaType === "instagram" || mediaType === "facebook";
+
+  const pledgeUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/?pledge=${pledge.id}`
+      : "";
+
+  // Fetch collaborators whenever this pledge is shown
+  useEffect(() => {
+    setCollaborators([]);
+    setCollabLoading(true);
+    fetch(`/api/pledges/${pledge.id}/collaborators`)
+      .then((r) => r.json())
+      .then((json) => setCollaborators(json.data ?? []))
+      .catch(() => {})
+      .finally(() => setCollabLoading(false));
+  }, [pledge.id]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(pledgeUrl).then(() => {
@@ -129,10 +140,9 @@ function PledgePanelContent({
     }).catch(() => {});
   };
 
-  const navigateToCandidate = () => {
-    if (!pledge.candidate) return;
+  const navigateToCandidate = (candidateId: string) => {
     onClose();
-    router.push(`/candidates/${pledge.candidate.id}`);
+    router.push(`/candidates/${candidateId}`);
   };
 
   return (
@@ -143,146 +153,217 @@ function PledgePanelContent({
         className="absolute top-4 right-4 text-muted hover:text-foreground transition-colors"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M15 5L5 15M5 5l10 10"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
+          <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </button>
 
-      {/* Pledge Image */}
-      {pledge.imageUrl && (
-        <div className="relative w-full h-48 rounded-xl overflow-hidden mb-4">
-          <Image
-            src={pledge.imageUrl}
-            alt={pledge.title}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )}
+      {/* Title — always visible */}
+      <h3 className="text-lg font-bold text-foreground pr-8 mb-3">{pledge.title}</h3>
 
-      {/* Media embed — YouTube, Instagram, or Facebook */}
-      {youtubeId && (
-        <div className="relative w-full rounded-xl overflow-hidden mb-4 bg-black" style={{ paddingBottom: "56.25%" }}>
-          <iframe
-            className="absolute inset-0 w-full h-full"
-            src={`https://www.youtube.com/embed/${youtubeId}`}
-            title="관련 영상"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      )}
-      {mediaType === "instagram" && (
-        <div className="flex justify-center my-4">
-          <blockquote
-            className="instagram-media"
-            data-instgrm-permalink={embedUrl}
-            data-instgrm-version="14"
-            style={{ maxWidth: 540, width: "100%" }}
-          />
-          {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-          <script async src="//www.instagram.com/embed.js" />
-        </div>
-      )}
-      {mediaType === "facebook" && (
-        <div className="flex justify-center my-4">
-          <iframe
-            src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(embedUrl)}&show_text=true&width=500`}
-            width="500"
-            height="400"
-            style={{ border: "none", overflow: "hidden" }}
-            scrolling="no"
-            allowFullScreen
-            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-          />
-        </div>
-      )}
-
-      {/* Title */}
-      <h3 className="text-lg font-bold text-foreground mb-2">{pledge.title}</h3>
-
-      {/* Budget Badge */}
-      {pledge.budget && (
-        <Badge variant="primary" className="mb-3">
-          예산: {pledge.budget}
-        </Badge>
-      )}
-
-      {/* Address */}
-      {pledge.address && (
-        <p className="text-sm text-muted mb-3 flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M7 7.5a1.75 1.75 0 100-3.5 1.75 1.75 0 000 3.5z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-            />
-            <path
-              d="M7 1.167A4.083 4.083 0 0111.083 5.25C11.083 8.313 7 12.833 7 12.833S2.917 8.313 2.917 5.25A4.083 4.083 0 017 1.167z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-            />
-          </svg>
-          {pledge.address}
-        </p>
-      )}
-
-      {/* Description */}
-      <p className="text-sm text-foreground leading-relaxed mb-4">
-        {pledge.description}
-      </p>
-
-      {/* Candidate card — entire card is clickable */}
-      {pledge.candidate && (
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-border mb-4">
         <button
-          onClick={navigateToCandidate}
-          className="w-full flex items-center gap-3 p-3 rounded-lg bg-background hover:bg-border/50 transition-colors text-left cursor-pointer"
+          onClick={() => setActiveTab("description")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            activeTab === "description"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-foreground"
+          }`}
         >
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
-            {pledge.candidate.profileImage ? (
-              <Image
-                src={pledge.candidate.profileImage}
-                alt={pledge.candidate.name}
-                width={40}
-                height={40}
-                className="object-cover"
-              />
-            ) : (
-              <span className="text-primary font-bold text-sm">
-                {pledge.candidate.name.charAt(0)}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">
-              {pledge.candidate.name}
-            </p>
-            <p className="text-xs text-muted">{pledge.candidate.district}</p>
-          </div>
-          <svg
-            className="shrink-0 text-muted"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <path
-              d="M6 12l4-4-4-4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          공약 설명
         </button>
+        <button
+          onClick={() => setActiveTab("sns")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5 ${
+            activeTab === "sns"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-foreground"
+          }`}
+        >
+          관련 SNS
+          {hasMedia && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+          )}
+        </button>
+      </div>
+
+      {/* ── 공약 설명 tab ──────────────────────────────────────────────────── */}
+      {activeTab === "description" && (
+        <div className="space-y-4">
+          {/* Budget Badge */}
+          {pledge.budget && (
+            <Badge variant="primary">예산: {pledge.budget}</Badge>
+          )}
+
+          {/* Address */}
+          {pledge.address && (
+            <p className="text-sm text-muted flex items-center gap-1">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 7.5a1.75 1.75 0 100-3.5 1.75 1.75 0 000 3.5z" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M7 1.167A4.083 4.083 0 0111.083 5.25C11.083 8.313 7 12.833 7 12.833S2.917 8.313 2.917 5.25A4.083 4.083 0 017 1.167z" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+              {pledge.address}
+            </p>
+          )}
+
+          {/* Description */}
+          <p className="text-sm text-foreground leading-relaxed">
+            {pledge.description}
+          </p>
+
+          {/* Author card — highlighted with primary border */}
+          {pledge.candidate && (
+            <button
+              onClick={() => navigateToCandidate(pledge.candidate!.id)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-primary bg-primary-light hover:bg-primary/10 transition-colors text-left cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 border-2 border-primary/30">
+                {pledge.candidate.profileImage ? (
+                  <Image
+                    src={pledge.candidate.profileImage}
+                    alt={pledge.candidate.name}
+                    width={40}
+                    height={40}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <span className="text-primary font-bold text-sm">
+                    {pledge.candidate.name.charAt(0)}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-foreground">
+                    {pledge.candidate.name}
+                  </p>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-white leading-none">
+                    공약 작성자
+                  </span>
+                </div>
+                <p className="text-xs text-muted mt-0.5">{pledge.candidate.district}</p>
+              </div>
+              <svg className="shrink-0 text-primary" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+
+          {/* Collaborators list */}
+          {collabLoading ? (
+            <div className="flex justify-center py-2">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : collaborators.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold text-muted mb-2">공동 제안자들:</p>
+              <div className="space-y-2">
+                {collaborators.map((collab) => {
+                  const c = collab.candidate;
+                  return (
+                    <button
+                      key={collab.id}
+                      onClick={() => c && navigateToCandidate(c.id)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-background hover:bg-border/50 transition-colors text-left cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
+                        {c?.profileImage ? (
+                          <Image
+                            src={c.profileImage}
+                            alt={c.name}
+                            width={36}
+                            height={36}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <span className="text-primary font-bold text-xs">
+                            {(c?.name ?? "?").charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {c?.name ?? "후보자"}
+                        </p>
+                        {c?.district && (
+                          <p className="text-xs text-muted mt-0.5">{c.district}</p>
+                        )}
+                      </div>
+                      <svg className="shrink-0 text-muted" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
       )}
 
-      {/* Share / QR code section */}
-      <div className="mt-4 pt-4 border-t border-border">
+      {/* ── 관련 SNS tab ───────────────────────────────────────────────────── */}
+      {activeTab === "sns" && (
+        <div className="space-y-4">
+          {/* Pledge Image */}
+          {pledge.imageUrl && (
+            <div className="relative w-full h-48 rounded-xl overflow-hidden">
+              <Image src={pledge.imageUrl} alt={pledge.title} fill className="object-cover" />
+            </div>
+          )}
+
+          {/* YouTube */}
+          {youtubeId && (
+            <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ paddingBottom: "56.25%" }}>
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title="관련 영상"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          {/* Instagram */}
+          {mediaType === "instagram" && (
+            <div className="flex justify-center">
+              <blockquote
+                className="instagram-media"
+                data-instgrm-permalink={embedUrl}
+                data-instgrm-version="14"
+                style={{ maxWidth: 540, width: "100%" }}
+              />
+              {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+              <script async src="//www.instagram.com/embed.js" />
+            </div>
+          )}
+
+          {/* Facebook */}
+          {mediaType === "facebook" && (
+            <div className="flex justify-center">
+              <iframe
+                src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(embedUrl)}&show_text=true&width=500`}
+                width="500"
+                height="400"
+                style={{ border: "none", overflow: "hidden" }}
+                scrolling="no"
+                allowFullScreen
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!hasMedia && (
+            <div className="text-center py-10">
+              <p className="text-sm text-muted">등록된 SNS 콘텐츠가 없습니다.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Share / QR — always visible at bottom */}
+      <div className="mt-5 pt-4 border-t border-border">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowQR((v) => !v)}
