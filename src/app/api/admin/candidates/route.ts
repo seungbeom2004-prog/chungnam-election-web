@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("Candidate")
-      .select("id, email, name, district, party, phone, verified, emailVerified, role, electionId, electionType, candidateStatus, caucusStatus, pinLat, pinLng, createdAt, election:Election!electionId(id, name)")
+      .select("id, email, name, district, party, phone, verified, emailVerified, role, electionId, electionType, detailedElectionName, candidateStatus, caucusStatus, pinLat, pinLng, createdAt, election:Election!electionId(id, name)")
       .order("createdAt", { ascending: false });
 
     if (verified === "true") query = query.eq("verified", true);
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { candidateId, verified, role, candidateStatus, caucusStatus, district, electionId, electionType, pinLat, pinLng } = body;
+    const { candidateId, verified, role, candidateStatus, caucusStatus, district, electionId, electionType, detailedElectionName, pinLat, pinLng } = body;
 
     if (!candidateId) {
       return apiError("후보 ID가 필요합니다", 400);
@@ -82,6 +82,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (electionType !== undefined) {
       updateData.electionType = electionType || null;
+    }
+    if (detailedElectionName !== undefined) {
+      updateData.detailedElectionName = detailedElectionName || null;
     }
 
     const { data: updated, error } = await supabase

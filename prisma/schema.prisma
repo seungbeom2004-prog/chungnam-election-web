@@ -18,7 +18,8 @@ model Candidate {
   slogan          String?
   bio             String?
   phone           String?
-  electionType    String?
+  electionType          String?
+  detailedElectionName  String?
   province        String?
   electionId      String?
   candidateStatus String?

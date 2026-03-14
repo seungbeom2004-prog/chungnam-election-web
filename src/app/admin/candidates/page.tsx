@@ -30,6 +30,7 @@ interface AdminCandidate {
   role: string;
   electionId: string | null;
   electionType: string | null;
+  detailedElectionName: string | null;
   election: { id: string; name: string } | null;
   candidateStatus: string;
   caucusStatus: string;
@@ -172,7 +173,7 @@ export default function AdminCandidatesPage() {
 
   const handleFieldChange = async (
     candidateId: string,
-    field: "candidateStatus" | "caucusStatus" | "electionId" | "electionType" | "district" | "pinLat" | "pinLng",
+    field: "candidateStatus" | "caucusStatus" | "electionId" | "electionType" | "detailedElectionName" | "district" | "pinLat" | "pinLng",
     value: string | null
   ) => {
     setActionLoading(candidateId + field);
@@ -388,6 +389,9 @@ export default function AdminCandidatesPage() {
                         {candidate.electionType && (
                           <span>| 선거종류: <span className="text-foreground font-medium">{candidate.electionType}</span></span>
                         )}
+                        {candidate.detailedElectionName && (
+                          <span>| 세부선거명: <span className="text-foreground font-medium">{candidate.detailedElectionName}</span></span>
+                        )}
                         {candidate.phone && (
                           <span>| {candidate.phone}</span>
                         )}
@@ -501,6 +505,26 @@ export default function AdminCandidatesPage() {
                             <option key={t} value={t}>{t}</option>
                           ))}
                         </select>
+                      </div>
+
+                      {/* Detailed election name (세부 선거명) */}
+                      <div>
+                        <label className="block text-xs font-medium text-muted mb-1">
+                          세부 선거명{" "}
+                          <span className="font-normal text-muted/60">(예: 천안시의원선거)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="세부 선거명 입력 (예: 천안시의원선거)"
+                          defaultValue={candidate.detailedElectionName ?? ""}
+                          key={candidate.detailedElectionName ?? ""}
+                          onBlur={(e) => {
+                            const val = e.target.value.trim();
+                            handleFieldChange(candidate.id, "detailedElectionName", val || null);
+                          }}
+                          disabled={!!anyLoading}
+                          className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                        />
                       </div>
 
                       {/* District — single select for non-ward elections; cascaded for ward-level.

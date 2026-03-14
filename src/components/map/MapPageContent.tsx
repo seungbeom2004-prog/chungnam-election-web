@@ -31,6 +31,7 @@ export interface CandidateForMap {
   profileImage: string | null;
   electionType: string | null;
   electionName: string | null;
+  detailedElectionName: string | null;
   candidateStatus: string;
   caucusStatus: string | null;
   pinLat: number | null;
@@ -220,6 +221,7 @@ export default function MapPageContent() {
           district: string;
           profileImage: string | null;
           electionType: string | null;
+          detailedElectionName: string | null;
           candidateStatus: string;
           caucusStatus: string | null;
           pinLat: number | null;
@@ -241,6 +243,7 @@ export default function MapPageContent() {
             profileImage: c.profileImage,
             electionType: c.electionType ?? null,
             electionName: c.election?.name ?? null,
+            detailedElectionName: c.detailedElectionName ?? null,
             candidateStatus: c.candidateStatus ?? "",
             caucusStatus: c.caucusStatus ?? null,
             pinLat: c.pinLat ?? null,

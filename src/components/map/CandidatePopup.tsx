@@ -96,7 +96,10 @@ const SOCIAL_BUTTONS: {
 ];
 
 export default function CandidatePopup({ candidate, onClose }: Props) {
-  const electionLabel = candidate.electionName || candidate.electionType || "";
+  const electionLabel = candidate.detailedElectionName || candidate.electionName || candidate.electionType || "";
+  // Show most specific district (ward portion only when available)
+  const spaceIdx = candidate.district ? candidate.district.indexOf(" ") : -1;
+  const specificDistrict = spaceIdx > -1 ? candidate.district.slice(spaceIdx + 1) : candidate.district;
   const socialLinks = SOCIAL_BUTTONS.filter(({ key }) => !!candidate[key]);
 
   return (
@@ -166,7 +169,7 @@ export default function CandidatePopup({ candidate, onClose }: Props) {
                 {candidate.candidateStatus}
               </span>
             )}
-            <span className="text-xs text-muted">{candidate.district}</span>
+            <span className="text-xs text-muted">{specificDistrict}</span>
           </div>
 
           {/* Social links */}

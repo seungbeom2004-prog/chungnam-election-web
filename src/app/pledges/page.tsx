@@ -47,6 +47,15 @@ function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) + "…" : text;
 }
 
+function getYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtube.com")) return u.searchParams.get("v");
+    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0];
+  } catch { /* ignore */ }
+  return null;
+}
+
 export default async function PledgesPage() {
   // Fetch eligible candidate IDs
   const { data: eligible } = await supabase
@@ -163,8 +172,8 @@ export default async function PledgesPage() {
                   </svg>
                 </Link>
 
-                {/* Pledge cards grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Pledge cards grid — max 2 columns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {cPledges.map((pledge) => (
                     <Link
                       key={pledge.id}
@@ -241,6 +250,23 @@ export default async function PledgesPage() {
                           {new Date(pledge.createdAt).toLocaleDateString("ko-KR")}
                         </time>
                       </div>
+
+                      {/* Embedded media footer */}
+                      {pledge.youtubeUrl && (() => {
+                        const ytId = getYouTubeId(pledge.youtubeUrl);
+                        if (!ytId) return null;
+                        return (
+                          <div className="rounded-lg overflow-hidden border border-border/50 mt-1">
+                            <iframe
+                              src={`https://www.youtube.com/embed/${ytId}`}
+                              title="YouTube"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              className="w-full aspect-video"
+                            />
+                          </div>
+                        );
+                      })()}
                     </Link>
                   ))}
                 </div>

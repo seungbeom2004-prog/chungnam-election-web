@@ -70,6 +70,7 @@ export default function CityView({ district }: Props) {
           district: string;
           profileImage: string | null;
           electionType: string | null;
+          detailedElectionName?: string | null;
           candidateStatus: string;
           pinLat?: number | null;
           pinLng?: number | null;
@@ -91,6 +92,7 @@ export default function CityView({ district }: Props) {
             profileImage: c.profileImage,
             electionType: c.electionType ?? null,
             electionName: c.election?.name ?? null,
+            detailedElectionName: c.detailedElectionName ?? null,
             candidateStatus: c.candidateStatus ?? "",
             caucusStatus: c.caucusStatus ?? null,
             pinLat: c.pinLat ?? null,

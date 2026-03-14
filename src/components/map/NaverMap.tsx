@@ -102,7 +102,10 @@ function buildPledgeMarkerHTML(
 
 /** Regular candidate pin (photo + name label). */
 function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
-  const electionLabel = candidate.electionType || candidate.electionName || "";
+  const electionLabel = candidate.detailedElectionName || candidate.electionType || candidate.electionName || "";
+  // Most specific district: the ward portion after the first space (e.g. "다선거구" from "천안시서북구 다선거구")
+  const spaceIdx = candidate.district ? candidate.district.indexOf(" ") : -1;
+  const specificDistrict = spaceIdx > -1 ? candidate.district.slice(spaceIdx + 1) : candidate.district;
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
   const isConfirmed = candidate.caucusStatus === "공천 확정";
@@ -133,7 +136,7 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
     (statusLine
       ? `<div style="font-size:9px;color:#666;margin-top:2px;line-height:1.3;font-family:sans-serif;">${escapeHtml(statusLine)}</div>`
       : "") +
-    `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(candidate.district)}</div>` +
+    `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(specificDistrict)}</div>` +
     `</div>` +
     `</div>`
   );
@@ -176,7 +179,9 @@ function buildCutePledgeMarkerHTML(
 
 /** Cute candidate pin (circular photo + speech-bubble label). */
 function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
-  const electionLabel = candidate.electionType || candidate.electionName || "";
+  const electionLabel = candidate.detailedElectionName || candidate.electionType || candidate.electionName || "";
+  const spaceIdx2 = candidate.district ? candidate.district.indexOf(" ") : -1;
+  const specificDistrict2 = spaceIdx2 > -1 ? candidate.district.slice(spaceIdx2 + 1) : candidate.district;
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
@@ -216,7 +221,7 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
     (statusLine
       ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(statusLine)}</div>`
       : "") +
-    `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(candidate.district)}</div>` +
+    `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(specificDistrict2)}</div>` +
     `</div>` +
     `</div>`
   );
