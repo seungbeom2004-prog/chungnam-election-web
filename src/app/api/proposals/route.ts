@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createProposalSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
+import { verifyCaptchaToken } from "@/app/api/captcha/route";
 
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "reform-chungnam-salt";
 
@@ -39,7 +40,6 @@ export async function GET(request: NextRequest) {
       return apiError("제안 목록을 불러올 수 없습니다", 500);
     }
 
-    // Flatten likeCount from the nested count
     const enriched = (proposals ?? []).map((p: Record<string, unknown>) => {
       const likes = p.likes as Array<{ count: number }> | null;
       const likeCount = likes?.[0]?.count ?? 0;
@@ -71,6 +71,11 @@ export async function POST(request: NextRequest) {
       return apiError("Invalid request", 400);
     }
 
+    // CAPTCHA verification
+    if (!verifyCaptchaToken(validated.captchaToken, validated.captchaAnswer)) {
+      return apiError("보안 문자가 올바르지 않습니다. 다시 시도해주세요.", 400);
+    }
+
     // IP hashing
     const rawIp =
       request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
@@ -95,8 +100,8 @@ export async function POST(request: NextRequest) {
       return apiError("1시간에 최대 5개의 제안만 작성할 수 있습니다", 429);
     }
 
-    // Insert proposal
-    const { honeypot: _honeypot, ...insertData } = validated;
+    // Strip internal fields before inserting
+    const { honeypot: _h, captchaToken: _ct, captchaAnswer: _ca, ...insertData } = validated;
     const { data: proposal, error } = await supabaseAdmin
       .from("ProposalPost")
       .insert({

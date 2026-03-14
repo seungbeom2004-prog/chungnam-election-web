@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const district = searchParams.get("district");
+    // eligible=true → only candidates publicly visible on the map
+    // (caucusStatus="공천 확정" AND candidateStatus in ["예비후보자","후보자"])
+    const eligible = searchParams.get("eligible") === "true";
 
     const { page, limit } = paginationSchema.parse({
       page: searchParams.get("page") ?? 1,
@@ -25,6 +28,11 @@ export async function GET(request: NextRequest) {
       .range(from, to);
 
     if (district) query = query.eq("district", district);
+    if (eligible) {
+      query = query
+        .eq("caucusStatus", "공천 확정")
+        .in("candidateStatus", ["예비후보자", "후보자"]);
+    }
 
     const { data: candidates, count, error } = await query;
 

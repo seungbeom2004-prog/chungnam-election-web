@@ -91,6 +91,7 @@ export default function PledgesPage() {
   } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [collaborationPledge, setCollaborationPledge] = useState<Pledge | null>(null);
+  const [pledgeSaveError, setPledgeSaveError] = useState<string | null>(null);
 
   // Bylaws state
   const [bylaws, setBylaws] = useState<Pledge[]>([]);
@@ -181,23 +182,31 @@ export default function PledgesPage() {
     description: string;
     budget?: string;
     imageUrl?: string;
+    youtubeUrl?: string;
     latitude: number;
     longitude: number;
     address?: string;
     categoryId?: string;
   }) => {
+    setPledgeSaveError(null);
+    let res: Response;
     if (editingPledge) {
-      await fetch(`/api/pledges/${editingPledge.id}`, {
+      res = await fetch(`/api/pledges/${editingPledge.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
     } else {
-      await fetch("/api/pledges", {
+      res = await fetch("/api/pledges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, pledgeType: "map" }),
       });
+    }
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setPledgeSaveError(json.error ?? "공약 저장에 실패했습니다. 다시 시도해주세요.");
+      return;
     }
     setShowForm(false);
     setDraftPin(null);
@@ -245,7 +254,7 @@ export default function PledgesPage() {
         <div className="mb-4 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 leading-relaxed">
           <span className="text-base shrink-0">⚠️</span>
           <p>
-            공천이 확정되지 않았거나, 아직 예비 후보자 등록을 선관위에 하지 않으신 출마자분들은 선거법상 공약이 노출되지 않습니다. 양해바랍니다.
+            아직 공천이 확정되지 않으셨거나 선관위에 아직 예비 후보자 등록을 마치지 못하신 출마자분들의 공약과 프로필은 일반 방문자에게 노출되지 않습니다. 또한, 해당 출마자 분들의 공약은 타 후보자들과 공유되나 공통 공약으로 설정되지 않습니다. 공천이 확정되시거나 예비 후보자 등록을 마치시는대로 <strong>개인 정보 관리</strong> 탭에서 상태를 수정해주세요.
           </p>
         </div>
       )}
@@ -301,8 +310,15 @@ export default function PledgesPage() {
                 pledge={editingPledge}
                 draftPin={draftPin}
                 onSubmit={handleFormSubmit}
-                onClose={handleFormClose}
+                onClose={() => { handleFormClose(); setPledgeSaveError(null); }}
               />
+            )}
+            {pledgeSaveError && (
+              <div className="absolute bottom-4 left-4 right-4 z-20 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-start gap-2">
+                <span className="shrink-0">⚠️</span>
+                <span>{pledgeSaveError}</span>
+                <button onClick={() => setPledgeSaveError(null)} className="ml-auto shrink-0 text-red-400 hover:text-red-600">✕</button>
+              </div>
             )}
           </div>
         </div>

@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+interface CaptchaState {
+  token: string;
+  question: string;
+}
 
 interface Props {
   candidateId?: string;
@@ -12,11 +17,24 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
   const [authorName, setAuthorName] = useState("");
   const [content, setContent] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [captcha, setCaptcha] = useState<CaptchaState | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const MAX_CONTENT = 500;
+
+  const fetchCaptcha = () => {
+    fetch("/api/captcha")
+      .then((r) => r.json())
+      .then((json) => setCaptcha({ token: json.token, question: json.question }))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,32 +50,51 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       setError(`내용은 10자 이상 ${MAX_CONTENT}자 이하로 입력해주세요.`);
       return;
     }
+    if (!captchaAnswer.trim()) {
+      setError("보안 문자를 입력해주세요.");
+      return;
+    }
 
     setSubmitting(true);
     try {
       const res = await fetch("/api/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authorName, content, candidateId, city }),
+        body: JSON.stringify({
+          authorName,
+          content,
+          candidateId,
+          city,
+          captchaToken: captcha?.token ?? "",
+          captchaAnswer: captchaAnswer.trim(),
+        }),
       });
 
       if (res.status === 429) {
         setError("잠시 후 다시 시도해주세요.");
+        fetchCaptcha();
+        setCaptchaAnswer("");
         return;
       }
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         setError(json.error ?? "제출에 실패했습니다. 다시 시도해주세요.");
+        fetchCaptcha();
+        setCaptchaAnswer("");
         return;
       }
 
       setSuccess(true);
       setAuthorName("");
       setContent("");
+      setCaptchaAnswer("");
+      fetchCaptcha();
       onSuccess?.();
     } catch {
       setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      fetchCaptcha();
+      setCaptchaAnswer("");
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +122,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
     >
       <h3 className="text-sm font-semibold text-foreground">제안 작성</h3>
 
-      {/* Honeypot — hidden from real users */}
+      {/* Honeypot */}
       <input
         type="text"
         name="website"
@@ -98,9 +135,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       />
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          이름
-        </label>
+        <label className="block text-sm font-medium text-foreground mb-1.5">이름</label>
         <input
           type="text"
           value={authorName}
@@ -116,11 +151,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="block text-sm font-medium text-foreground">내용</label>
-          <span
-            className={`text-xs ${
-              content.length > MAX_CONTENT ? "text-red-500" : "text-muted"
-            }`}
-          >
+          <span className={`text-xs ${content.length > MAX_CONTENT ? "text-red-500" : "text-muted"}`}>
             {content.length} / {MAX_CONTENT}
           </span>
         </div>
@@ -136,13 +167,41 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         />
       </div>
 
-      {error && (
-        <p className="text-xs text-red-500">{error}</p>
-      )}
+      {/* CAPTCHA */}
+      <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-border">
+        <div className="flex-1">
+          <p className="text-xs text-muted mb-1">보안 문자 (스팸 방지)</p>
+          {captcha ? (
+            <p className="text-sm font-mono font-semibold text-foreground">{captcha.question}</p>
+          ) : (
+            <p className="text-xs text-muted">로딩 중...</p>
+          )}
+        </div>
+        <input
+          type="number"
+          value={captchaAnswer}
+          onChange={(e) => setCaptchaAnswer(e.target.value)}
+          placeholder="답"
+          min={2}
+          max={18}
+          required
+          className="w-16 px-2 py-1.5 text-sm text-center border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => { fetchCaptcha(); setCaptchaAnswer(""); }}
+          className="text-xs text-muted hover:text-primary transition-colors"
+          title="새 문제"
+        >
+          ↻
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !captcha}
         className="w-full px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
       >
         {submitting ? "제출 중..." : "제안 제출"}

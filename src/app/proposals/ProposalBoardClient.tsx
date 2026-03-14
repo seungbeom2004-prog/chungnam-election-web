@@ -22,17 +22,32 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
 
+  // Filter candidate dropdown by selected city
+  const filteredCandidates = selectedCity
+    ? candidates.filter((c) => c.district === selectedCity || c.district.startsWith(selectedCity))
+    : candidates;
+
+  const hasFilter = selectedCity || selectedCandidateId;
+
   return (
     <div>
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex-1 min-w-[160px]">
-          <label className="block text-xs font-medium text-muted mb-1.5">지역 필터</label>
+          <label className="block text-xs font-medium text-muted mb-1.5">시군구 필터</label>
           <select
             value={selectedCity}
             onChange={(e) => {
               setSelectedCity(e.target.value);
-              setSelectedCandidateId("");
+              // Clear candidate if they're no longer in the new district
+              if (e.target.value) {
+                const stillValid = candidates.some(
+                  (c) =>
+                    c.id === selectedCandidateId &&
+                    (c.district === e.target.value || c.district.startsWith(e.target.value))
+                );
+                if (!stillValid) setSelectedCandidateId("");
+              }
             }}
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
           >
@@ -49,14 +64,11 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           <label className="block text-xs font-medium text-muted mb-1.5">후보자 필터</label>
           <select
             value={selectedCandidateId}
-            onChange={(e) => {
-              setSelectedCandidateId(e.target.value);
-              setSelectedCity("");
-            }}
+            onChange={(e) => setSelectedCandidateId(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
           >
             <option value="">전체 후보자</option>
-            {candidates.map((c) => (
+            {filteredCandidates.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.district})
               </option>
@@ -64,7 +76,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           </select>
         </div>
 
-        {(selectedCity || selectedCandidateId) && (
+        {hasFilter && (
           <div className="flex items-end">
             <button
               onClick={() => {

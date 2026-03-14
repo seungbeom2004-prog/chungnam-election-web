@@ -194,7 +194,7 @@ export default function MapPageContent() {
 
   // Fetch all verified candidates
   useEffect(() => {
-    fetch("/api/candidates?limit=500")
+    fetch("/api/candidates?limit=500&eligible=true")
       .then((res) => res.json())
       .then((json) => {
         const data: Array<{

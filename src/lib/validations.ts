@@ -189,4 +189,6 @@ export const createProposalSchema = z.object({
   city: z.string().optional().nullable(),
   candidateId: z.string().optional().nullable(),
   honeypot: z.string().max(0, "Bot detected").optional(), // anti-bot
+  captchaToken: z.string().min(1, "보안 문자 토큰이 누락되었습니다"),
+  captchaAnswer: z.string().min(1, "보안 문자를 입력해주세요").max(3),
 });
