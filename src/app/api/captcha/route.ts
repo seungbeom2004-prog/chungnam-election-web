@@ -37,3 +37,21 @@ export async function GET() {
   const token = makeCaptchaToken(answer, timeWindow());
   return NextResponse.json({ token, question: `${a} + ${b} = ?` });
 }
+
+/** Verify a reCAPTCHA v2 token against Google's API. */
+export async function verifyRecaptcha(token: string): Promise<boolean> {
+  if (process.env.DISABLE_CAPTCHA === "true") return true;
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  if (!secretKey) return true; // dev fallback
+  try {
+    const res = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `secret=${secretKey}&response=${token}`,
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}

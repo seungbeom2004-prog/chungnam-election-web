@@ -72,6 +72,16 @@ export default function Navbar() {
           >
             제안 게시판
           </Link>
+          <Link
+            href="/about"
+            className={`shrink-0 text-xs font-medium transition-colors ${
+              pathname.startsWith("/about")
+                ? "text-primary"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            후보자 소개
+          </Link>
         </nav>
 
         {/* Theme toggle — desktop only */}

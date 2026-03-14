@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const { status } = await request.json();
+
+  const allowed = ["pending", "accepted", "hidden", "deleted"];
+  if (!allowed.includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const updateData: Record<string, unknown> = { status };
+  if (status === "accepted") updateData.acceptedAt = new Date().toISOString();
+  if (status === "deleted") updateData.deletedAt = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from("ProposalPost")
+    .update(updateData)
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

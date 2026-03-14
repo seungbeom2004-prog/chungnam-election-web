@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
 import Link from "next/link";
 import { Button, Input } from "@/components/ui";
 
@@ -67,6 +68,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // NEC data
   const [districts, setDistricts] = useState<NecDistrict[]>([]);
@@ -282,6 +284,12 @@ export default function SignupPage() {
     }
     if (!phone) {
       setError("전화번호를 입력해주세요.");
+      return;
+    }
+
+    const recaptchaToken = recaptchaRef.current?.getValue();
+    if (!recaptchaToken) {
+      setError("보안 문자를 완료해주세요.");
       return;
     }
 
@@ -1053,6 +1061,15 @@ export default function SignupPage() {
                   당에서 공천을 받았습니다 (공천 여부)
                 </label>
               </div>
+            </div>
+          )}
+
+          {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+              />
             </div>
           )}
 

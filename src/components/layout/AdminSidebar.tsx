@@ -90,6 +90,21 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/proposals",
+    label: "게시판 관리",
+    shortLabel: "게시판",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M9 12h6M9 8h6M5 12h.01M5 8h.01M3 5h14a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/security",
     label: "보안 리포트",
     shortLabel: "보안",

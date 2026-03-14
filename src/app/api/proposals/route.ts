@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createProposalSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
-import { verifyCaptchaToken } from "@/app/api/captcha/route";
+import { verifyRecaptcha } from "@/app/api/captcha/route";
 
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "reform-chungnam-salt";
 
@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
     }
 
     // CAPTCHA verification
-    if (!verifyCaptchaToken(validated.captchaToken, validated.captchaAnswer)) {
-      return apiError("보안 문자가 올바르지 않습니다. 다시 시도해주세요.", 400);
+    if (!await verifyRecaptcha(validated.captchaToken)) {
+      return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
     }
 
     // IP hashing
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Strip internal fields before inserting
-    const { honeypot: _h, captchaToken: _ct, captchaAnswer: _ca, ...insertData } = validated;
+    const { honeypot: _h, captchaToken: _ct, ...insertData } = validated;
 
     // Auto-populate city from candidate's district if not provided
     if (insertData.candidateId && !insertData.city) {
