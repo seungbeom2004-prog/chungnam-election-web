@@ -251,13 +251,25 @@ export default function OtherPledgesTab({ currentCandidateId }: OtherPledgesTabP
             </div>
           ) : pledges.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 text-muted">
-              <p className="text-lg mb-2">👈</p>
+              <p className="text-lg mb-2">
+                <span className="lg:hidden">👆</span>
+                <span className="hidden lg:inline">👈</span>
+              </p>
               <p className="text-sm">
-                {viewMode === "byCandidate"
-                  ? "왼쪽에서 출마자를 선택하세요"
-                  : viewMode === "byCategory"
-                  ? "왼쪽에서 분야를 선택하세요"
-                  : "왼쪽에서 지역을 선택하세요"}
+                <span className="lg:hidden">
+                  {viewMode === "byCandidate"
+                    ? "위에서 출마자를 선택하세요"
+                    : viewMode === "byCategory"
+                    ? "위에서 분야를 선택하세요"
+                    : "위에서 지역을 선택하세요"}
+                </span>
+                <span className="hidden lg:inline">
+                  {viewMode === "byCandidate"
+                    ? "왼쪽에서 출마자를 선택하세요"
+                    : viewMode === "byCategory"
+                    ? "왼쪽에서 분야를 선택하세요"
+                    : "왼쪽에서 지역을 선택하세요"}
+                </span>
               </p>
             </div>
           ) : (
