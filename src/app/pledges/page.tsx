@@ -118,6 +118,7 @@ export default async function PledgesPage() {
         budget: p.budget,
         youtubeUrl: p.youtubeUrl,
         pledgeType: p.pledgeType as "map" | "bylaws",
+        bylawTagged: (p as unknown as { bylawTagged?: boolean }).bylawTagged ?? false,
         latitude: p.latitude,
         longitude: p.longitude,
         address: p.address,
@@ -134,7 +135,7 @@ export default async function PledgesPage() {
     }
   }
 
-  const totalCandidates = eligibleCandidates.filter((c) => byCandidate[c.id]?.length).length;
+  const totalCandidates = eligibleCandidates.length;
   const totalPledges = tiles.length;
 
   // Fetch categories

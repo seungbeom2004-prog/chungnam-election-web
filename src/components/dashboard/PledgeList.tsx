@@ -12,6 +12,7 @@ interface PledgeListProps {
   onToggleVisibility: (pledge: Pledge) => void;
   onManageCollaboration?: (pledge: Pledge) => void;
   onToggleType?: (pledge: Pledge) => void;
+  onToggleBylawTag?: (pledge: Pledge) => void;
 }
 
 /** Stacked overlapping avatar bubbles for collaborator display. */
@@ -68,6 +69,7 @@ export default function PledgeList({
   onToggleVisibility,
   onManageCollaboration,
   onToggleType,
+  onToggleBylawTag,
 }: PledgeListProps) {
   if (pledges.length === 0) {
     return (
@@ -115,6 +117,9 @@ export default function PledgeList({
                   {pledge.title}
                 </h3>
                 {!pledge.visible && <Badge variant="muted">숨김</Badge>}
+              {(pledge as Pledge & { bylawTagged?: boolean }).bylawTagged && (
+                <Badge variant="muted" className="!bg-blue-50 !text-blue-600 !border-blue-200">조례태그</Badge>
+              )}
               </div>
               {pledge.category && (
                 <span
@@ -167,7 +172,20 @@ export default function PledgeList({
                   className="px-2.5 py-1 text-xs font-medium text-muted hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                   title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경" : "조례로 변경"}
                 >
-                  {pledge.pledgeType === "bylaws" ? "공약↔조례" : "공약↔조례"}
+                  {pledge.pledgeType === "bylaws" ? "→지역" : "→조례"}
+                </button>
+              )}
+              {onToggleBylawTag && pledge.pledgeType !== "bylaws" && (
+                <button
+                  onClick={() => onToggleBylawTag(pledge)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                    (pledge as Pledge & { bylawTagged?: boolean }).bylawTagged
+                      ? "text-blue-700 bg-blue-50 hover:bg-blue-100"
+                      : "text-muted hover:text-blue-600 hover:bg-blue-50"
+                  }`}
+                  title="조례 목록에도 표시 (조례 태그)"
+                >
+                  조례태그
                 </button>
               )}
               {onManageCollaboration && (

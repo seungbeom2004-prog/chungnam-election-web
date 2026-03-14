@@ -13,9 +13,10 @@ interface Candidate {
   slogan: string | null;
   createdAt: string;
   likeCount: number;
+  pledgeCount?: number;
 }
 
-type SortOrder = "signup" | "likes";
+type SortOrder = "signup" | "likes" | "pledges";
 
 export default function AboutClient({ candidates }: { candidates: Candidate[] }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("signup");
@@ -24,7 +25,12 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
   const sorted = [...candidates].sort((a, b) => {
     if (sortOrder === "likes") {
       if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
-      // Same likes: earlier signup first
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    if (sortOrder === "pledges") {
+      const pa = a.pledgeCount ?? 0;
+      const pb = b.pledgeCount ?? 0;
+      if (pb !== pa) return pb - pa;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     }
     // Default: sign-up date
@@ -79,26 +85,20 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-lg font-bold text-foreground">후보자 목록</h2>
             <div className="flex gap-2">
-              <button
-                onClick={() => setSortOrder("signup")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  sortOrder === "signup"
-                    ? "bg-primary text-white border-primary"
-                    : "border-border text-muted hover:text-foreground"
-                }`}
-              >
-                가입순
-              </button>
-              <button
-                onClick={() => setSortOrder("likes")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  sortOrder === "likes"
-                    ? "bg-primary text-white border-primary"
-                    : "border-border text-muted hover:text-foreground"
-                }`}
-              >
-                응원 많은 순
-              </button>
+              {(["signup", "likes", "pledges"] as const).map((order) => (
+                <button
+                  key={order}
+                  onClick={() => setSortOrder(order)}
+                  aria-pressed={sortOrder === order}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                    sortOrder === order
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted hover:text-foreground"
+                  }`}
+                >
+                  {order === "signup" ? "가입순" : order === "likes" ? "응원 많은 순" : "공약 많은 순"}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -113,8 +113,8 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
                   className="flex items-center gap-4 p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-colors"
                 >
                   {/* Rank */}
-                  <span className="text-sm font-bold text-muted w-6 text-center shrink-0">
-                    {sortOrder === "likes" ? i + 1 : ""}
+                  <span className="text-sm font-bold text-muted w-6 text-center shrink-0" aria-label={sortOrder !== "signup" ? `${i + 1}위` : undefined}>
+                    {sortOrder !== "signup" ? i + 1 : ""}
                   </span>
                   {/* Avatar */}
                   <div className="w-12 h-12 rounded-full bg-primary-light overflow-hidden shrink-0 flex items-center justify-center">
@@ -142,12 +142,22 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
                       <p className="text-xs text-muted mt-0.5 truncate">{c.slogan}</p>
                     )}
                   </div>
-                  {/* Like count */}
-                  <div className="flex items-center gap-1 text-xs text-muted shrink-0" aria-label={`응원 ${c.likeCount}개`}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                    <span aria-hidden="true">{c.likeCount}</span>
+                  {/* Stats */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {c.pledgeCount !== undefined && (
+                      <div className="flex items-center gap-0.5 text-xs text-muted" aria-label={`공약 ${c.pledgeCount}건`}>
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                          <path d="M3 3h10M3 6h10M3 9h6" strokeLinecap="round" />
+                        </svg>
+                        <span aria-hidden="true">{c.pledgeCount}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-0.5 text-xs text-muted" aria-label={`응원 ${c.likeCount}개`}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                      <span aria-hidden="true">{c.likeCount}</span>
+                    </div>
                   </div>
                 </Link>
               ))}

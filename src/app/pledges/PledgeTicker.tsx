@@ -13,6 +13,8 @@ export interface PledgeTile {
   budget: string | null;
   youtubeUrl: string | null;
   pledgeType: "map" | "bylaws";
+  /** True when a map pledge is also tagged as bylaw-related. */
+  bylawTagged?: boolean;
   latitude: number;
   longitude: number;
   address: string | null;

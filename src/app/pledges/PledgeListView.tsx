@@ -5,6 +5,34 @@ import Link from "next/link";
 import Image from "next/image";
 import type { PledgeTile } from "./PledgeTicker";
 
+/** Round avatar bubble — author always renders with highest z-index. */
+function AvatarBubble({
+  image,
+  name,
+  size = 28,
+  zIndex = 0,
+}: {
+  image: string | null;
+  name: string;
+  size?: number;
+  zIndex?: number;
+}) {
+  return (
+    <div
+      className="rounded-full bg-primary/10 border-2 border-surface overflow-hidden flex items-center justify-center shrink-0 relative"
+      style={{ width: size, height: size, zIndex }}
+    >
+      {image ? (
+        <Image src={image} alt={name} width={size} height={size} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-primary font-bold" style={{ fontSize: size * 0.36 }}>
+          {name.charAt(0)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface CandidateInfo {
   id: string;
   name: string;
@@ -68,8 +96,12 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
         const city = match ? match[0] : "";
         if (!selectedCities.has(city)) return false;
       }
-      // Type
-      if (pledgeTypeFilter !== "all" && t.pledgeType !== pledgeTypeFilter) return false;
+      // Type: "bylaws" filter also includes bylawTagged map pledges
+      if (pledgeTypeFilter !== "all") {
+        const isBylawType = t.pledgeType === pledgeTypeFilter;
+        const isBylawTagged = pledgeTypeFilter === "bylaws" && (t as PledgeTile & { bylawTagged?: boolean }).bylawTagged === true;
+        if (!isBylawType && !isBylawTagged) return false;
+      }
       return true;
     });
   }, [tiles, search, selectedCandidateId, selectedCategories, selectedCities, pledgeTypeFilter]);
@@ -109,7 +141,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
             공천 확정 후보자 <span className="font-semibold text-foreground">{totalCandidates}명</span>의 공약{" "}
             <span className="font-semibold text-foreground">{totalPledges}건</span>
             {hasFilters && (
-              <span className="ml-2 text-primary font-medium">
+              <span className="ml-2 text-primary font-medium" aria-live="polite" aria-atomic="true">
                 → 필터 결과 {filtered.length}건
               </span>
             )}
@@ -151,6 +183,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
               <button
                 key={type}
                 onClick={() => setPledgeTypeFilter(type)}
+                aria-pressed={pledgeTypeFilter === type}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                   pledgeTypeFilter === type
                     ? "bg-primary text-white border-primary"
@@ -171,6 +204,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
                   <button
                     key={city}
                     onClick={() => toggleCity(city)}
+                    aria-pressed={selectedCities.has(city)}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                       selectedCities.has(city)
                         ? "bg-primary text-white border-primary"
@@ -193,6 +227,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
                   <button
                     key={cat.id}
                     onClick={() => toggleCategory(cat.name)}
+                    aria-pressed={selectedCategories.has(cat.name)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                       selectedCategories.has(cat.name)
                         ? "text-white border-transparent"
@@ -258,29 +293,49 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
 
 function PledgeCard({ tile }: { tile: PledgeTile }) {
   const isShared = tile.collaborators.length > 0;
+  const totalParticipants = 1 + tile.collaborators.length;
 
   return (
     <Link
       href={`/?pledge=${tile.id}`}
       className="block p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:shadow-md transition-all group"
     >
-      {/* Candidate header */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center shrink-0">
-          {tile.candidateProfileImage ? (
-            <Image src={tile.candidateProfileImage} alt={tile.candidateName} width={32} height={32} className="object-cover w-full h-full" />
-          ) : (
-            <span className="text-primary font-bold text-xs">{tile.candidateName.charAt(0)}</span>
+      {/* Candidate header with stacked avatars */}
+      <div className="flex items-center gap-2.5 mb-3">
+        {/* Stacked avatars: author on top (highest z-index) */}
+        <div className="flex -space-x-2 shrink-0">
+          <AvatarBubble
+            image={tile.candidateProfileImage}
+            name={tile.candidateName}
+            size={32}
+            zIndex={totalParticipants}
+          />
+          {tile.collaborators.slice(0, 2).map((c, i) => (
+            <AvatarBubble
+              key={c.id}
+              image={c.profileImage}
+              name={c.name}
+              size={28}
+              zIndex={totalParticipants - 1 - i}
+            />
+          ))}
+          {tile.collaborators.length > 2 && (
+            <div
+              className="rounded-full bg-muted/20 border-2 border-surface flex items-center justify-center shrink-0 relative text-[9px] font-bold text-muted"
+              style={{ width: 24, height: 24, zIndex: 0 }}
+            >
+              +{tile.collaborators.length - 2}
+            </div>
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-foreground truncate">
             {tile.candidateName}{isShared ? ` 외 ${tile.collaborators.length}명` : ""}
           </p>
           <p className="text-[10px] text-muted truncate">{tile.candidateDistrict}</p>
         </div>
         {isShared && (
-          <span className="ml-auto shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium">
+          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium">
             공동
           </span>
         )}

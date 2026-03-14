@@ -225,6 +225,16 @@ export default function PledgesPage() {
     fetchBylaws();
   };
 
+  const handleToggleBylawTag = async (pledge: Pledge) => {
+    const current = (pledge as Pledge & { bylawTagged?: boolean }).bylawTagged ?? false;
+    await fetch(`/api/pledges/${pledge.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...pledge, bylawTagged: !current }),
+    });
+    fetchPledges();
+  };
+
   const handleBylawsSubmit = async (data: { title: string; description: string; budget?: string }) => {
     const body = {
       ...data,
@@ -305,6 +315,7 @@ export default function PledgesPage() {
               onToggleVisibility={handleToggleVisibility}
               onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
               onToggleType={handleToggleType}
+              onToggleBylawTag={handleToggleBylawTag}
             />
           </div>
 
@@ -360,67 +371,17 @@ export default function PledgesPage() {
           {bylaws.length === 0 && !showBylawsForm ? (
             <div className="text-center py-12 text-muted">
               <p className="text-sm">등록된 조례가 없습니다.</p>
-              <p className="text-xs mt-1">조례는 지도에 표시되지 않고, 후보자 프로필에서 확인할 수 있습니다.</p>
+              <p className="text-xs mt-1">조례는 시·군 의회 위치에 표시되고, 후보자 프로필에서도 확인할 수 있습니다.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {bylaws.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-4 border border-border rounded-xl bg-surface"
-                >
-                  <div className="flex gap-3">
-                    {/* Icon */}
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-                      style={{
-                        backgroundColor: b.category?.color ? `${b.category.color}20` : "#EFF6FF",
-                      }}
-                    >
-                      {b.category?.emoji || "📜"}
-                    </div>
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-foreground text-sm leading-snug">
-                          {b.title}
-                        </h3>
-                        {!b.visible && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/20 text-muted shrink-0">숨김</span>
-                        )}
-                      </div>
-                      <span className="inline-block mt-0.5 text-xs px-1.5 py-0.5 rounded font-medium bg-blue-50 text-blue-600 border border-blue-200">
-                        조례
-                      </span>
-                      <p className="text-xs text-muted line-clamp-2 mt-1 leading-relaxed">
-                        {b.description}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex items-center mt-2 pt-2 border-t border-border gap-1">
-                    <button
-                      onClick={() => { setEditingBylaws(b); setShowBylawsForm(true); }}
-                      className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleToggleVisibility(b)}
-                      className="px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-background rounded transition-colors"
-                    >
-                      {b.visible ? "숨기기" : "공개"}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(b.id)}
-                      className="px-2.5 py-1 text-xs font-medium text-muted hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PledgeList
+              pledges={bylaws}
+              onEdit={(b) => { setEditingBylaws(b); setShowBylawsForm(true); }}
+              onDelete={handleDelete}
+              onToggleVisibility={handleToggleVisibility}
+              onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
+              onToggleType={handleToggleType}
+            />
           )}
         </div>
       )}

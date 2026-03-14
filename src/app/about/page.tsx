@@ -20,14 +20,28 @@ export default async function AboutPage() {
     .order("createdAt", { ascending: true })
     .limit(500);
 
-  // Get like counts
-  const { data: likesRaw } = await supabase
-    .from("CandidateLike")
-    .select("candidateId");
+  const eligibleIds = (candidatesRaw ?? []).map((c: { id: string }) => c.id);
+
+  // Get like counts and pledge counts in parallel
+  const [likesResult, pledgesResult] = await Promise.all([
+    supabase.from("CandidateLike").select("candidateId"),
+    eligibleIds.length > 0
+      ? supabase
+          .from("Pledge")
+          .select("candidateId")
+          .in("candidateId", eligibleIds)
+          .eq("visible", true)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const likeMap: Record<string, number> = {};
-  (likesRaw ?? []).forEach((l: { candidateId: string }) => {
+  (likesResult.data ?? []).forEach((l: { candidateId: string }) => {
     likeMap[l.candidateId] = (likeMap[l.candidateId] ?? 0) + 1;
+  });
+
+  const pledgeMap: Record<string, number> = {};
+  (pledgesResult.data ?? []).forEach((p: { candidateId: string }) => {
+    pledgeMap[p.candidateId] = (pledgeMap[p.candidateId] ?? 0) + 1;
   });
 
   const candidates = (candidatesRaw ?? []).map((c) => ({
@@ -38,6 +52,7 @@ export default async function AboutPage() {
     slogan: c.slogan ?? null,
     createdAt: c.createdAt,
     likeCount: likeMap[c.id] ?? 0,
+    pledgeCount: pledgeMap[c.id] ?? 0,
   }));
 
   return <AboutClient candidates={candidates} />;

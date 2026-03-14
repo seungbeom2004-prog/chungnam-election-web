@@ -45,6 +45,8 @@ export interface CandidateForMap {
   tiktok: string | null;
   kakao: string | null;
   naverBlog: string | null;
+  /** ISO timestamp — earlier registered = higher map z-index */
+  createdAt?: string | null;
 }
 
 export interface DistrictCoords {
@@ -189,36 +191,30 @@ export default function MapPageContent() {
     return Array.from(map.entries()).map(([name, info]) => ({ id: name, ...info }));
   })();
 
-  // Fetch bylaw pledges and group by candidate/council location
+  // Fetch bylaw pledges and group by city council location
   useEffect(() => {
     fetch("/api/pledges?limit=500&pledgeType=bylaws")
       .then((res) => res.json())
       .then((json) => {
         const data: Pledge[] = json.data ?? [];
-        // Group by candidateId
-        const grouped: Record<string, { candidate: { id: string; name: string; district: string; profileImage: string | null }; pledges: Pledge[] }> = {};
+        // Group all pledges by city (multiple candidates may share a council building)
+        const grouped: Record<string, BylawGroup> = {};
         for (const pledge of data) {
           if (!pledge.candidate) continue;
-          const cid = pledge.candidate.id;
-          if (!grouped[cid]) grouped[cid] = { candidate: pledge.candidate, pledges: [] };
-          grouped[cid]!.pledges.push(pledge);
-        }
-        const groups: BylawGroup[] = Object.values(grouped)
-          .map(({ candidate, pledges }) => {
-            const districtCity = findDistrictCity(candidate.district);
-            if (!districtCity) return null;
-            return {
-              candidateId: candidate.id,
-              candidateName: candidate.name,
-              candidateProfileImage: candidate.profileImage,
-              candidateDistrict: candidate.district,
+          const districtCity = findDistrictCity(pledge.candidate.district);
+          if (!districtCity) continue;
+          const key = districtCity.name;
+          if (!grouped[key]) {
+            grouped[key] = {
+              cityName: districtCity.name,
               councilLat: districtCity.councilLat,
               councilLng: districtCity.councilLng,
-              pledges,
+              pledges: [],
             };
-          })
-          .filter(Boolean) as BylawGroup[];
-        setBylawGroups(groups);
+          }
+          grouped[key]!.pledges.push(pledge);
+        }
+        setBylawGroups(Object.values(grouped));
       })
       .catch(console.error);
   }, []);
@@ -270,6 +266,7 @@ export default function MapPageContent() {
           tiktok: string | null;
           kakao: string | null;
           naverBlog: string | null;
+          createdAt?: string | null;
           election?: { id: string; name: string } | null;
         }> = json.data ?? [];
         setCandidates(
@@ -292,6 +289,7 @@ export default function MapPageContent() {
             tiktok: c.tiktok ?? null,
             kakao: c.kakao ?? null,
             naverBlog: c.naverBlog ?? null,
+            createdAt: c.createdAt ?? null,
           }))
         );
       })

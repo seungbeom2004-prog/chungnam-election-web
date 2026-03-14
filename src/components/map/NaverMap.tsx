@@ -103,15 +103,12 @@ function buildPledgeMarkerHTML(
   );
 }
 
-/** Regular candidate pin (photo + name label). */
-function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
+/** Regular candidate pin (photo + name label). compact=true hides the text box. */
+function buildCandidateMarkerHTML(candidate: CandidateForMap, compact = false): string {
   const electionLabel = candidate.detailedElectionName || candidate.electionType || candidate.electionName || "";
   // Most specific district: the ward portion after the first space (e.g. "다선거구" from "천안시서북구 다선거구")
   const spaceIdx = candidate.district ? candidate.district.indexOf(" ") : -1;
   const specificDistrict = spaceIdx > -1 ? candidate.district.slice(spaceIdx + 1) : candidate.district;
-  // Line after detailed election: specific district + candidate status
-  const detailLineParts = [specificDistrict, candidate.candidateStatus].filter(Boolean);
-  const detailLine = detailLineParts.join(" · ");
   const isConfirmed = candidate.caucusStatus === "공천 확정";
 
   const bgLayer = candidate.profileImage
@@ -124,6 +121,22 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
       `font-size:8px;font-weight:700;font-family:sans-serif;padding:2px 4px;border-radius:4px;` +
       `border:1.5px solid white;line-height:1.2;white-space:nowrap;">공천 확정</div>`
     : "";
+
+  if (compact) {
+    return (
+      `<div style="text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+      `will-change:transform,opacity;transform:translateZ(0);backface-visibility:hidden;` +
+      `animation:markerFadeIn 0.2s ease-out both;">` +
+      `<div style="position:relative;display:inline-block;">` +
+      `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;overflow:hidden;border:2.5px solid ${BRAND_COLOR};background:${BRAND_COLOR};box-shadow:0 2px 8px rgba(0,0,0,0.3);">` +
+      `<span style="font-size:16px;font-weight:800;color:white;font-family:sans-serif;">${escapeHtml(candidate.name.charAt(0))}</span>` +
+      bgLayer +
+      `</div>` +
+      confirmedBadge +
+      `</div>` +
+      `</div>`
+    );
+  }
 
   return (
     `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
@@ -141,8 +154,11 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
     (electionLabel
       ? `<div style="font-size:9px;color:#666;margin-top:2px;line-height:1.3;font-family:sans-serif;">${escapeHtml(electionLabel)}</div>`
       : "") +
-    (detailLine
-      ? `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(detailLine)}</div>`
+    (specificDistrict
+      ? `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(specificDistrict)}</div>`
+      : "") +
+    (candidate.candidateStatus
+      ? `<div style="font-size:9px;color:${BRAND_COLOR};margin-top:1px;line-height:1.3;font-family:sans-serif;">${escapeHtml(candidate.candidateStatus)}</div>`
       : "") +
     `</div>` +
     `</div>`
@@ -183,14 +199,11 @@ function buildCutePledgeMarkerHTML(
   );
 }
 
-/** Cute candidate pin (circular photo + speech-bubble label). */
-function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
+/** Cute candidate pin (circular photo + speech-bubble label). compact=true hides the text bubble. */
+function buildCuteCandidateMarkerHTML(candidate: CandidateForMap, compact = false): string {
   const electionLabel = candidate.detailedElectionName || candidate.electionType || candidate.electionName || "";
   const spaceIdx2 = candidate.district ? candidate.district.indexOf(" ") : -1;
   const specificDistrict2 = spaceIdx2 > -1 ? candidate.district.slice(spaceIdx2 + 1) : candidate.district;
-  // Line after detailed election: specific district + candidate status
-  const detailLineParts2 = [specificDistrict2, candidate.candidateStatus].filter(Boolean);
-  const detailLine2 = detailLineParts2.join(" · ");
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
   const isConfirmed = candidate.caucusStatus === "공천 확정";
 
@@ -204,6 +217,25 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
       `font-size:8px;font-weight:700;font-family:sans-serif;padding:2px 4px;border-radius:4px;` +
       `border:1.5px solid white;line-height:1.2;white-space:nowrap;">공천 확정</div>`
     : "";
+
+  if (compact) {
+    return (
+      `<div style="text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+      `will-change:transform,opacity;transform:translateZ(0);backface-visibility:hidden;` +
+      `animation:markerFadeIn 0.2s ease-out both;">` +
+      `<div style="position:relative;display:inline-block;">` +
+      `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;overflow:hidden;` +
+      `border:3px solid ${CUTE_COLOR};background:linear-gradient(135deg,${CUTE_COLOR},#FFB6D5);` +
+      `box-shadow:0 3px 10px rgba(255,107,157,0.4);">` +
+      `<span style="font-size:18px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>` +
+      bgLayer +
+      `</div>` +
+      `<div style="position:absolute;top:-2px;right:-2px;font-size:12px;">⭐</div>` +
+      confirmedBadge +
+      `</div>` +
+      `</div>`
+    );
+  }
 
   return (
     `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
@@ -229,8 +261,11 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
     (electionLabel
       ? `<div style="font-size:9px;color:#B8A9C9;margin-top:2px;line-height:1.3;${cuteFont}">${escapeHtml(electionLabel)}</div>`
       : "") +
-    (detailLine2
-      ? `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(detailLine2)}</div>`
+    (specificDistrict2
+      ? `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(specificDistrict2)}</div>`
+      : "") +
+    (candidate.candidateStatus
+      ? `<div style="font-size:9px;color:${CUTE_COLOR};margin-top:1px;line-height:1.3;${cuteFont}">${escapeHtml(candidate.candidateStatus)}</div>`
       : "") +
     `</div>` +
     `</div>`
@@ -263,20 +298,24 @@ function buildClusterMarkerHTML(count: number, isCute: boolean): string {
   );
 }
 
-/** Bylaw council pin — blue with 📜 emoji and candidate name label. */
-function buildBylawMarkerHTML(name: string, count: number): string {
+/** Bylaw council pin — blue with 📜 emoji, city label, and always-visible count badge. */
+function buildBylawMarkerHTML(cityName: string, count: number): string {
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
+    `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
-    `<div style="position:relative;width:40px;height:40px;background:#3B82F6;border-radius:10px;` +
+    `<div style="position:relative;width:44px;height:44px;background:#3B82F6;border-radius:12px;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);">` +
-    `<span style="font-size:20px;line-height:1;">📜</span>` +
-    `${count > 1 ? `<div style="position:absolute;top:-5px;right:-5px;background:#EF4444;color:white;font-size:9px;font-weight:bold;width:16px;height:16px;border-radius:50%;border:1.5px solid white;display:flex;align-items:center;justify-content:center;">${count}</div>` : ""}` +
+    `overflow:visible;box-shadow:0 3px 10px rgba(59,130,246,0.55);">` +
+    `<span style="font-size:22px;line-height:1;">📜</span>` +
+    `<div style="position:absolute;top:-9px;right:-9px;background:#EF4444;color:white;` +
+    `font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `padding:0 4px;box-shadow:0 1px 4px rgba(0,0,0,0.35);z-index:1;">${count}</div>` +
     `</div>` +
-    `<div style="margin-top:3px;background:#3B82F6;color:white;font-size:10px;font-weight:700;` +
-    `padding:2px 6px;border-radius:6px;white-space:nowrap;max-width:80px;overflow:hidden;` +
-    `text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,0.2);">${escapeHtml(name)}</div>` +
+    `<div style="margin-top:4px;background:#3B82F6;color:white;font-size:10px;font-weight:700;` +
+    `padding:2px 7px;border-radius:6px;white-space:nowrap;max-width:90px;overflow:hidden;` +
+    `text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,0.25);">${escapeHtml(cityName)}</div>` +
     `</div>`
   );
 }
@@ -604,17 +643,35 @@ export default function NaverMap({
     [clearClusterMarkers, clearPledgeMarkers, clearSpiderfy, isCute, onPledgeClick, pinSettings]
   );
 
-  // ── Candidate markers (unchanged logic) ───────────────────────────────────
+  // Zoom threshold below which candidate label boxes are hidden (compact mode)
+  const CANDIDATE_LABEL_ZOOM = 12;
+
+  // ── Candidate markers ─────────────────────────────────────────────────────
 
   const addCandidateMarkers = useCallback(
     (map: naver.maps.Map) => {
       clearCandidateMarkers();
       if (!Array.isArray(candidates) || !Array.isArray(districts)) return;
 
+      // Hide label box when zoomed out (overlapping pins)
+      let compact = false;
+      try { compact = map.getZoom() < CANDIDATE_LABEL_ZOOM; } catch { /* ignore */ }
+
       const byDistrict: Record<string, CandidateForMap[]> = {};
       candidates.forEach((c) => {
         if (!byDistrict[c.district]) byDistrict[c.district] = [];
         byDistrict[c.district].push(c);
+      });
+
+      // Sort by createdAt asc so earlier-registered get higher z-index (appear on top)
+      const sortedByJoin = [...candidates].sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return ta - tb;
+      });
+      const zIndexByCandidate: Record<string, number> = {};
+      sortedByJoin.forEach((c, i) => {
+        zIndexByCandidate[c.id] = 100 + (sortedByJoin.length - i);
       });
 
       candidates.forEach((candidate) => {
@@ -639,17 +696,19 @@ export default function NaverMap({
         }
 
         const markerHtml = isCute
-          ? buildCuteCandidateMarkerHTML(candidate)
-          : buildCandidateMarkerHTML(candidate);
+          ? buildCuteCandidateMarkerHTML(candidate, compact)
+          : buildCandidateMarkerHTML(candidate, compact);
 
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(lat, lng),
           icon: {
             content: markerHtml,
-            anchor: new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35),
+            anchor: compact
+              ? new naver.maps.Point(isCute ? 34 : 32, isCute ? 34 : 32)
+              : new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35),
           },
-          zIndex: 100,
+          zIndex: zIndexByCandidate[candidate.id] ?? 100,
         });
 
         const listener = naver.maps.Event.addListener(
@@ -659,7 +718,7 @@ export default function NaverMap({
         candidateListenersRef.current.push(listener);
       });
     },
-    [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute]
+    [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const addBylawMarkers = useCallback(
@@ -669,7 +728,7 @@ export default function NaverMap({
       const onClick = onBylawGroupClickRef.current;
       if (!groups || !onClick) return;
       for (const group of groups) {
-        const markerHtml = buildBylawMarkerHTML(group.candidateName, group.pledges.length);
+        const markerHtml = buildBylawMarkerHTML(group.cityName, group.pledges.length);
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(group.councilLat, group.councilLng),
@@ -837,10 +896,21 @@ export default function NaverMap({
           }, 80);
         };
 
-        // zoom_changed: recompute clusters only (candidate positions are static)
+        // Track previous zoom to detect threshold crossings
+        let prevNaverZoom = map.getZoom();
+
+        // zoom_changed: recompute clusters; re-render candidate markers on threshold crossing
         naver.maps.Event.addListener(map, "zoom_changed", () => {
-          setZoomLevel(toStoreLevel(map.getZoom()));
+          const curZoom = map.getZoom();
+          setZoomLevel(toStoreLevel(curZoom));
           debouncedRenderClusters();
+          // Re-render candidate markers when crossing the compact/full threshold
+          const prevCompact = prevNaverZoom < CANDIDATE_LABEL_ZOOM;
+          const curCompact  = curZoom        < CANDIDATE_LABEL_ZOOM;
+          if (prevCompact !== curCompact && !destroyed) {
+            addCandidateMarkersRef.current(map);
+          }
+          prevNaverZoom = curZoom;
         });
 
         // dragend: recompute clusters for the new viewport bbox

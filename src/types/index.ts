@@ -52,6 +52,10 @@ export interface Pledge {
   youtubeUrl?: string | null;
   visible: boolean;
   pledgeType: "map" | "bylaws";
+  /** True when a map pledge is also tagged as bylaw-related (shows in bylaw list too). */
+  bylawTagged?: boolean;
+  /** ID of a related pledge (links a map pledge ↔ bylaw pledge). */
+  relatedPledgeId?: string | null;
   candidateId: string;
   categoryId: string | null;
   candidate?: Candidate;
@@ -147,11 +151,10 @@ export interface MapState {
 }
 
 export interface BylawGroup {
-  candidateId: string;
-  candidateName: string;
-  candidateProfileImage: string | null;
-  candidateDistrict: string;
+  /** City name, e.g. "천안시" */
+  cityName: string;
   councilLat: number;
   councilLng: number;
+  /** All bylaw (+ bylawTagged) pledges in this city, from any candidate. */
   pledges: Pledge[];
 }

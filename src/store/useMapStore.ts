@@ -4,7 +4,7 @@ import type { MapState, BylawGroup } from "@/types";
 const CHUNGNAM_CENTER = { lat: 36.81333, lng: 127.133274 };
 const DEFAULT_ZOOM = 6;
 
-type ExtendedMapState = MapState & {
+export type ExtendedMapState = MapState & {
   selectedBylawGroup: BylawGroup | null;
   isBylawPanelOpen: boolean;
   setSelectedBylawGroup: (group: BylawGroup | null) => void;
