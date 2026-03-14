@@ -6,6 +6,16 @@ const NEC_CANDIDATE_URL =
   "http://apis.data.go.kr/9760000/PofelcddInfoInqireService/getPoelpcddRegistSttusInfoInqire";
 const LOCAL_ELECTION_SGID = "20260603";
 
+const ELECTION_TYPE_NAMES: Record<string, string> = {
+  "3": "시·도지사선거",
+  "4": "구·시·군의 장선거",
+  "5": "시·도의회의원선거",
+  "6": "구·시·군의회의원선거",
+  "8": "광역의원비례대표선거",
+  "9": "기초의원비례대표선거",
+  "11": "교육감선거",
+};
+
 /** Strip anything that isn't Korean, alphanumeric, spaces, or common district suffixes */
 function sanitiseDistrict(raw: string): string {
   return raw.replace(/[^가-힣a-zA-Z0-9\s]/g, "").slice(0, 30);
@@ -30,6 +40,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawDistrict = searchParams.get("district") || "";
   const rawName = searchParams.get("name") || "";
+  const sgTypecode = searchParams.get("sgTypecode") || "";
 
   const district = sanitiseDistrict(rawDistrict);
   const name = sanitiseName(rawName);
@@ -41,7 +52,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cacheKey = `${district}:${name}`;
+  if (!sgTypecode) {
+    return NextResponse.json(
+      { success: false, error: "sgTypecode 파라미터가 필요합니다." },
+      { status: 400 }
+    );
+  }
+
+  const cacheKey = `${district}:${name}:${sgTypecode}`;
   const cached = cache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
     return NextResponse.json({ success: true, data: cached.data });
@@ -51,11 +69,12 @@ export async function GET(request: NextRequest) {
     const params = new URLSearchParams({
       serviceKey: NEC_API_KEY,
       sgId: LOCAL_ELECTION_SGID,
+      sgTypecode,
       sdName: "충청남도",
       wiwName: district,
-      numOfRows: "50",
+      numOfRows: "100",
       pageNo: "1",
-      _type: "json",
+      resultType: "json",
     });
     if (name) params.set("candidateName", name);
 
@@ -63,11 +82,22 @@ export async function GET(request: NextRequest) {
       headers: { Accept: "application/json" },
     });
 
-    if (!res.ok) {
-      throw new Error(`NEC API responded with status ${res.status}`);
+    // Read as text first to handle both JSON and XML responses
+    const text = await res.text();
+
+    // If the NEC returned XML (e.g., auth error), treat as empty result
+    if (text.trim().startsWith("<")) {
+      return NextResponse.json({ success: true, data: [] });
     }
 
-    const json = await res.json();
+    const json = JSON.parse(text);
+    const resultCode = json?.response?.header?.resultCode as string | undefined;
+
+    // INFO-03 = no data, treat as empty; any other non-00 code = empty
+    if (resultCode && resultCode !== "INFO-00") {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
     const raw = json?.response?.body?.items?.item;
     const items: Record<string, string>[] = Array.isArray(raw)
       ? raw
@@ -75,15 +105,23 @@ export async function GET(request: NextRequest) {
       ? [raw]
       : [];
 
-    // Return only public-record fields — no internal NEC IDs
-    const data = items.map((item) => ({
-      name: item.candidateName || item.name || "",
-      party: item.jdName || item.sgName || "",
-      electionType: item.sggName || item.sgTypeName || "",
-      ward: item.electName || "",
-      district: item.wiwName || district,
-      registStatus: item.registSttus || "",
-    }));
+    const electionTypeName = ELECTION_TYPE_NAMES[sgTypecode] || "";
+
+    // NEC API does not filter by party server-side — filter 개혁신당 here
+    const data = items
+      .filter((item) => {
+        const party = item.jdName || "";
+        return party === "개혁신당" || party.includes("개혁신당");
+      })
+      .map((item) => ({
+        name: item.name || "",
+        party: item.jdName || "",
+        electionType: electionTypeName,
+        // sggName = 선거구명 (ward) for council elections; empty for district-level elections
+        ward: item.sggName || "",
+        district: item.wiwName || district,
+        registStatus: item.status || "",
+      }));
 
     cache.set(cacheKey, { data, expiresAt: Date.now() + 5 * 60 * 1000 });
 

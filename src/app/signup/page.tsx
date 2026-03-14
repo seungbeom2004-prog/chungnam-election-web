@@ -215,7 +215,10 @@ export default function SignupPage() {
     setLoadingNecCandidates(true);
     setNecError("");
     try {
-      const res = await fetch(`/api/nec/candidate?district=${encodeURIComponent(necDistrict)}`);
+      const sgTypecode = electionTypes.find((t) => t.name === electionType)?.code || "";
+      const res = await fetch(
+        `/api/nec/candidate?district=${encodeURIComponent(necDistrict)}&sgTypecode=${encodeURIComponent(sgTypecode)}`
+      );
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed");
       const candidates: NecCandidate[] = json.data ?? [];
@@ -239,18 +242,11 @@ export default function SignupPage() {
       return;
     }
     setName(c.name);
-    setElectionType(c.electionType);
+    // electionType is already set from step 0 — keep it
     setIsNecRegistered(true);
-    // Parse ward into district + ward parts
-    const wardStr = c.ward || "";
-    const spaceIdx = wardStr.indexOf(" ");
-    if (spaceIdx > -1) {
-      setDistrict(wardStr.slice(0, spaceIdx));
-      setWard(wardStr.slice(spaceIdx + 1));
-    } else {
-      setDistrict(c.district || wardStr);
-      setWard("");
-    }
+    // NEC API returns district (wiwName) and ward (sggName) as separate fields
+    setDistrict(c.district);
+    setWard(c.ward || "");
     setNecPrefilled(true);
     setNecError("");
     setNecStep("form");
@@ -563,6 +559,14 @@ export default function SignupPage() {
                 {loadingNecCandidates ? "조회 중..." : "후보자 조회"}
               </Button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => { setNecStep("form"); setNecPrefilled(false); setNecError(""); }}
+              className="w-full text-xs text-muted hover:text-foreground underline text-center transition-colors"
+            >
+              선관위 조회 없이 직접 가입하기
+            </button>
 
             <p className="text-xs text-muted text-center">
               출처: 중앙선관위 · 제9회 전국동시지방선거
