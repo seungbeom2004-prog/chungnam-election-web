@@ -12,8 +12,9 @@ export default async function AboutPage() {
     .from("Candidate")
     .select("id, name, district, profileImage, slogan, createdAt")
     .eq("verified", true)
-    .eq("emailVerified", true)
     .eq("role", "candidate")
+    .eq("caucusStatus", "공천 확정")
+    .in("candidateStatus", ["예비후보자", "후보자"])
     .order("createdAt", { ascending: true })
     .limit(500);
 

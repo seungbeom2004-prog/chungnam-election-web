@@ -156,7 +156,7 @@ export default function CandidateHero({ candidate }: CandidateHeroProps) {
               <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
                 <Badge className="bg-white/20 text-white break-keep">{candidate.district}</Badge>
                 {candidate.caucusStatus === "공천 확정" && (
-                  <Badge className="bg-green-500 text-white border-transparent">공천 확정</Badge>
+                  <Badge className="bg-white/20 text-white break-keep border-transparent">공천 확정</Badge>
                 )}
               </div>
             </div>
