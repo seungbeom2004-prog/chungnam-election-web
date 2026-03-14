@@ -40,8 +40,8 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
               <span className="font-semibold text-foreground">개혁신당 충남 공동 선거운동 홈페이지</span>에 오신 것을 환영합니다.
             </p>
             <p>
-              본 홈페이지는 제9회 전국동시지방선거 개혁신당 천안시의원(천안시다선거구) 손승범 (예비)후보가 기획 및 개설하였으나,
-              개혁신당 충남 지역 출마 (예비)후보자들이 정책과 공약을 유권자에게 알리기 위해 함께 사용하는{" "}
+              본 홈페이지는 제9회 전국동시지방선거 개혁신당 천안시의원(천안시다선거구) <strong className="font-semibold text-foreground">{'손승범'}</strong> (예비)후보가 기획 및 개설하였으며,
+              개혁신당에서 공천을 받은 충남 지역 출마 (예비)후보자들이 정책과 공약을 유권자에게 알리기 위해 함께 사용하는{" "}
               <strong className="font-semibold text-foreground">{'공동 선거운동 공간'}</strong>입니다.
             </p>
             <p>
@@ -58,6 +58,17 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
                 className="text-primary hover:underline"
               >
                 https://rallypoint.kr/main
+              </a>
+            </p>
+            <p className="text-xs">
+              홈페이지 관련 연락:{" "}
+              <a
+                href="mailto:seungbeom2004@gmail.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                seungbeom2004@gmail.com (손승범)
               </a>
             </p>
           </div>
