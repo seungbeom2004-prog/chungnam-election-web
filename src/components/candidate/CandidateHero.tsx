@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui";
+import CandidateLikeButton from "./CandidateLikeButton";
 
 interface SocialLinks {
   youtube: string | null;
@@ -13,6 +14,7 @@ interface SocialLinks {
 
 interface CandidateHeroProps {
   candidate: {
+    id: string;
     name: string;
     district: string;
     profileImage: string | null;
@@ -151,28 +153,27 @@ export default function CandidateHero({ candidate }: CandidateHeroProps) {
               </p>
             )}
 
-            {/* Social links */}
-            {socialEntries.length > 0 && (
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-4">
-                {socialEntries.map(({ key, label, icon, getHref }) => {
-                  const value = candidate[key] as string;
-                  return (
-                    <a
-                      key={key}
-                      href={getHref(value)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={label}
-                      title={label}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-medium transition-colors"
-                    >
-                      {icon}
-                      <span>{label}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
+            {/* Social links + Like button */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-4">
+              <CandidateLikeButton candidateId={candidate.id} />
+              {socialEntries.map(({ key, label, icon, getHref }) => {
+                const value = candidate[key] as string;
+                return (
+                  <a
+                    key={key}
+                    href={getHref(value)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    title={label}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-medium transition-colors"
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </a>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

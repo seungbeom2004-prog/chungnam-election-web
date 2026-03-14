@@ -98,7 +98,9 @@ function PledgePanelContent({
   panelRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const router = useRouter();
-  const youtubeId = extractYouTubeId(pledge.description ?? "");
+  const youtubeId =
+    (pledge.youtubeUrl ? extractYouTubeId(pledge.youtubeUrl) : null) ??
+    extractYouTubeId(pledge.description ?? "");
 
   const navigateToCandidate = () => {
     if (!pledge.candidate) return;

@@ -18,25 +18,24 @@ model Candidate {
   slogan          String?
   bio             String?
   phone           String?
-  electionType    String?  // "시군구의원선거" | "지방자치단체장선거"
-  province        String?  // Korean "do" (도)
+  electionType    String?
+  province        String?
   electionId      String?
-  candidateStatus String?  // "출마예정자" | "예비후보자" | "후보자"
-  isNominated     Boolean? // 공천 여부 (党에서 공천한 경우 true)
-  isNecRegistered Boolean? // NEC 등록 여부
+  candidateStatus String?
+  isNominated     Boolean?
+  isNecRegistered Boolean?
   party           String   @default("개혁")
-  role            String   @default("candidate") // "candidate" | "admin"
+  role            String   @default("candidate")
   verified        Boolean  @default(false)
-  pinLat          Float?   // admin-set map pin latitude (overrides district center)
-  pinLng          Float?   // admin-set map pin longitude (overrides district center)
-  // Social accounts
-  youtube         String?  // YouTube channel URL
-  instagram       String?  // Instagram profile URL
-  twitter         String?  // X (Twitter) profile URL
-  facebook        String?  // Facebook profile URL
-  tiktok          String?  // TikTok profile URL
-  kakao           String?  // KakaoTalk open chat URL or ID
-  naverBlog       String?  // Naver Blog URL
+  pinLat          Float?
+  pinLng          Float?
+  youtube         String?
+  instagram       String?
+  twitter         String?
+  facebook        String?
+  tiktok          String?
+  kakao           String?
+  naverBlog       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   pledges         Pledge[]
@@ -51,11 +50,12 @@ model Pledge {
   description String    @db.Text
   budget      String?
   imageUrl    String?
+  youtubeUrl  String?
   latitude    Float
   longitude   Float
   address     String?
   visible     Boolean   @default(true)
-  pledgeType  String    @default("map") // "map" | "bylaws"
+  pledgeType  String    @default("map")
   candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
@@ -72,4 +72,46 @@ model District {
   code      String @unique
   centerLat Float
   centerLng Float
+}
+
+model ProposalPost {
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  authorName  String
+  city        String?
+  candidateId String?
+  ipHash      String
+  status      String   @default("pending")
+  acceptedAt  DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  likes       ProposalLike[]
+
+  @@index([candidateId])
+  @@index([city])
+  @@index([status])
+  @@index([ipHash])
+  @@index([createdAt])
+}
+
+model ProposalLike {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   ProposalPost @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  ipHash     String
+  createdAt  DateTime @default(now())
+
+  @@unique([proposalId, ipHash])
+  @@index([proposalId])
+}
+
+model CandidateLike {
+  id          String   @id @default(cuid())
+  candidateId String
+  ipHash      String
+  createdAt   DateTime @default(now())
+
+  @@unique([candidateId, ipHash])
+  @@index([candidateId])
 }

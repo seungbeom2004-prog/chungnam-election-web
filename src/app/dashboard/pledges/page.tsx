@@ -7,10 +7,11 @@ import MapEditor from "@/components/dashboard/MapEditor";
 import PledgeForm from "@/components/dashboard/PledgeForm";
 import CollaborationModal from "@/components/dashboard/CollaborationModal";
 import OtherPledgesTab from "@/components/dashboard/OtherPledgesTab";
+import ProposalsTab from "@/components/dashboard/ProposalsTab";
 import { Button, Input, Textarea } from "@/components/ui";
 import type { Pledge } from "@/types";
 
-type ActiveTab = "mine" | "bylaws" | "others";
+type ActiveTab = "mine" | "bylaws" | "others" | "proposals";
 
 // ── Bylaws form (inline — no map needed) ──────────────────────────
 function BylawsForm({
@@ -251,7 +252,7 @@ export default function PledgesPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-border">
-        {(["mine", "bylaws", "others"] as const).map((tab) => (
+        {(["mine", "bylaws", "others", "proposals"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -261,7 +262,13 @@ export default function PledgesPage() {
                 : "text-muted hover:text-foreground hover:bg-background"
             }`}
           >
-            {tab === "mine" ? "내 공약" : tab === "bylaws" ? "조례" : "다른 출마자 공약"}
+            {tab === "mine"
+              ? "내 공약"
+              : tab === "bylaws"
+              ? "조례"
+              : tab === "others"
+              ? "다른 출마자 공약"
+              : "받은 제안"}
           </button>
         ))}
       </div>
@@ -368,6 +375,11 @@ export default function PledgesPage() {
       {/* Tab: Other Candidates' Pledges */}
       {activeTab === "others" && candidateId && (
         <OtherPledgesTab currentCandidateId={candidateId} />
+      )}
+
+      {/* Tab: Received Proposals */}
+      {activeTab === "proposals" && candidateId && (
+        <ProposalsTab candidateId={candidateId} />
       )}
 
       {/* Collaboration Modal */}

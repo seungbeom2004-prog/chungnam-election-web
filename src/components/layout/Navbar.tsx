@@ -127,6 +127,16 @@ export default function Navbar() {
             >
               {t.navMapLink}
             </Link>
+            <Link
+              href="/proposals"
+              className={`shrink-0 text-xs font-medium transition-colors ${
+                pathname.startsWith("/proposals")
+                  ? "text-primary"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              제안 게시판
+            </Link>
           </nav>
         )}
 

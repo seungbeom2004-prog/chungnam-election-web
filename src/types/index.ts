@@ -49,6 +49,7 @@ export interface Pledge {
   latitude: number;
   longitude: number;
   address: string | null;
+  youtubeUrl?: string | null;
   visible: boolean;
   pledgeType: "map" | "bylaws";
   candidateId: string;
@@ -102,6 +103,29 @@ export interface Category {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProposalPost {
+  id: string;
+  content: string;
+  authorName: string;
+  city?: string | null;
+  candidateId?: string | null;
+  ipHash: string;
+  status: string;
+  acceptedAt?: string | null;
+  deletedAt?: string | null;
+  createdAt: string;
+  likeCount?: number;
+  hasLiked?: boolean;
+  candidate?: { id: string; name: string; district: string } | null;
+}
+
+export interface CandidateLike {
+  id: string;
+  candidateId: string;
+  ipHash: string;
+  createdAt: string;
 }
 
 export interface MapState {

@@ -23,6 +23,7 @@ export const createPledgeSchema = z.object({
     .max(2000, "설명은 2000자 이내여야 합니다"),
   budget: z.string().max(50).optional().nullable(),
   imageUrl: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  youtubeUrl: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
   latitude: z.number().min(-90).max(90, "올바른 위도를 입력하세요"),
   longitude: z.number().min(-180).max(180, "올바른 경도를 입력하세요"),
   address: z.string().max(200).optional().nullable(),
@@ -178,4 +179,14 @@ export const updateScheduleSchema = createScheduleSchema.partial().omit({ startD
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(1000).default(20),
+});
+
+// ── Proposal Schemas ─────────────────────────────────────────
+
+export const createProposalSchema = z.object({
+  content: z.string().min(10).max(500),
+  authorName: z.string().min(2).max(20),
+  city: z.string().optional().nullable(),
+  candidateId: z.string().optional().nullable(),
+  honeypot: z.string().max(0, "Bot detected").optional(), // anti-bot
 });

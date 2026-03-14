@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CandidateMiniMap from "./CandidateMiniMap";
+import ProposalList from "@/components/proposals/ProposalList";
 
 interface PledgeCategory {
   id: string;
@@ -68,7 +69,7 @@ function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
 }
 
 export default function CandidateContent({ candidate }: CandidateContentProps) {
-  const [activeView, setActiveView] = useState<"list" | "map">("list");
+  const [activeView, setActiveView] = useState<"list" | "map" | "proposals">("list");
 
   const allPledges = [
     ...candidate.pledges.map((p) => ({ ...p, isBylaw: false })),
@@ -107,6 +108,16 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           }`}
         >
           지도 보기
+        </button>
+        <button
+          onClick={() => setActiveView("proposals")}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeView === "proposals"
+              ? "bg-surface text-foreground shadow-sm"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          공약 제안
         </button>
       </div>
 
@@ -169,7 +180,7 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeView === "map" ? (
         /* ── Map view ────────────────────────────────────────────────── */
         <div className="h-[500px] rounded-xl overflow-hidden border border-border">
           <CandidateMiniMap
@@ -181,6 +192,9 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
             candidateName={candidate.name}
           />
         </div>
+      ) : (
+        /* ── Proposals view ──────────────────────────────────────────── */
+        <ProposalList candidateId={candidate.id} showForm={true} />
       )}
     </div>
   );

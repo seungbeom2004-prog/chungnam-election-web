@@ -19,6 +19,7 @@ interface PledgeFormProps {
     title: string;
     description: string;
     budget?: string;
+    youtubeUrl?: string;
     imageUrl?: string;
     latitude: number;
     longitude: number;
@@ -37,6 +38,7 @@ export default function PledgeForm({
   const [title, setTitle] = useState(pledge?.title || "");
   const [description, setDescription] = useState(pledge?.description || "");
   const [budget, setBudget] = useState(pledge?.budget || "");
+  const [youtubeUrl, setYoutubeUrl] = useState(pledge?.youtubeUrl || "");
   const [address, setAddress] = useState(pledge?.address || draftPin?.address || "");
   const [imageUrl, setImageUrl] = useState(pledge?.imageUrl || "");
   const [categoryId, setCategoryId] = useState(pledge?.categoryId || "");
@@ -81,6 +83,7 @@ export default function PledgeForm({
       title,
       description,
       budget: budget || undefined,
+      youtubeUrl: youtubeUrl || undefined,
       imageUrl: imageUrl || undefined,
       latitude: lat,
       longitude: lng,
@@ -135,6 +138,13 @@ export default function PledgeForm({
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
           placeholder="예: 5억 원"
+        />
+
+        <Input
+          label="YouTube 영상 URL (선택)"
+          value={youtubeUrl}
+          onChange={(e) => setYoutubeUrl(e.target.value)}
+          placeholder="예: https://youtu.be/..."
         />
 
         <Input
