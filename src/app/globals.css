@@ -21,17 +21,21 @@ body {
 }
 
 /* ── Binggrae font (cute mode) ────────────────────────────────────────────── */
+/* font-display:swap — render immediately with fallback, swap when loaded.
+   unicode-range — browser skips download entirely on pages with no Korean/Latin. */
 @font-face {
   font-family: "Bingre";
   src: url("/themes/cute/fonts/Binggrae.otf") format("opentype");
   font-weight: 400;
   font-display: swap;
+  unicode-range: U+0020-007E, U+00A0, U+AC00-D7A3, U+1100-11FF, U+3130-318F;
 }
 @font-face {
   font-family: "Bingre";
   src: url("/themes/cute/fonts/Binggrae-Bold.otf") format("opentype");
   font-weight: 700;
   font-display: swap;
+  unicode-range: U+0020-007E, U+00A0, U+AC00-D7A3, U+1100-11FF, U+3130-318F;
 }
 
 /* ── Cute theme overrides ────────────────────────────────────────────────── */
@@ -49,10 +53,21 @@ html.theme-cute {
   --font-sans: "Bingre", "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* Star pattern on a fixed GPU layer — avoids full-page repaint on every
+   scroll frame on Android where background-repeat on body is expensive. */
 html.theme-cute body {
+  background-image: none;
+}
+html.theme-cute::before {
+  content: "";
+  position: fixed;
+  inset: 0;
   background-image: url("/themes/cute/images/stars-bg.png");
   background-repeat: repeat;
   background-size: 200px;
+  pointer-events: none;
+  z-index: -1;
+  will-change: transform; /* Promotes to compositor layer; stays fixed during scroll */
 }
 
 /* Cute mode — softer shadows & rounder corners */

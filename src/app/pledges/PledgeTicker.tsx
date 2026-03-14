@@ -120,13 +120,16 @@ function TickerRow({
   const doubled = [...tiles, ...tiles];
 
   return (
-    <div className="overflow-hidden w-full">
+    <div className="overflow-hidden w-full" style={{ contain: "layout paint" }}>
       <div
         className="flex"
         style={{
           animation: `pledgeTicker${reverse ? "Rev" : ""} ${speed}s linear infinite`,
           animationPlayState: paused ? "paused" : "running",
           width: "max-content",
+          willChange: "transform",
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden",
         }}
       >
         {doubled.map((tile, i) => (

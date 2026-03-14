@@ -93,6 +93,7 @@ function buildPledgeMarkerHTML(
     `<div style="position:relative;width:40px;height:40px;background:${color};border-radius:10px;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
     `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;` +
+    `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
     `<span style="font-size:20px;line-height:1;font-family:sans-serif;">${emoji}</span>` +
     bgLayer +
@@ -124,6 +125,7 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
 
   return (
     `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+    `will-change:transform,opacity;transform:translateZ(0);backface-visibility:hidden;` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="position:relative;display:inline-block;">` +
     `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:14px;overflow:hidden;border:3px solid ${BRAND_COLOR};background:${BRAND_COLOR};box-shadow:0 4px 12px rgba(0,0,0,0.35);">` +
@@ -152,18 +154,15 @@ function buildCutePledgeMarkerHTML(
   iconImage: string | null
 ): string {
   if (iconImage) {
+    // 3 blur-based drop-shadows replace the previous 9 directional filters.
+    // Blur radius covers all directions at a fraction of the GPU cost.
     const shadow =
-      `drop-shadow(2px 0 0 #FFB6D5) drop-shadow(-2px 0 0 #FFB6D5) ` +
-      `drop-shadow(0 2px 0 #FFB6D5) drop-shadow(0 -2px 0 #FFB6D5) ` +
-      `drop-shadow(1px 1px 0 #FFB6D5) drop-shadow(-1px 1px 0 #FFB6D5) ` +
-      `drop-shadow(1px -1px 0 #FFB6D5) drop-shadow(-1px -1px 0 #FFB6D5) ` +
-      `drop-shadow(0 0 6px rgba(255,107,157,0.4))`;
-    // Emoji fallback sits behind the background-image div. CSS background-image
-    // is not tracked by the Naver Maps SDK so no internal error handler fires.
-    // CSS filter on a div follows the background-image's alpha channel in all
-    // modern browsers, preserving the pink contour-shadow effect.
+      `drop-shadow(0 0 2px #FFB6D5) ` +
+      `drop-shadow(0 0 4px #FFB6D5) ` +
+      `drop-shadow(0 0 8px rgba(255,107,157,0.4))`;
     return (
       `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;` +
+      `will-change:transform,opacity;transform:translateZ(0);` +
       `animation:markerFadeIn 0.2s ease-out both;">` +
       `<span style="font-size:26px;line-height:1;">${emoji}</span>` +
       `<div style="position:absolute;top:0;right:0;bottom:0;left:0;` +
@@ -174,7 +173,9 @@ function buildCutePledgeMarkerHTML(
   }
   return (
     `<div style="width:44px;height:44px;display:flex;align-items:center;` +
-    `justify-content:center;cursor:pointer;animation:markerFadeIn 0.2s ease-out both;">` +
+    `justify-content:center;cursor:pointer;` +
+    `will-change:transform,opacity;transform:translateZ(0);` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
     `<span style="font-size:26px;line-height:1;">${emoji}</span>` +
     `</div>`
   );
@@ -204,6 +205,7 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
 
   return (
     `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+    `will-change:transform,opacity;transform:translateZ(0);backface-visibility:hidden;` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="position:relative;display:inline-block;">` +
     `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;overflow:hidden;` +
@@ -252,6 +254,7 @@ function buildClusterMarkerHTML(count: number, isCute: boolean): string {
     `display:flex;align-items:center;justify-content:center;` +
     `color:#fff;font-weight:700;font-size:${fontSize}px;font-family:sans-serif;` +
     `box-shadow:0 0 0 8px ${glow},0 2px 10px rgba(0,0,0,0.2);` +
+    `will-change:transform,opacity;transform:translateZ(0);` +
     `cursor:pointer;animation:markerFadeIn 0.2s ease-out both;">` +
     count +
     `</div>`
