@@ -504,132 +504,148 @@ export default function AdminCandidatesPage() {
                       </div>
 
                       {/* District — single select for non-ward elections; cascaded for ward-level.
-                          A "직접 입력" toggle switches to a free-text input for manual entry. */}
+                          구시군 is always visible; 세부 선거구 toggles between dropdown and manual text. */}
                       {isWardLevelType(candidate.electionType) ? (
-                        manualDistrictModes[candidate.id] ? (
-                          // ── Manual entry mode (ward-level) ──────────────────────────────
-                          <div className="sm:col-span-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-xs font-medium text-muted">
-                                세부 선거구 (직접 입력)
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setManualDistrictModes((p) => ({ ...p, [candidate.id]: false }))
-                                }
-                                className="text-xs text-primary hover:underline shrink-0"
-                              >
-                                드롭다운으로 전환
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="예: 천안시동남구 다선거구"
-                              value={manualDistrictTexts[candidate.id] ?? candidate.district}
-                              onChange={(e) =>
-                                setManualDistrictTexts((p) => ({ ...p, [candidate.id]: e.target.value }))
-                              }
-                              onBlur={(e) => {
-                                const val = e.target.value.trim();
-                                if (val) handleFieldChange(candidate.id, "district", val);
+                        <>
+                          {/* Step 1: 구시군 — always visible */}
+                          <div>
+                            <label className="block text-xs font-medium text-muted mb-1">
+                              구시군
+                            </label>
+                            <select
+                              value={candidateGun}
+                              onChange={(e) => {
+                                const gun = e.target.value;
+                                // When gun changes, keep the current ward if manual mode; otherwise just save gun
+                                const currentWard = manualDistrictModes[candidate.id]
+                                  ? (manualDistrictTexts[candidate.id] ?? candidateWard)
+                                  : "";
+                                handleFieldChange(
+                                  candidate.id,
+                                  "district",
+                                  currentWard ? `${gun} ${currentWard}` : gun
+                                );
                               }}
                               disabled={!!anyLoading}
                               className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                            />
-                            <p className="text-xs text-muted mt-1">입력 후 포커스를 벗어나면 자동 저장됩니다.</p>
+                            >
+                              <option value="">구시군 미지정</option>
+                              {districts.map((d) => (
+                                <option key={d.name} value={d.name}>{d.name}</option>
+                              ))}
+                            </select>
                           </div>
-                        ) : (
-                          // ── Cascaded dropdown mode (ward-level) ─────────────────────────
-                          <>
-                            {/* Step 1: 구시군 */}
-                            <div>
-                              <label className="block text-xs font-medium text-muted mb-1">
-                                구시군
+
+                          {/* Step 2: 세부 선거구 — dropdown or manual text, 구시군 stays above */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-xs font-medium text-muted">
+                                세부 선거구{" "}
+                                <span className="font-normal text-muted/60">
+                                  ({candidate.electionType === "시·도의회의원선거"
+                                    ? "광역의원 · 제1/2/3선거구"
+                                    : "기초의원 · 가/나/다선거구"})
+                                </span>
                               </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const isManual = manualDistrictModes[candidate.id];
+                                  setManualDistrictModes((p) => ({ ...p, [candidate.id]: !isManual }));
+                                  if (!isManual) {
+                                    // Prefill with just the ward portion, not the full district string
+                                    setManualDistrictTexts((p) => ({ ...p, [candidate.id]: candidateWard }));
+                                  }
+                                }}
+                                className="text-xs text-primary hover:underline shrink-0"
+                              >
+                                {manualDistrictModes[candidate.id] ? "드롭다운으로 전환" : "직접 입력"}
+                              </button>
+                            </div>
+
+                            {manualDistrictModes[candidate.id] ? (
+                              // Manual text input for ward only
+                              <>
+                                <input
+                                  type="text"
+                                  placeholder="예: 가선거구, 다선거구"
+                                  value={manualDistrictTexts[candidate.id] ?? candidateWard}
+                                  onChange={(e) =>
+                                    setManualDistrictTexts((p) => ({ ...p, [candidate.id]: e.target.value }))
+                                  }
+                                  onBlur={(e) => {
+                                    const ward = e.target.value.trim();
+                                    if (candidateGun) {
+                                      handleFieldChange(
+                                        candidate.id,
+                                        "district",
+                                        ward ? `${candidateGun} ${ward}` : candidateGun
+                                      );
+                                    }
+                                  }}
+                                  disabled={!!anyLoading}
+                                  className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                                <p className="text-xs text-muted mt-1">입력 후 포커스를 벗어나면 자동 저장됩니다.</p>
+                              </>
+                            ) : expandedWardsLoading ? (
+                              <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
+                                선거구 불러오는 중...
+                              </div>
+                            ) : !candidateGun ? (
+                              <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
+                                먼저 구시군을 선택하세요
+                              </div>
+                            ) : expandedWards.length > 0 ? (
                               <select
-                                value={candidateGun}
+                                value={candidateWard}
                                 onChange={(e) =>
-                                  handleFieldChange(candidate.id, "district", e.target.value)
+                                  handleFieldChange(
+                                    candidate.id,
+                                    "district",
+                                    `${candidateGun} ${e.target.value}`
+                                  )
                                 }
                                 disabled={!!anyLoading}
                                 className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
                               >
-                                <option value="">구시군 미지정</option>
-                                {districts.map((d) => (
-                                  <option key={d.name} value={d.name}>{d.name}</option>
+                                <option value="">세부 선거구 선택</option>
+                                {expandedWards.map((w) => (
+                                  <option key={w.electCode} value={w.electName}>
+                                    {w.electName}
+                                  </option>
                                 ))}
                               </select>
-                            </div>
-
-                            {/* Step 2: 세부 선거구 */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <label className="text-xs font-medium text-muted">
-                                  세부 선거구{" "}
-                                  <span className="font-normal text-muted/60">
-                                    ({candidate.electionType === "시·도의회의원선거"
-                                      ? "광역의원 · 제1/2/3선거구"
-                                      : "기초의원 · 가/나/다선거구"})
-                                  </span>
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setManualDistrictModes((p) => ({ ...p, [candidate.id]: true }));
-                                    setManualDistrictTexts((p) => ({ ...p, [candidate.id]: candidate.district }));
-                                  }}
-                                  className="text-xs text-primary hover:underline shrink-0"
-                                >
-                                  직접 입력
-                                </button>
-                              </div>
-                              {expandedWardsLoading ? (
-                                <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
-                                  선거구 불러오는 중...
-                                </div>
-                              ) : !candidateGun ? (
-                                <div className="px-2.5 py-1.5 text-xs text-muted border border-border rounded-lg bg-surface/50">
-                                  먼저 구시군을 선택하세요
-                                </div>
-                              ) : expandedWards.length > 0 ? (
-                                <select
-                                  value={candidateWard}
+                            ) : (
+                              // No API ward data — auto-show manual input with existing ward pre-filled
+                              <>
+                                <input
+                                  type="text"
+                                  placeholder="예: 가선거구, 다선거구"
+                                  value={manualDistrictTexts[candidate.id] ?? candidateWard}
                                   onChange={(e) =>
-                                    handleFieldChange(
-                                      candidate.id,
-                                      "district",
-                                      `${candidateGun} ${e.target.value}`
-                                    )
+                                    setManualDistrictTexts((p) => ({ ...p, [candidate.id]: e.target.value }))
                                   }
+                                  onBlur={(e) => {
+                                    const ward = e.target.value.trim();
+                                    if (candidateGun) {
+                                      handleFieldChange(
+                                        candidate.id,
+                                        "district",
+                                        ward ? `${candidateGun} ${ward}` : candidateGun
+                                      );
+                                    }
+                                  }}
                                   disabled={!!anyLoading}
                                   className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
-                                >
-                                  <option value="">세부 선거구 선택</option>
-                                  {expandedWards.map((w) => (
-                                    <option key={w.electCode} value={w.electName}>
-                                      {w.electName}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <div className="px-2.5 py-1.5 text-xs text-amber-700 border border-amber-200 rounded-lg bg-amber-50/60">
-                                  선거구 정보 없음 —{" "}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setManualDistrictModes((p) => ({ ...p, [candidate.id]: true }));
-                                      setManualDistrictTexts((p) => ({ ...p, [candidate.id]: candidate.district }));
-                                    }}
-                                    className="underline font-medium hover:text-amber-900"
-                                  >
-                                    직접 입력하기
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )
+                                />
+                                <p className="text-xs text-amber-600 mt-1">
+                                  선거구 API 데이터 없음 — 직접 입력해 주세요. 입력 후 포커스를 벗어나면 자동 저장됩니다.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </>
                       ) : (
                         // ── Non-ward election district selector ────────────────────────────
                         manualDistrictModes[candidate.id] ? (
