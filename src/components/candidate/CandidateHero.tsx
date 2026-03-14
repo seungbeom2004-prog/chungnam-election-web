@@ -140,13 +140,13 @@ export default function CandidateHero({ candidate }: CandidateHeroProps) {
           <div className="text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
               <Badge className="bg-white/20 text-white">{candidate.party}</Badge>
-              <Badge className="bg-white/20 text-white">{candidate.district}</Badge>
+              <Badge className="bg-white/20 text-white break-keep">{candidate.district}</Badge>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
               {candidate.name}
             </h1>
             {candidate.slogan && (
-              <p className="text-lg text-white/90 max-w-lg">
+              <p className="text-lg text-white/90 max-w-lg break-keep">
                 {candidate.slogan}
               </p>
             )}

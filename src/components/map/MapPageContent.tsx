@@ -104,7 +104,7 @@ function CandidateSidebar({
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="font-semibold text-foreground text-sm leading-tight">{c.name}</p>
                 {c.electionType && (
                   <p className="text-xs text-muted truncate leading-tight mt-0.5">{c.electionType}</p>
@@ -134,6 +134,9 @@ export default function MapPageContent() {
   const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [candidatesLoaded, setCandidatesLoaded] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [emptyOverlayDismissed, setEmptyOverlayDismissed] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   // Closed by default — mobile users see the full map
@@ -202,7 +205,8 @@ export default function MapPageContent() {
           }))
         );
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setCandidatesLoaded(true));
   }, []);
 
   // Fetch district center coordinates for candidate marker placement
@@ -318,6 +322,57 @@ export default function MapPageContent() {
           onChange={setSelectedCategory}
           isCute={isCute}
         />
+
+        {/* Empty city state overlay */}
+        {mapReady && !mapError && candidatesLoaded && candidates.length === 0 && !emptyOverlayDismissed && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+            style={{ top: "60px" }}
+          >
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-6 py-5 shadow-lg border border-border text-center max-w-xs mx-4">
+              <p className="text-sm font-semibold text-foreground mb-3">아직 등록된 후보자가 없습니다</p>
+              <a
+                href="/signup"
+                className="inline-block px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                후보자로 등록하기 →
+              </a>
+              <button
+                onClick={() => setEmptyOverlayDismissed(true)}
+                className="block w-full mt-2 text-xs text-muted hover:text-foreground transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Icon legend */}
+        <div className="absolute bottom-24 left-3 z-10">
+          {legendOpen ? (
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 text-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-foreground">범례</span>
+                <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3">✕</button>
+              </div>
+              <div className="space-y-1">
+                {[["🚌","교통"],["⚠️","안전"],["📚","교육"],["🏥","복지"],["📈","경제"],["§","조례"]].map(([icon, label]) => (
+                  <div key={label} className="flex items-center gap-2 text-foreground">
+                    <span className="w-5 text-center">{icon}</span>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setLegendOpen(true)}
+              className="bg-white/95 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs font-medium text-foreground shadow-md hover:bg-background transition-colors"
+            >
+              범례
+            </button>
+          )}
+        </div>
 
         <PledgePanel />
 

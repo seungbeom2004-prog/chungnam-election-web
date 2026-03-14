@@ -402,7 +402,7 @@ export default function SignupPage() {
                   }}
                   className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-border bg-background hover:bg-primary/5 hover:border-primary text-left transition-colors group"
                 >
-                  <span className="font-medium text-foreground text-sm">{type.name}</span>
+                  <span className="font-medium text-foreground text-sm whitespace-nowrap">{type.name}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted group-hover:text-primary transition-colors shrink-0">
                     <path d="M9 18l6-6-6-6" />
                   </svg>

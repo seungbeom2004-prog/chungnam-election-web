@@ -703,7 +703,7 @@ export default function NaverMap({
           center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
           zoom:   toNaverZoom(initialZoom),
           zoomControl: true,
-          zoomControlOptions: { position: naver.maps.Position.LEFT_CENTER },
+          zoomControlOptions: { position: naver.maps.Position.RIGHT_BOTTOM },
         });
 
         mapInstance.current = map;

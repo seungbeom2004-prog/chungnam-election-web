@@ -31,7 +31,7 @@ export default function PledgeCard({ pledge }: PledgeCardProps) {
 
       <div className="p-4">
         {/* Title */}
-        <h3 className="font-semibold text-foreground mb-1.5 line-clamp-1">
+        <h3 className="font-semibold text-foreground mb-1.5 line-clamp-1 break-keep">
           {pledge.title}
         </h3>
 

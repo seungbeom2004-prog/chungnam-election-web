@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 /**
@@ -10,7 +10,16 @@ import Image from "next/image";
  * pointer-events-none on container so it doesn't block map interaction.
  */
 export default function CuteMascot() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('tooltipDismissed')) setVisible(true);
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem('tooltipDismissed', '1');
+    setVisible(false);
+  };
 
   if (!visible) return null;
 
@@ -22,7 +31,7 @@ export default function CuteMascot() {
       {/* Speech bubble */}
       <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 mb-2 shadow-lg border-2 border-pink-200 relative">
         <button
-          onClick={() => setVisible(false)}
+          onClick={dismiss}
           className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center text-xs hover:bg-pink-200 transition-colors"
           aria-label="닫기"
         >
@@ -52,7 +61,7 @@ export default function CuteMascot() {
           height={160}
           alt="마스코트"
           className="drop-shadow-lg cursor-pointer hover:scale-105 transition-transform"
-          onClick={() => setVisible(false)}
+          onClick={dismiss}
           onError={(e) => {
             // Fallback: show a large emoji if image not available yet
             const el = e.target as HTMLImageElement;
@@ -62,7 +71,7 @@ export default function CuteMascot() {
             fallback.style.fontSize = "80px";
             fallback.style.cursor = "pointer";
             el.parentElement?.appendChild(fallback);
-            fallback.addEventListener("click", () => setVisible(false));
+            fallback.addEventListener("click", dismiss);
           }}
         />
       </div>

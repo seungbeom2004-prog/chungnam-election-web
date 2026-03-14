@@ -30,6 +30,7 @@ export default function ThemeToggleFAB() {
         hover:scale-105 active:scale-95 transition-all duration-300
         ${isPanelOpen ? "bottom-[calc(70vh+4rem)]" : "bottom-36"}`}
       title={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
+      aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
     >
       {isCute ? "🏛️" : "✨"}
     </button>
