@@ -12,6 +12,7 @@ export default async function AboutPage() {
     .from("Candidate")
     .select("id, name, district, profileImage, slogan, createdAt")
     .eq("verified", true)
+    .eq("emailVerified", true)
     .eq("role", "candidate")
     .order("createdAt", { ascending: true })
     .limit(500);
