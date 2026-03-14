@@ -644,7 +644,8 @@ export default function NaverMap({
   );
 
   // Zoom threshold below which candidate label boxes are hidden (compact mode)
-  const CANDIDATE_LABEL_ZOOM = 12;
+  // 13 means labels only appear when zoomed in enough that pins don't overlap
+  const CANDIDATE_LABEL_ZOOM = 13;
 
   // ── Candidate markers ─────────────────────────────────────────────────────
 
