@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import Supercluster from "supercluster";
 import { useMapStore } from "@/store/useMapStore";
-import type { Pledge } from "@/types";
+import type { Pledge, BylawGroup } from "@/types";
 import type { CandidateForMap, DistrictCoords } from "@/components/map/MapPageContent";
 
 interface NaverMapProps {
@@ -12,6 +12,8 @@ interface NaverMapProps {
   districts: DistrictCoords[];
   onPledgeClick: (pledge: Pledge) => void;
   onCandidateClick: (candidate: CandidateForMap) => void;
+  bylawGroups?: BylawGroup[];
+  onBylawGroupClick?: (group: BylawGroup) => void;
   isCute?: boolean;
   /** Category name to filter pledge markers. 'all' = show everything. */
   selectedCategory?: string;
@@ -261,6 +263,24 @@ function buildClusterMarkerHTML(count: number, isCute: boolean): string {
   );
 }
 
+/** Bylaw council pin — blue with 📜 emoji and candidate name label. */
+function buildBylawMarkerHTML(name: string, count: number): string {
+  return (
+    `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
+    `<div style="position:relative;width:40px;height:40px;background:#3B82F6;border-radius:10px;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.3);">` +
+    `<span style="font-size:20px;line-height:1;">📜</span>` +
+    `${count > 1 ? `<div style="position:absolute;top:-5px;right:-5px;background:#EF4444;color:white;font-size:9px;font-weight:bold;width:16px;height:16px;border-radius:50%;border:1.5px solid white;display:flex;align-items:center;justify-content:center;">${count}</div>` : ""}` +
+    `</div>` +
+    `<div style="margin-top:3px;background:#3B82F6;color:white;font-size:10px;font-weight:700;` +
+    `padding:2px 6px;border-radius:6px;white-space:nowrap;max-width:80px;overflow:hidden;` +
+    `text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,0.2);">${escapeHtml(name)}</div>` +
+    `</div>`
+  );
+}
+
 // ─── Hardcoded fallback: 천안시 is always the default first city ─────────────
 const DEFAULT_DISTRICT = "천안시";
 
@@ -270,6 +290,8 @@ export default function NaverMap({
   districts,
   onPledgeClick,
   onCandidateClick,
+  bylawGroups,
+  onBylawGroupClick,
   isCute = false,
   selectedCategory = "all",
   selectedPledgeId = null,
@@ -281,6 +303,9 @@ export default function NaverMap({
   // Individual pledge markers (from cluster leaf rendering)
   const pledgeMarkersRef   = useRef<naver.maps.Marker[]>([]);
   const pledgeListenersRef = useRef<naver.maps.MapEventListener[]>([]);
+  // Bylaw council markers
+  const bylawMarkersRef   = useRef<naver.maps.Marker[]>([]);
+  const bylawListenersRef = useRef<naver.maps.MapEventListener[]>([]);
   // Cluster bubble markers
   const clusterMarkersRef   = useRef<naver.maps.Marker[]>([]);
   const clusterListenersRef = useRef<naver.maps.MapEventListener[]>([]);
@@ -302,6 +327,13 @@ export default function NaverMap({
   // hold stale closures.
   const renderClustersRef      = useRef<(map: naver.maps.Map) => void>(() => {});
   const addCandidateMarkersRef = useRef<(map: naver.maps.Map) => void>(() => {});
+  const addBylawMarkersRef     = useRef<(map: naver.maps.Map) => void>(() => {});
+
+  // Keep stable refs for bylaw data to avoid stale closures
+  const bylawGroupsRef       = useRef<BylawGroup[] | undefined>(bylawGroups);
+  const onBylawGroupClickRef = useRef<((group: BylawGroup) => void) | undefined>(onBylawGroupClick);
+  useEffect(() => { bylawGroupsRef.current = bylawGroups; }, [bylawGroups]);
+  useEffect(() => { onBylawGroupClickRef.current = onBylawGroupClick; }, [onBylawGroupClick]);
 
   const { center, zoomLevel, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
 
@@ -396,6 +428,13 @@ export default function NaverMap({
     candidateListenersRef.current = [];
     candidateMarkersRef.current.forEach(safeSetMapNull);
     candidateMarkersRef.current = [];
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearBylawMarkers = useCallback(() => {
+    bylawListenersRef.current.forEach(safeRemoveListener);
+    bylawListenersRef.current = [];
+    bylawMarkersRef.current.forEach(safeSetMapNull);
+    bylawMarkersRef.current = [];
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Pledge cluster rendering ───────────────────────────────────────────────
@@ -623,9 +662,37 @@ export default function NaverMap({
     [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute]
   );
 
+  const addBylawMarkers = useCallback(
+    (map: naver.maps.Map) => {
+      clearBylawMarkers();
+      const groups = bylawGroupsRef.current;
+      const onClick = onBylawGroupClickRef.current;
+      if (!groups || !onClick) return;
+      for (const group of groups) {
+        const markerHtml = buildBylawMarkerHTML(group.candidateName, group.pledges.length);
+        const marker = new naver.maps.Marker({
+          map,
+          position: new naver.maps.LatLng(group.councilLat, group.councilLng),
+          icon: {
+            content: markerHtml,
+            anchor: new naver.maps.Point(24, 48),
+          },
+          zIndex: 8,
+        });
+        const listener = naver.maps.Event.addListener(marker, "click", () => {
+          onClick(group);
+        });
+        bylawMarkersRef.current.push(marker);
+        bylawListenersRef.current.push(listener);
+      }
+    },
+    [clearBylawMarkers]
+  );
+
   // Keep stable refs updated after every render that changes the callback.
   useEffect(() => { renderClustersRef.current      = renderPledgeClusters; }, [renderPledgeClusters]);
   useEffect(() => { addCandidateMarkersRef.current = addCandidateMarkers;  }, [addCandidateMarkers]);
+  useEffect(() => { addBylawMarkersRef.current     = addBylawMarkers;      }, [addBylawMarkers]);
 
   // ── Build / rebuild supercluster when pledges or category changes ──────────
   //
@@ -785,6 +852,7 @@ export default function NaverMap({
 
         renderClustersRef.current(map);
         addCandidateMarkersRef.current(map);
+        addBylawMarkersRef.current(map);
       } catch (e) {
         console.error("[NaverMap] Map creation failed:", e);
       }
@@ -817,6 +885,7 @@ export default function NaverMap({
       clearClusterMarkers();
       clearSpiderfy();
       clearCandidateMarkers();
+      clearBylawMarkers();
       if (mapInstance.current) {
         mapInstance.current.destroy();
         mapInstance.current = null;
@@ -836,6 +905,12 @@ export default function NaverMap({
     if (!mapInstance.current) return;
     addCandidateMarkers(mapInstance.current);
   }, [candidates, districts, addCandidateMarkers]);
+
+  // Refresh bylaw markers when groups change
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    addBylawMarkers(mapInstance.current);
+  }, [bylawGroups, addBylawMarkers]);
 
   // Show / update selection highlight ring when selectedPledgeId changes
   useEffect(() => {

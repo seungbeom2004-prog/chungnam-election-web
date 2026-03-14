@@ -44,9 +44,16 @@ export default function RootLayout({
         />
         <AuthProvider>
           <ThemeProvider>
+            {/* Skip-to-main-content for keyboard / screen-reader users (WCAG 2.4.1) */}
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold"
+            >
+              본문으로 건너뛰기
+            </a>
             <DisclaimerModal />
             <Navbar />
-            <main>{children}</main>
+            <main id="main-content">{children}</main>
             <Footer />
           </ThemeProvider>
         </AuthProvider>

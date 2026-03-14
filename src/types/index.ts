@@ -140,4 +140,18 @@ export interface MapState {
   setSelectedPledge: (pledge: Pledge | null) => void;
   setIsPanelOpen: (open: boolean) => void;
   reset: () => void;
+  selectedBylawGroup: BylawGroup | null;
+  isBylawPanelOpen: boolean;
+  setSelectedBylawGroup: (group: BylawGroup | null) => void;
+  setIsBylawPanelOpen: (open: boolean) => void;
+}
+
+export interface BylawGroup {
+  candidateId: string;
+  candidateName: string;
+  candidateProfileImage: string | null;
+  candidateDistrict: string;
+  councilLat: number;
+  councilLng: number;
+  pledges: Pledge[];
 }

@@ -5,12 +5,14 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
+import BylawPanel from "@/components/map/BylawPanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
 import { useMapStore } from "@/store/useMapStore";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggleFAB from "@/components/theme/ThemeToggle";
-import type { Pledge } from "@/types";
+import type { Pledge, BylawGroup } from "@/types";
+import { findDistrictCity } from "@/lib/districts";
 
 const CITY_ZOOM = 6;
 
@@ -144,6 +146,7 @@ function CandidateSidebar({
 
 export default function MapPageContent() {
   const [pledges, setPledges] = useState<Pledge[]>([]);
+  const [bylawGroups, setBylawGroups] = useState<BylawGroup[]>([]);
   const [candidates, setCandidates] = useState<CandidateForMap[]>([]);
   const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
@@ -159,7 +162,7 @@ export default function MapPageContent() {
   const deepLinkHandledRef = useRef(false);
   const searchParams = useSearchParams();
 
-  const { setSelectedPledge, selectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
+  const { setSelectedPledge, selectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict, setSelectedBylawGroup } = useMapStore();
   const t = useUITexts();
   const { isCute } = useTheme();
 
@@ -185,6 +188,40 @@ export default function MapPageContent() {
     });
     return Array.from(map.entries()).map(([name, info]) => ({ id: name, ...info }));
   })();
+
+  // Fetch bylaw pledges and group by candidate/council location
+  useEffect(() => {
+    fetch("/api/pledges?limit=500&pledgeType=bylaws")
+      .then((res) => res.json())
+      .then((json) => {
+        const data: Pledge[] = json.data ?? [];
+        // Group by candidateId
+        const grouped: Record<string, { candidate: { id: string; name: string; district: string; profileImage: string | null }; pledges: Pledge[] }> = {};
+        for (const pledge of data) {
+          if (!pledge.candidate) continue;
+          const cid = pledge.candidate.id;
+          if (!grouped[cid]) grouped[cid] = { candidate: pledge.candidate, pledges: [] };
+          grouped[cid]!.pledges.push(pledge);
+        }
+        const groups: BylawGroup[] = Object.values(grouped)
+          .map(({ candidate, pledges }) => {
+            const districtCity = findDistrictCity(candidate.district);
+            if (!districtCity) return null;
+            return {
+              candidateId: candidate.id,
+              candidateName: candidate.name,
+              candidateProfileImage: candidate.profileImage,
+              candidateDistrict: candidate.district,
+              councilLat: districtCity.councilLat,
+              councilLng: districtCity.councilLng,
+              pledges,
+            };
+          })
+          .filter(Boolean) as BylawGroup[];
+        setBylawGroups(groups);
+      })
+      .catch(console.error);
+  }, []);
 
   // Fetch map pledges
   useEffect(() => {
@@ -343,6 +380,11 @@ export default function MapPageContent() {
     setSelectedCandidate(candidate);
   }, []);
 
+  const handleBylawGroupClick = useCallback((group: BylawGroup) => {
+    setSelectedBylawGroup(group);
+    setCenter(group.councilLat, group.councilLng);
+  }, [setSelectedBylawGroup, setCenter]);
+
   return (
     <div className="flex w-full overflow-hidden" style={{ height: "calc(100dvh - 3.5rem)" }}>
       {/* Map area */}
@@ -354,6 +396,8 @@ export default function MapPageContent() {
             districts={districts}
             onPledgeClick={handlePledgeClick}
             onCandidateClick={handleCandidateClick}
+            onBylawGroupClick={handleBylawGroupClick}
+            bylawGroups={bylawGroups}
             isCute={isCute}
             selectedCategory={selectedCategory}
             selectedPledgeId={selectedPledge?.id ?? null}
@@ -476,6 +520,21 @@ export default function MapPageContent() {
                     </span>
                   </button>
                 ))}
+                {bylawGroups.length > 0 && (
+                  <button
+                    onClick={() => setSelectedCategory(selectedCategory === "조례" ? "all" : "조례")}
+                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                      selectedCategory === "조례" ? "font-semibold" : "text-foreground hover:bg-background/60"
+                    }`}
+                    style={selectedCategory === "조례" ? { background: `${primaryColor}18`, color: primaryColor } : {}}
+                  >
+                    <span className="w-5 text-center text-sm">📜</span>
+                    <span className="flex-1 text-left">조례</span>
+                    <span className="text-[10px] px-1 rounded-full" style={{ background: `${primaryColor}18`, color: primaryColor }}>
+                      {bylawGroups.reduce((sum, g) => sum + g.pledges.length, 0)}
+                    </span>
+                  </button>
+                )}
               </div>
             ) : (
               <button
@@ -514,6 +573,7 @@ export default function MapPageContent() {
         )}
 
         <PledgePanel />
+        <BylawPanel />
 
         {selectedCandidate && (
           <CandidatePopup

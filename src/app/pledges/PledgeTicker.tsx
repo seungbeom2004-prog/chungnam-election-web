@@ -123,15 +123,15 @@ function PledgeModal({
           {/* Close + Title */}
           <div className="flex items-start gap-3 mb-3">
             <h3 className="text-lg font-bold text-foreground flex-1 leading-snug">{tile.title}</h3>
-            <button onClick={onClose} className="shrink-0 text-muted hover:text-foreground transition-colors mt-0.5">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <button onClick={onClose} aria-label="닫기" className="shrink-0 text-muted hover:text-foreground transition-colors mt-0.5">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-0 border-b border-border mb-4">
+          <div role="tablist" aria-label="공약 탭" className="flex gap-0 border-b border-border mb-4">
             {(["description", "sns", "location"] as ModalTab[]).map((tab) => {
               if (tab === "location" && !hasLocation) return null;
               const labels: Record<ModalTab, string> = {
@@ -145,6 +145,8 @@ function PledgeModal({
               return (
                 <button
                   key={tab}
+                  role="tab"
+                  aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5 ${
                     activeTab === tab
@@ -154,7 +156,7 @@ function PledgeModal({
                 >
                   {labels[tab]}
                   {dotTabs.includes(tab) && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" aria-hidden="true" />
                   )}
                 </button>
               );

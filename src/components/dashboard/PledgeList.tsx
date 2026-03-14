@@ -11,6 +11,7 @@ interface PledgeListProps {
   onDelete: (pledgeId: string) => void;
   onToggleVisibility: (pledge: Pledge) => void;
   onManageCollaboration?: (pledge: Pledge) => void;
+  onToggleType?: (pledge: Pledge) => void;
 }
 
 /** Stacked overlapping avatar bubbles for collaborator display. */
@@ -66,6 +67,7 @@ export default function PledgeList({
   onDelete,
   onToggleVisibility,
   onManageCollaboration,
+  onToggleType,
 }: PledgeListProps) {
   if (pledges.length === 0) {
     return (
@@ -159,6 +161,15 @@ export default function PledgeList({
               >
                 {pledge.visible ? "숨기기" : "공개"}
               </button>
+              {onToggleType && (
+                <button
+                  onClick={() => onToggleType(pledge)}
+                  className="px-2.5 py-1 text-xs font-medium text-muted hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경" : "조례로 변경"}
+                >
+                  {pledge.pledgeType === "bylaws" ? "공약↔조례" : "공약↔조례"}
+                </button>
+              )}
               {onManageCollaboration && (
                 <button
                   onClick={() => onManageCollaboration(pledge)}

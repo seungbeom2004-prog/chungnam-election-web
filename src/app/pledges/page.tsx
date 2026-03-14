@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
-import PledgeTicker, { type PledgeTile } from "./PledgeTicker";
+import PledgeListView from "./PledgeListView";
+import type { PledgeTile } from "./PledgeTicker";
 
 export const dynamic = "force-dynamic";
 
@@ -136,11 +137,21 @@ export default async function PledgesPage() {
   const totalCandidates = eligibleCandidates.filter((c) => byCandidate[c.id]?.length).length;
   const totalPledges = tiles.length;
 
+  // Fetch categories
+  const { data: categoriesRaw } = await supabase
+    .from("Category")
+    .select("id, name, emoji, color")
+    .order("name");
+
+  const categories = (categoriesRaw ?? []) as { id: string; name: string; emoji: string | null; color: string }[];
+
   return (
-    <PledgeTicker
+    <PledgeListView
       tiles={tiles}
       totalCandidates={totalCandidates}
       totalPledges={totalPledges}
+      candidates={eligibleCandidates}
+      categories={categories}
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
@@ -34,18 +34,6 @@ function detectMediaType(url: string): MediaType {
 
 export default function PledgePanel() {
   const { selectedPledge, isPanelOpen, setIsPanelOpen } = useMapStore();
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click (desktop)
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setIsPanelOpen(false);
-      }
-    };
-    if (isPanelOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [isPanelOpen, setIsPanelOpen]);
 
   if (!isPanelOpen || !selectedPledge) return null;
 
@@ -53,24 +41,34 @@ export default function PledgePanel() {
 
   return (
     <>
-      {/* Mobile Bottom Sheet */}
+      {/* Mobile: semi-transparent backdrop — tap to close */}
+      <div
+        className="md:hidden fixed inset-0 z-20 bg-black/20"
+        onClick={() => setIsPanelOpen(false)}
+      />
+      {/* Mobile Bottom Sheet — stops click propagation so backdrop doesn't fire */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface rounded-t-2xl shadow-xl border-t border-border max-h-[70vh] overflow-y-auto"
         style={{ animation: "slideUp 300ms ease-out" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-border rounded-full mx-auto mt-3" />
         <PledgePanelContent
           pledge={pledge}
           onClose={() => setIsPanelOpen(false)}
-          panelRef={panelRef}
         />
       </div>
 
+      {/* Desktop: transparent backdrop */}
+      <div
+        className="hidden md:block fixed inset-0 z-20"
+        onClick={() => setIsPanelOpen(false)}
+      />
       {/* Desktop Sidebar */}
       <div
-        ref={panelRef}
         className="hidden md:block fixed top-14 left-0 z-30 w-96 h-[calc(100vh-3.5rem)] bg-surface border-r border-border shadow-xl overflow-y-auto"
         style={{ animation: "slideRight 300ms ease-out" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <PledgePanelContent
           pledge={pledge}
@@ -95,11 +93,9 @@ export default function PledgePanel() {
 function PledgePanelContent({
   pledge,
   onClose,
-  panelRef,
 }: {
   pledge: NonNullable<ReturnType<typeof useMapStore.getState>["selectedPledge"]>;
   onClose: () => void;
-  panelRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"description" | "sns">("description");
@@ -146,13 +142,14 @@ function PledgePanelContent({
   };
 
   return (
-    <div ref={panelRef} className="p-5">
+    <div className="p-5">
       {/* Close button */}
       <button
         onClick={onClose}
+        aria-label="닫기"
         className="absolute top-4 right-4 text-muted hover:text-foreground transition-colors"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </button>
@@ -161,8 +158,11 @@ function PledgePanelContent({
       <h3 className="text-lg font-bold text-foreground pr-8 mb-3">{pledge.title}</h3>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-border mb-4">
+      <div role="tablist" aria-label="공약 상세 탭" className="flex gap-0 border-b border-border mb-4">
         <button
+          role="tab"
+          aria-selected={activeTab === "description"}
+          aria-controls="tab-description"
           onClick={() => setActiveTab("description")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
             activeTab === "description"
@@ -173,6 +173,9 @@ function PledgePanelContent({
           공약 설명
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === "sns"}
+          aria-controls="tab-sns"
           onClick={() => setActiveTab("sns")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5 ${
             activeTab === "sns"
@@ -182,7 +185,7 @@ function PledgePanelContent({
         >
           관련 SNS
           {hasMedia && (
-            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" aria-hidden="true" />
           )}
         </button>
       </div>

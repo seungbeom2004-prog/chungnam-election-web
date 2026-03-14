@@ -20,6 +20,21 @@ body {
   font-family: var(--font-sans);
 }
 
+/* ── Hide scrollbar utility ────────────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Keyboard focus ring — WCAG 2.4.7 ─────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Remove outline for mouse/touch interactions */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* ── Binggrae font (cute mode) ────────────────────────────────────────────── */
 /* font-display:swap — render immediately with fallback, swap when loaded.
    unicode-range — browser skips download entirely on pages with no Korean/Latin. */

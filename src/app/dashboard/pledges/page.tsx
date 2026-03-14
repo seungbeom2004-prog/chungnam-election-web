@@ -214,6 +214,17 @@ export default function PledgesPage() {
     fetchPledges();
   };
 
+  const handleToggleType = async (pledge: Pledge) => {
+    const newType = pledge.pledgeType === "bylaws" ? "map" : "bylaws";
+    await fetch(`/api/pledges/${pledge.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...pledge, pledgeType: newType }),
+    });
+    fetchPledges();
+    fetchBylaws();
+  };
+
   const handleBylawsSubmit = async (data: { title: string; description: string; budget?: string }) => {
     const body = {
       ...data,
@@ -293,6 +304,7 @@ export default function PledgesPage() {
               onDelete={handleDelete}
               onToggleVisibility={handleToggleVisibility}
               onManageCollaboration={(pledge) => setCollaborationPledge(pledge)}
+              onToggleType={handleToggleType}
             />
           </div>
 

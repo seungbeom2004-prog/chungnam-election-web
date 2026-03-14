@@ -4,9 +4,50 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
+
+/** Persistent font-size scaler stored in localStorage. */
+function FontSizeControl() {
+  const [scale, setScale] = useState(1.0);
+
+  useEffect(() => {
+    const saved = parseFloat(localStorage.getItem("fontScale") ?? "1");
+    const valid = isNaN(saved) ? 1 : Math.max(0.8, Math.min(1.3, saved));
+    setScale(valid);
+    document.documentElement.style.fontSize = `${valid * 16}px`;
+  }, []);
+
+  const applyScale = (next: number) => {
+    const clamped = Math.max(0.8, Math.min(1.3, next));
+    setScale(clamped);
+    localStorage.setItem("fontScale", String(clamped));
+    document.documentElement.style.fontSize = `${clamped * 16}px`;
+  };
+
+  return (
+    <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0" title="글씨 크기">
+      <button
+        onClick={() => applyScale(scale - 0.1)}
+        disabled={scale <= 0.8}
+        className="px-2 py-1 text-xs font-medium text-muted hover:bg-background transition-colors disabled:opacity-30"
+        aria-label="글씨 작게"
+      >
+        A-
+      </button>
+      <div className="w-px h-4 bg-border" />
+      <button
+        onClick={() => applyScale(scale + 0.1)}
+        disabled={scale >= 1.3}
+        className="px-2 py-1 text-xs font-semibold text-muted hover:bg-background transition-colors disabled:opacity-30"
+        aria-label="글씨 크게"
+      >
+        A+
+      </button>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -50,49 +91,58 @@ export default function Navbar() {
           <span className="hidden sm:block font-semibold text-foreground">{t.logoSubText}</span>
         </Link>
 
-        {/* Navigation links */}
-        <nav className="flex-1 flex items-center gap-3 min-w-0">
+        {/* Navigation links — hidden overflow on tiny screens */}
+        <nav className="flex-1 flex items-center gap-1 sm:gap-3 min-w-0 overflow-x-auto no-scrollbar" aria-label="주요 메뉴">
           <Link
             href="/"
-            className={`shrink-0 text-xs font-medium transition-colors ${
+            className={`shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
               pathname === "/" || pathname === "/regular" || pathname === "/cute"
                 ? "text-primary"
                 : "text-muted hover:text-foreground"
             }`}
+            aria-current={pathname === "/" || pathname === "/regular" || pathname === "/cute" ? "page" : undefined}
           >
             {t.navMapLink}
           </Link>
           <Link
             href="/proposals"
-            className={`shrink-0 text-xs font-medium transition-colors ${
+            className={`hidden sm:block shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
               pathname.startsWith("/proposals")
                 ? "text-primary"
                 : "text-muted hover:text-foreground"
             }`}
+            aria-current={pathname.startsWith("/proposals") ? "page" : undefined}
           >
             제안 게시판
           </Link>
           <Link
             href="/pledges"
-            className={`shrink-0 text-xs font-medium transition-colors ${
+            className={`shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
               pathname.startsWith("/pledges")
                 ? "text-primary"
                 : "text-muted hover:text-foreground"
             }`}
+            aria-current={pathname.startsWith("/pledges") ? "page" : undefined}
           >
             공약 목록
           </Link>
           <Link
             href="/about"
-            className={`shrink-0 text-xs font-medium transition-colors ${
+            className={`shrink-0 text-xs font-medium transition-colors px-1 py-0.5 rounded ${
               pathname.startsWith("/about")
                 ? "text-primary"
                 : "text-muted hover:text-foreground"
             }`}
+            aria-current={pathname.startsWith("/about") ? "page" : undefined}
           >
             후보자 소개
           </Link>
         </nav>
+
+        {/* Font size controls — hidden on smallest phones to prevent overflow */}
+        <div className="hidden sm:block shrink-0">
+          <FontSizeControl />
+        </div>
 
         {/* Theme toggle — desktop only */}
         <button
