@@ -347,8 +347,8 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Icon legend */}
-        <div className="absolute bottom-24 left-3 z-10">
+        {/* Icon legend — shifts up above the pledge panel bottom sheet when open */}
+        <div className={`absolute ${isPanelOpen ? "bottom-[calc(70vh+1rem)]" : "bottom-24"} left-3 z-10 transition-all duration-300`}>
           {legendOpen ? (
             <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 text-xs">
               <div className="flex items-center justify-between mb-2">

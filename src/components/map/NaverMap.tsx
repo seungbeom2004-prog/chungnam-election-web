@@ -699,10 +699,11 @@ export default function NaverMap({
 
         const { center: initialCenter, zoomLevel: initialZoom } = useMapStore.getState();
 
+        const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
         const map = new naver.maps.Map(container, {
           center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
           zoom:   toNaverZoom(initialZoom),
-          zoomControl: true,
+          zoomControl: !isMobile,
           zoomControlOptions: { position: naver.maps.Position.RIGHT_BOTTOM },
         });
 
