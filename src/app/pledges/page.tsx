@@ -36,7 +36,6 @@ interface PledgeRow {
   createdAt: string;
   candidateId: string;
   category: Category | null;
-  candidate: CandidateInfo | null;
 }
 
 interface GroupedCandidate {
@@ -75,7 +74,7 @@ export default async function PledgesPage() {
         .limit(500)
     : { data: [] };
 
-  const pledges = (pledgesRaw ?? []) as PledgeRow[];
+  const pledges = (pledgesRaw ?? []) as unknown as PledgeRow[];
 
   // Build a lookup map for candidate info
   const candidateMap: Record<string, CandidateInfo> = {};
