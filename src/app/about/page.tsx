@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import AboutClient from "./AboutClient";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "사이트 & 후보자 소개 | 개혁 충남",
   description: "개혁신당 충남 후보자들을 소개합니다.",
