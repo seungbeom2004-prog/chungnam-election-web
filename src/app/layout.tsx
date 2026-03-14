@@ -61,7 +61,7 @@ export default function RootLayout({
             </a>
             <DisclaimerModal />
             <Navbar />
-            <main id="main-content">{children}</main>
+            <main id="main-content" tabIndex={-1}>{children}</main>
             <Footer />
           </ThemeProvider>
         </AuthProvider>

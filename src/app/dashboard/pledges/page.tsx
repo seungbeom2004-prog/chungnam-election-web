@@ -227,12 +227,35 @@ export default function PledgesPage() {
 
   const handleToggleBylawTag = async (pledge: Pledge) => {
     const current = (pledge as Pledge & { bylawTagged?: boolean }).bylawTagged ?? false;
-    await fetch(`/api/pledges/${pledge.id}`, {
+    const newVal = !current;
+
+    // Optimistic update: immediately update local state
+    setPledges((prev) =>
+      prev.map((p) =>
+        p.id === pledge.id
+          ? ({ ...p, bylawTagged: newVal } as typeof p)
+          : p
+      )
+    );
+
+    const res = await fetch(`/api/pledges/${pledge.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...pledge, bylawTagged: !current }),
+      body: JSON.stringify({ bylawTagged: newVal }),
     });
-    fetchPledges();
+
+    if (!res.ok) {
+      // Revert on failure
+      setPledges((prev) =>
+        prev.map((p) =>
+          p.id === pledge.id
+            ? ({ ...p, bylawTagged: current } as typeof p)
+            : p
+        )
+      );
+      const err = await res.json().catch(() => ({}));
+      console.error("bylawTagged update failed:", err);
+    }
   };
 
   const handleBylawsSubmit = async (data: { title: string; description: string; budget?: string }) => {

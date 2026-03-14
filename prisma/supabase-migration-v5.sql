@@ -1,13 +1,16 @@
 -- ============================================================
--- Migration v5: Add pin location to Candidate, iconImage to Category
--- Run this in the Supabase SQL Editor
+-- Migration v5: Add bylawTagged and relatedPledgeId to Pledge
+-- Run this in the Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/cuokeqrlkbczbwhidtjn/editor
 -- ============================================================
 
--- 1. Add admin-configurable map pin coordinates to Candidate
-ALTER TABLE "Candidate"
-  ADD COLUMN IF NOT EXISTS "pinLat" DOUBLE PRECISION,
-  ADD COLUMN IF NOT EXISTS "pinLng" DOUBLE PRECISION;
+-- Allow map pledges to also appear in the bylaw list (조례태그)
+ALTER TABLE "Pledge"
+  ADD COLUMN IF NOT EXISTS "bylawTagged" boolean NOT NULL DEFAULT false;
 
--- 2. Add optional photo icon URL to Category
-ALTER TABLE "Category"
-  ADD COLUMN IF NOT EXISTS "iconImage" TEXT;
+-- Optional: link related pledges to each other
+ALTER TABLE "Pledge"
+  ADD COLUMN IF NOT EXISTS "relatedPledgeId" uuid REFERENCES "Pledge"(id) ON DELETE SET NULL;
+
+-- Index for fast filter queries
+CREATE INDEX IF NOT EXISTS "Pledge_bylawTagged_idx" ON "Pledge"("bylawTagged") WHERE "bylawTagged" = true;

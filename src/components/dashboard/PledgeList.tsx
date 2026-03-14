@@ -167,17 +167,30 @@ export default function PledgeList({
                 {pledge.visible ? "숨기기" : "공개"}
               </button>
               {onToggleType && (
-                <button
-                  onClick={() => onToggleType(pledge)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
-                    pledge.pledgeType === "bylaws"
-                      ? "border-green-300 text-green-700 bg-green-50 hover:bg-green-100"
-                      : "border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
-                  }`}
-                  title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경" : "조례 공약으로 변경"}
-                >
-                  {pledge.pledgeType === "bylaws" ? "지역 공약으로 전환" : "조례 공약으로 전환"}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(
+                        pledge.pledgeType === "bylaws"
+                          ? "이 공약을 지역 공약으로 전환하시겠습니까? 공약 타입이 변경됩니다."
+                          : "이 공약을 조례 공약으로 전환하시겠습니까? 공약 타입이 변경됩니다."
+                      )) {
+                        onToggleType(pledge);
+                      }
+                    }}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors flex items-center gap-0.5 ${
+                      pledge.pledgeType === "bylaws"
+                        ? "border-green-300 text-green-700 bg-green-50 hover:bg-green-100"
+                        : "border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+                    }`}
+                    title={pledge.pledgeType === "bylaws" ? "지역 공약으로 변경 (공약 타입이 변경됩니다)" : "조례 공약으로 변경 (공약 타입이 변경됩니다)"}
+                  >
+                    {pledge.pledgeType === "bylaws" ? "⇄ 지역 공약으로 전환" : "⇄ 조례 공약으로 전환"}
+                  </button>
+                  {onToggleBylawTag && pledge.pledgeType !== "bylaws" && (
+                    <span className="text-border select-none">·</span>
+                  )}
+                </>
               )}
               {onToggleBylawTag && pledge.pledgeType !== "bylaws" && (
                 <button
@@ -187,9 +200,9 @@ export default function PledgeList({
                       ? "text-amber-700 bg-amber-50 border border-amber-300 hover:bg-amber-100"
                       : "text-muted border border-dashed border-border hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50"
                   }`}
-                  title="조례 목록에도 함께 표시 (타입은 유지)"
+                  title="지역 공약을 조례 목록에도 함께 표시합니다. 공약 타입은 변경되지 않습니다."
                 >
-                  <span>{(pledge as Pledge & { bylawTagged?: boolean }).bylawTagged ? "🏷 조례태그 ✓" : "🏷 조례태그"}</span>
+                  <span>{(pledge as Pledge & { bylawTagged?: boolean }).bylawTagged ? "📌 조례목록 포함 중" : "📌 조례목록 추가"}</span>
                 </button>
               )}
               {onManageCollaboration && (

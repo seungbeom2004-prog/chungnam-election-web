@@ -72,6 +72,66 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
     return Array.from(set).sort();
   }, [candidates]);
 
+  // Only show cities/categories that actually have pledges under the current active filters
+  // (each ignores its own filter to avoid hiding already-selected options)
+  const citiesWithPledges = useMemo(() => {
+    // Compute available cities from currently filtered results
+    // (ignore city filter itself to avoid hiding already-selected cities)
+    const base = tiles.filter((t) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q) && !t.candidateName.toLowerCase().includes(q)) return false;
+      }
+      if (selectedCandidateId && t.candidateId !== selectedCandidateId) return false;
+      if (selectedCategories.size > 0) {
+        if (!t.category || !selectedCategories.has(t.category.name)) return false;
+      }
+      if (pledgeTypeFilter !== "all") {
+        const isBylawType = t.pledgeType === pledgeTypeFilter;
+        const isBylawTagged = pledgeTypeFilter === "bylaws" && (t as PledgeTile & { bylawTagged?: boolean }).bylawTagged === true;
+        if (!isBylawType && !isBylawTagged) return false;
+      }
+      return true;
+    });
+    const set = new Set<string>();
+    base.forEach((t) => {
+      const match = t.candidateDistrict.match(/^[가-힣]+(?:시|군)/);
+      if (match) set.add(match[0]);
+    });
+    return set;
+  }, [tiles, search, selectedCandidateId, selectedCategories, pledgeTypeFilter]);
+
+  const categoriesWithPledges = useMemo(() => {
+    // Compute available categories ignoring category filter itself
+    const base = tiles.filter((t) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q) && !t.candidateName.toLowerCase().includes(q)) return false;
+      }
+      if (selectedCandidateId && t.candidateId !== selectedCandidateId) return false;
+      if (selectedCities.size > 0) {
+        const match = t.candidateDistrict.match(/^[가-힣]+(?:시|군)/);
+        const city = match ? match[0] : "";
+        if (!selectedCities.has(city)) return false;
+      }
+      if (pledgeTypeFilter !== "all") {
+        const isBylawType = t.pledgeType === pledgeTypeFilter;
+        const isBylawTagged = pledgeTypeFilter === "bylaws" && (t as PledgeTile & { bylawTagged?: boolean }).bylawTagged === true;
+        if (!isBylawType && !isBylawTagged) return false;
+      }
+      return true;
+    });
+    const set = new Set<string>();
+    base.forEach((t) => { if (t.category) set.add(t.category.name); });
+    return set;
+  }, [tiles, search, selectedCandidateId, selectedCities, pledgeTypeFilter]);
+
+  const typeCounts = useMemo(() => {
+    const bylawCount = tiles.filter(t => t.pledgeType === "bylaws" || (t as PledgeTile & { bylawTagged?: boolean }).bylawTagged).length;
+    const mapCount = tiles.filter(t => t.pledgeType === "map" && !(t as PledgeTile & { bylawTagged?: boolean }).bylawTagged).length;
+    return { all: tiles.length, map: mapCount, bylaws: bylawCount };
+  }, [tiles]);
+
   // Filter tiles
   const filtered = useMemo(() => {
     return tiles.filter((t) => {
@@ -140,16 +200,18 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
           <p className="text-sm text-muted">
             공천 확정 후보자 <span className="font-semibold text-foreground">{totalCandidates}명</span>의 공약{" "}
             <span className="font-semibold text-foreground">{totalPledges}건</span>
-            {hasFilters && (
-              <span className="ml-2 text-primary font-medium" aria-live="polite" aria-atomic="true">
-                → 필터 결과 {filtered.length}건
-              </span>
-            )}
+            <span
+              className={`ml-2 font-medium transition-opacity ${hasFilters ? "text-primary opacity-100" : "opacity-0 select-none"}`}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {hasFilters ? `→ 필터 결과 ${filtered.length}건` : ""}
+            </span>
           </p>
         </div>
 
         {/* Filters */}
-        <div className="mb-6 space-y-3 p-4 bg-surface rounded-xl border border-border">
+        <div role="search" aria-label="공약 필터" className="mb-6 space-y-3 p-4 bg-surface rounded-xl border border-border">
           {/* Search */}
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -178,34 +240,40 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
 
           {/* Type filter */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-muted shrink-0">유형:</span>
-            {(["all", "map", "bylaws"] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setPledgeTypeFilter(type)}
-                aria-pressed={pledgeTypeFilter === type}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
-                  pledgeTypeFilter === type
-                    ? "bg-primary text-white border-primary"
-                    : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                }`}
-              >
-                {type === "all" ? "전체" : type === "map" ? "지역 공약" : "조례"}
-              </button>
-            ))}
+            <span id="filter-label-type" className="text-xs font-semibold text-muted shrink-0">유형:</span>
+            <div role="group" aria-labelledby="filter-label-type" className="flex gap-1.5 flex-wrap">
+              {(["all", "map", "bylaws"] as const).filter((type) => {
+                if (type === "map" && typeCounts.map === 0) return false;
+                if (type === "bylaws" && typeCounts.bylaws === 0) return false;
+                return true;
+              }).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setPledgeTypeFilter(type)}
+                  aria-pressed={pledgeTypeFilter === type}
+                  className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors border focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
+                    pledgeTypeFilter === type
+                      ? "bg-primary text-white border-primary"
+                      : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                  }`}
+                >
+                  {type === "all" ? `전체 (${typeCounts.all})` : type === "map" ? `지역 공약 (${typeCounts.map})` : `조례 (${typeCounts.bylaws})`}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* City filter */}
           {cities.length > 0 && (
             <div className="flex items-start gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-muted shrink-0 mt-1">지역:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {cities.map((city) => (
+              <span id="filter-label-city" className="text-xs font-semibold text-muted shrink-0 mt-1">지역:</span>
+              <div role="group" aria-labelledby="filter-label-city" className="flex flex-wrap gap-1.5">
+                {cities.filter((city) => citiesWithPledges.has(city)).map((city) => (
                   <button
                     key={city}
                     onClick={() => toggleCity(city)}
                     aria-pressed={selectedCities.has(city)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors border focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
                       selectedCities.has(city)
                         ? "bg-primary text-white border-primary"
                         : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
@@ -221,14 +289,14 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
           {/* Category filter */}
           {categories.length > 0 && (
             <div className="flex items-start gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-muted shrink-0 mt-1">분류:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map((cat) => (
+              <span id="filter-label-category" className="text-xs font-semibold text-muted shrink-0 mt-1">분류:</span>
+              <div role="group" aria-labelledby="filter-label-category" className="flex flex-wrap gap-1.5">
+                {categories.filter((cat) => categoriesWithPledges.has(cat.name)).map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => toggleCategory(cat.name)}
                     aria-pressed={selectedCategories.has(cat.name)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors border focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
                       selectedCategories.has(cat.name)
                         ? "text-white border-transparent"
                         : "bg-background border-border hover:border-primary/30"
@@ -251,6 +319,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-muted shrink-0">후보자:</span>
             <select
+              aria-label="후보자로 필터링"
               value={selectedCandidateId ?? ""}
               onChange={(e) => setSelectedCandidateId(e.target.value || null)}
               className="px-2 py-1 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 max-w-[200px]"
@@ -321,7 +390,7 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
           ))}
           {tile.collaborators.length > 2 && (
             <div
-              className="rounded-full bg-muted/20 border-2 border-surface flex items-center justify-center shrink-0 relative text-[9px] font-bold text-muted"
+              className="rounded-full bg-muted/20 border-2 border-surface flex items-center justify-center shrink-0 relative text-[10px] font-bold text-muted"
               style={{ width: 24, height: 24, zIndex: 0 }}
             >
               +{tile.collaborators.length - 2}
@@ -332,10 +401,10 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
           <p className="text-xs font-semibold text-foreground truncate">
             {tile.candidateName}{isShared ? ` 외 ${tile.collaborators.length}명` : ""}
           </p>
-          <p className="text-[10px] text-muted truncate">{tile.candidateDistrict}</p>
+          <p className="text-[11px] text-muted truncate">{tile.candidateDistrict}</p>
         </div>
         {isShared && (
-          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium">
+          <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5 font-medium">
             공동
           </span>
         )}
@@ -345,14 +414,14 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
       <div className="flex flex-wrap gap-1 mb-2">
         {tile.category && (
           <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+            className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
             style={{ backgroundColor: tile.category.color + "20", color: tile.category.color }}
           >
             {tile.category.emoji && <span>{tile.category.emoji}</span>}
             {tile.category.name}
           </span>
         )}
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+        <span className={`text-[11px] px-1.5 py-0.5 rounded-full border font-medium ${
           tile.pledgeType === "bylaws"
             ? "border-blue-200 text-blue-600 bg-blue-50"
             : "border-green-200 text-green-600 bg-green-50"
@@ -374,8 +443,8 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
       {/* Address + budget */}
       {(tile.address || tile.budget) && (
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          {tile.budget && <span className="text-[10px] text-primary font-medium">{tile.budget}</span>}
-          {tile.address && <span className="text-[10px] text-muted truncate">📍 {tile.address}</span>}
+          {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
+          {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
         </div>
       )}
     </Link>
