@@ -76,6 +76,8 @@ export default function SignupPage() {
   const [loadingWards, setLoadingWards] = useState(false);
   const [manualWardMode, setManualWardMode] = useState(false);
   const [manualWardText, setManualWardText] = useState("");
+  const [manualDistrictMode, setManualDistrictMode] = useState(false);
+  const [manualDistrictText, setManualDistrictText] = useState("");
 
   // NEC pre-check step state
   const [necStep, setNecStep] = useState<"electiontype" | "question" | "district" | "candidates" | "form">("electiontype");
@@ -157,17 +159,48 @@ export default function SignupPage() {
       setWards([]);
       setManualWardMode(false);
       setManualWardText("");
+      setManualDistrictMode(false);
+      setManualDistrictText("");
     }
   }, [electionType, necPrefilled]);
 
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setProfileImage(e.target.files[0]);
+  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert PNG with alpha channel to JPEG to avoid upload issues
+    if (file.type === "image/png") {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(bitmap, 0, 0);
+          const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, "image/jpeg", 0.92)
+          );
+          if (blob) {
+            setProfileImage(
+              new File([blob], file.name.replace(/\.png$/i, ".jpg"), { type: "image/jpeg" })
+            );
+            return;
+          }
+        }
+      } catch {
+        // fall through to set original file
+      }
     }
+
+    setProfileImage(file);
   };
 
   function buildDistrictValue(): string {
     if (districtLevel === "none") return province;
+    if (manualDistrictMode && manualDistrictText.trim()) return manualDistrictText.trim();
     if (districtLevel === "ward" && district) {
       if (manualWardMode && manualWardText.trim()) return `${district} ${manualWardText.trim()}`;
       if (ward) return `${district} ${ward}`;
@@ -243,11 +276,11 @@ export default function SignupPage() {
       setError("시도를 선택해주세요.");
       return;
     }
-    if (districtLevel !== "none" && !district) {
+    if (districtLevel !== "none" && !district && !(manualDistrictMode && manualDistrictText.trim())) {
       setError("지역을 선택해주세요.");
       return;
     }
-    if (districtLevel === "ward" && !ward && !(manualWardMode && manualWardText.trim())) {
+    if (districtLevel === "ward" && !manualDistrictMode && !ward && !(manualWardMode && manualWardText.trim())) {
       setError("선거구를 선택하거나 직접 입력해주세요.");
       return;
     }
@@ -815,27 +848,54 @@ export default function SignupPage() {
               {/* District (구시군) */}
               {districtLevel !== "none" && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    시군구{" "}
-                    <span className="text-xs text-muted font-normal">(선거구)</span>
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    required
-                    disabled={loadingDistricts}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-                  >
-                    <option value="">
-                      {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
-                    </option>
-                    {districts.map((d) => (
-                      <option key={d.name} value={d.name}>
-                        {d.name}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                      시군구{" "}
+                      <span className="text-xs text-muted font-normal">(선거구)</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualDistrictMode((m) => !m);
+                        setManualDistrictText(district);
+                      }}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      {manualDistrictMode ? "드롭다운으로 전환" : "직접 입력"}
+                    </button>
+                  </div>
+
+                  {manualDistrictMode ? (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="예: 천안시동남구"
+                        value={manualDistrictText}
+                        onChange={(e) => setManualDistrictText(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                      />
+                      <p className="text-xs text-amber-600 mt-1">정확한 선거구 명칭을 적어주세요</p>
+                    </div>
+                  ) : (
+                    <select
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value)}
+                      required
+                      disabled={loadingDistricts}
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                    >
+                      <option value="">
+                        {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
                       </option>
-                    ))}
-                  </select>
+                      {districts.map((d) => (
+                        <option key={d.name} value={d.name}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   <p className="text-xs text-muted mt-1">
                     출처: 중앙선관위 · 제9회 전국동시지방선거
                   </p>
@@ -843,7 +903,7 @@ export default function SignupPage() {
               )}
 
               {/* Ward */}
-              {districtLevel === "ward" && (
+              {districtLevel === "ward" && !manualDistrictMode && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-medium text-foreground">
@@ -968,7 +1028,7 @@ export default function SignupPage() {
                   className="w-4 h-4 accent-primary rounded"
                 />
                 <label htmlFor="isNecRegistered" className="ml-2.5 text-sm text-foreground cursor-pointer">
-                  중앙선관위에 등록되었습니다 (NEC 등록 여부)
+                  예비 후보자 등록 여부
                 </label>
               </div>
             </div>
