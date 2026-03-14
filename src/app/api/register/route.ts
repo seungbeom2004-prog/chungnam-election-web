@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
         profileImage: validated.profileImage ?? null,
         isNominated: validated.isNominated ?? false,
         isNecRegistered: validated.isNecRegistered ?? false,
+        detailedElectionName: validated.detailedElectionName ?? null,
         party: "개혁",
         verified: false,
         role: "candidate",

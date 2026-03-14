@@ -172,9 +172,9 @@ export default async function PledgesPage() {
                   </svg>
                 </Link>
 
-                {/* Pledge cards grid — max 2 columns */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {cPledges.map((pledge) => (
+                {/* Pledge rows — show first 2 per candidate */}
+                <div className="flex flex-col gap-3">
+                  {cPledges.slice(0, 2).map((pledge) => (
                     <Link
                       key={pledge.id}
                       href={`/candidates/${candidate.id}`}
@@ -271,11 +271,19 @@ export default async function PledgesPage() {
                   ))}
                 </div>
 
-                {/* Link to full profile */}
-                <div className="mt-3 text-right">
+                {/* More pledges link */}
+                <div className="mt-3 flex items-center justify-between">
+                  {cPledges.length > 2 && (
+                    <Link
+                      href={`/candidates/${candidate.id}`}
+                      className="text-xs text-muted hover:text-primary transition-colors"
+                    >
+                      + {cPledges.length - 2}건 더 보기
+                    </Link>
+                  )}
                   <Link
                     href={`/candidates/${candidate.id}`}
-                    className="text-xs text-primary hover:underline"
+                    className="text-xs text-primary hover:underline ml-auto"
                   >
                     {candidate.name} 후보자 전체 공약 보기 →
                   </Link>

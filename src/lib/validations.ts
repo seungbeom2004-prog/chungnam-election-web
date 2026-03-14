@@ -104,6 +104,7 @@ export const registerCandidateSchema = z.object({
   profileImage: z.string().url().optional().nullable(),
   isNominated: z.boolean().optional(),
   isNecRegistered: z.boolean().optional(),
+  detailedElectionName: z.string().max(100).optional().nullable(),
 });
 
 // ── Admin Schemas ───────────────────────────────────────────

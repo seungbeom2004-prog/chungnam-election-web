@@ -63,6 +63,8 @@ export default function SignupPage() {
   const [district, setDistrict] = useState("");
   const [ward, setWard] = useState("");
   const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [detailedElectionName, setDetailedElectionName] = useState("");
+  const [existingElectionNames, setExistingElectionNames] = useState<string[]>([]);
   const [isNominated, setIsNominated] = useState(false);
   const [isNecRegistered, setIsNecRegistered] = useState(false);
   const [error, setError] = useState("");
@@ -124,6 +126,17 @@ export default function SignupPage() {
           { code: "6", name: "구·시·군의회의원선거" },
         ]);
       });
+
+    // Fetch existing detailedElectionName values for datalist suggestions
+    fetch("/api/candidates?limit=200&eligible=false")
+      .then((r) => r.json())
+      .then((json) => {
+        const names: string[] = (json.data ?? [])
+          .map((c: { detailedElectionName?: string | null }) => c.detailedElectionName)
+          .filter((n: string | null | undefined): n is string => !!n);
+        setExistingElectionNames([...new Set(names)]);
+      })
+      .catch(() => {});
   }, []);
 
   // When district changes and election type is ward-level, fetch wards
@@ -331,6 +344,7 @@ export default function SignupPage() {
           profileImage: profileImageUrl,
           isNominated,
           isNecRegistered,
+          detailedElectionName: detailedElectionName.trim() || null,
         }),
       });
 
@@ -995,6 +1009,32 @@ export default function SignupPage() {
               )}
             </>
           )}
+
+          {/* Detailed Election Name — shown for all candidates */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              세부 선거명{" "}
+              <span className="text-xs text-muted font-normal">(선택 · 예: 천안시의원선거)</span>
+            </label>
+            <input
+              list="election-name-suggestions"
+              type="text"
+              placeholder="세부 선거명 입력 (예: 천안시의원선거)"
+              value={detailedElectionName}
+              onChange={(e) => setDetailedElectionName(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            />
+            {existingElectionNames.length > 0 && (
+              <datalist id="election-name-suggestions">
+                {existingElectionNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            )}
+            <p className="text-xs text-muted mt-1">
+              지도·공약 목록에 표시될 선거명입니다.{existingElectionNames.length > 0 ? " 기존 선거명을 선택하거나 직접 입력하세요." : ""}
+            </p>
+          </div>
 
           {/* Profile Image */}
           <div>
