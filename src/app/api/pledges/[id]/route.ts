@@ -2,9 +2,30 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { updatePledgeSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { data: pledge, error } = await supabase
+      .from("Pledge")
+      .select("*, candidate:Candidate!candidateId(id, name, district, profileImage), category:Category!categoryId(id, name, emoji, color, iconImage), collaborators:PledgeCollaboration!pledgeId(id, candidateId, candidate:Candidate!candidateId(id, name, district, profileImage))")
+      .eq("id", id)
+      .eq("visible", true)
+      .single();
+    if (error || !pledge) return apiError("공약을 찾을 수 없습니다", 404);
+    return apiSuccess(pledge);
+  } catch (error) {
+    console.error("[GET /api/pledges/:id]", error);
+    return apiError("공약을 불러올 수 없습니다", 500);
+  }
+}
 
 async function verifyOwnership(pledgeId: string, userId: string) {
   const { data } = await supabaseAdmin

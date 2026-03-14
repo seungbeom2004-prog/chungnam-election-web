@@ -39,7 +39,7 @@ export default async function PledgesPage() {
     ? await supabase
         .from("Pledge")
         .select(
-          "id, title, description, budget, youtubeUrl, pledgeType, createdAt, candidateId, category:Category!categoryId(id, name, emoji, color, iconImage)"
+          "id, title, description, budget, youtubeUrl, pledgeType, createdAt, candidateId, latitude, longitude, address, imageUrl, category:Category!categoryId(id, name, emoji, color, iconImage)"
         )
         .in("candidateId", eligibleIds)
         .eq("visible", true)
@@ -55,6 +55,10 @@ export default async function PledgesPage() {
     youtubeUrl: string | null;
     pledgeType: string;
     candidateId: string;
+    latitude: number;
+    longitude: number;
+    address: string | null;
+    imageUrl: string | null;
     category: { name: string; emoji: string | null; color: string } | { name: string; emoji: string | null; color: string }[] | null;
   };
 
@@ -113,6 +117,10 @@ export default async function PledgesPage() {
         budget: p.budget,
         youtubeUrl: p.youtubeUrl,
         pledgeType: p.pledgeType as "map" | "bylaws",
+        latitude: p.latitude,
+        longitude: p.longitude,
+        address: p.address,
+        imageUrl: p.imageUrl,
         category: p.category
           ? Array.isArray(p.category) ? (p.category[0] ?? null) : p.category
           : null,

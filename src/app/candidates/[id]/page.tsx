@@ -68,11 +68,20 @@ export default async function CandidateProfilePage({ params }: Props) {
         .order("createdAt", { ascending: false })
     : { data: [] };
 
-  const pledges = pledgesRaw;
-  const bylawsPledges = bylawsPledgesRaw;
+  // Fetch shared pledges: pledges written by OTHER candidates where this candidate is a co-proposer
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: collabsRaw } = isPledgeEligible
+    ? await supabase
+        .from("PledgeCollaboration")
+        .select("pledgeId, pledge:Pledge!pledgeId(id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, visible, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage), author:Candidate!candidateId(id, name, district, profileImage))")
+        .eq("candidateId", id)
+    : { data: [] };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapPledge = (p: any) => ({
+  const sharedPledgesRaw = (collabsRaw ?? []).map((c: any) => c.pledge).filter((p: any) => p && p.visible);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapPledge = (p: any, author?: { id: string; name: string; district: string; profileImage: string | null } | null) => ({
     id: p.id,
     title: p.title,
     description: p.description,
@@ -83,7 +92,8 @@ export default async function CandidateProfilePage({ params }: Props) {
     address: p.address,
     pledgeType: p.pledgeType,
     createdAt: p.createdAt,
-    category: p.category ?? null,
+    category: Array.isArray(p.category) ? (p.category[0] ?? null) : (p.category ?? null),
+    author: author ?? null,
   });
 
   const candidateData = {
@@ -104,8 +114,10 @@ export default async function CandidateProfilePage({ params }: Props) {
     tiktok: candidate.tiktok ?? null,
     kakao: candidate.kakao ?? null,
     naverBlog: candidate.naverBlog ?? null,
-    pledges: (pledges ?? []).map(mapPledge),
-    bylaws: (bylawsPledges ?? []).map(mapPledge),
+    pledges: (pledgesRaw ?? []).map((p) => mapPledge(p)),
+    bylaws: (bylawsPledgesRaw ?? []).map((p) => mapPledge(p)),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sharedPledges: sharedPledgesRaw.map((p: any) => mapPledge(p, p.author)),
   };
 
   return (
