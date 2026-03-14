@@ -85,9 +85,9 @@ const PLATFORM_META: {
   {
     key: "kakao",
     label: "KakaoTalk",
-    color: "#FEE500",
+    color: "#3A1D1D",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#FEE500">
         <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.755 1.638 5.17 4.1 6.617l-1.05 3.9a.3.3 0 0 0 .456.324L9.7 19.24A11.4 11.4 0 0 0 12 19.5c5.523 0 10-3.477 10-7.8S17.523 3 12 3z" />
       </svg>
     ),
@@ -103,25 +103,29 @@ function relativeTime(iso: string) {
   return d.toLocaleDateString("ko-KR");
 }
 
+function getPlatformHref(key: keyof SocialLinks, url: string): string {
+  if (key === "kakao" && !url.startsWith("http")) return `https://open.kakao.com/o/${url}`;
+  return url;
+}
+
 export default function SnsTab(props: Props) {
   const availablePlatforms = PLATFORM_META.filter(({ key }) => !!props[key]);
-
-  const [activeKey, setActiveKey] = useState<keyof SocialLinks | null>(
-    availablePlatforms[0]?.key ?? null
-  );
+  const [activeKey, setActiveKey] = useState<keyof SocialLinks | "all">("all");
   const [ytVideos, setYtVideos] = useState<YouTubeVideo[]>([]);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytFetched, setYtFetched] = useState(false);
 
+  const needYt = (activeKey === "all" || activeKey === "youtube") && !!props.youtube;
+
   useEffect(() => {
-    if (activeKey !== "youtube" || ytFetched || !props.youtube) return;
+    if (!needYt || ytFetched || !props.youtube) return;
     setYtLoading(true);
     fetch(`/api/sns/youtube?url=${encodeURIComponent(props.youtube)}`)
       .then((r) => r.json())
       .then((json) => { setYtVideos(json.videos ?? []); })
       .catch(() => {})
       .finally(() => { setYtLoading(false); setYtFetched(true); });
-  }, [activeKey, ytFetched, props.youtube]);
+  }, [needYt, ytFetched, props.youtube]);
 
   if (availablePlatforms.length === 0) {
     return (
@@ -131,21 +135,27 @@ export default function SnsTab(props: Props) {
     );
   }
 
-  const activeMeta = PLATFORM_META.find((p) => p.key === activeKey);
-  const activeUrl = activeKey ? props[activeKey] : null;
-
-  const getHref = (url: string) => {
-    if (activeKey === "kakao") {
-      if (url.startsWith("http")) return url;
-      return `https://open.kakao.com/o/${url}`;
-    }
-    return url;
-  };
+  const nonYtPlatforms = availablePlatforms.filter((p) => p.key !== "youtube");
+  const showYt = (activeKey === "all" || activeKey === "youtube") && !!props.youtube;
+  const showLinks =
+    activeKey === "all"
+      ? nonYtPlatforms
+      : availablePlatforms.filter((p) => p.key === activeKey && p.key !== "youtube");
 
   return (
     <div>
       {/* Platform selector tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setActiveKey("all")}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+            activeKey === "all"
+              ? "bg-foreground text-background border-foreground"
+              : "bg-background border-border text-muted hover:text-foreground"
+          }`}
+        >
+          전체 보기
+        </button>
         {availablePlatforms.map(({ key, label, color, icon }) => (
           <button
             key={key}
@@ -163,116 +173,135 @@ export default function SnsTab(props: Props) {
         ))}
       </div>
 
-      {/* Content area */}
-      {activeKey === "youtube" && props.youtube ? (
-        <div>
-          {ytLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : ytVideos.length > 0 ? (
-            <div className="columns-2 sm:columns-3 gap-3 space-y-3">
-              {ytVideos.map((video) => (
-                <a
-                  key={video.id}
-                  href={video.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block break-inside-avoid rounded-xl overflow-hidden border border-border bg-surface hover:shadow-md transition-shadow group"
-                >
-                  <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                    <Image
-                      src={video.thumbnail}
-                      alt={video.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                      <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
-                      {video.title}
-                    </p>
-                    <p className="text-[10px] text-muted mt-1">{relativeTime(video.published)}</p>
-                  </div>
+      {/* Content */}
+      <div className="space-y-8">
+        {/* YouTube section */}
+        {showYt && (
+          <div>
+            {activeKey === "all" && (
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">YouTube</span>
+                </div>
+                <a href={props.youtube ?? "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-red-600 hover:underline">
+                  채널 방문 ↗
                 </a>
-              ))}
+              </div>
+            )}
+            {ytLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : ytVideos.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {ytVideos.map((video) => (
+                    <a
+                      key={video.id}
+                      href={video.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-xl overflow-hidden border border-border bg-surface hover:shadow-md transition-shadow group"
+                    >
+                      <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                        <Image
+                          src={video.thumbnail}
+                          alt={video.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-200"
+                          unoptimized
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-10 h-10 bg-red-600/90 rounded-full flex items-center justify-center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">{video.title}</p>
+                        <p className="text-[10px] text-muted mt-1">{relativeTime(video.published)}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+                <div className="mt-3 text-center">
+                  <a
+                    href={props.youtube ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-full hover:bg-red-50 transition-colors"
+                  >
+                    YouTube 채널 더보기 ↗
+                  </a>
+                </div>
+              </>
+            ) : (
+              <LinkCard
+                href={props.youtube ?? "#"}
+                label="YouTube 채널 방문"
+                color="#FF0000"
+                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>}
+                description="YouTube에서 최신 영상을 확인하세요."
+              />
+            )}
+          </div>
+        )}
+
+        {/* Link cards for non-YouTube platforms */}
+        {showLinks.length > 0 && (
+          <div>
+            {activeKey === "all" && nonYtPlatforms.length > 0 && (
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">SNS 채널</p>
+            )}
+            <div className="space-y-3">
+              {showLinks.map(({ key, label, color, icon }) => {
+                const url = props[key];
+                if (!url) return null;
+                return (
+                  <LinkCard
+                    key={key}
+                    href={getPlatformHref(key, url)}
+                    label={`${label} 방문`}
+                    color={color}
+                    icon={icon}
+                    description={`${label}에서 최신 소식을 확인하세요.`}
+                  />
+                );
+              })}
             </div>
-          ) : (
-            /* Fallback: no RSS data — show channel link card */
-            <LinkCard
-              url={props.youtube}
-              label="YouTube 채널 방문"
-              color="#FF0000"
-              icon={activeMeta?.icon}
-              description="YouTube에서 최신 영상을 확인하세요."
-            />
-          )}
-          {/* Always show "Go to channel" link below grid */}
-          {ytVideos.length > 0 && (
-            <div className="mt-4 text-center">
-              <a
-                href={props.youtube}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-full hover:bg-red-50 transition-colors"
-              >
-                YouTube 채널 더보기 ↗
-              </a>
-            </div>
-          )}
-        </div>
-      ) : activeUrl && activeMeta ? (
-        <LinkCard
-          url={getHref(activeUrl)}
-          label={`${activeMeta.label} 방문`}
-          color={activeMeta.color}
-          icon={activeMeta.icon}
-          description={`${activeMeta.label}에서 최신 소식을 확인하세요.`}
-        />
-      ) : null}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function LinkCard({
-  url,
-  label,
-  color,
-  icon,
-  description,
-}: {
-  url: string;
+function LinkCard({ href, label, color, icon, description }: {
+  href: string;
   label: string;
   color: string;
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
   description: string;
 }) {
   return (
     <a
-      href={url}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-4 p-5 border border-border rounded-2xl bg-surface hover:shadow-md transition-shadow group"
+      className="flex items-center gap-4 p-4 border border-border rounded-xl bg-surface hover:shadow-md transition-shadow group"
     >
-      <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-white"
-        style={{ backgroundColor: color }}
-      >
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: color }}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-          {label}
-        </p>
-        <p className="text-xs text-muted mt-0.5 truncate">{url}</p>
-        <p className="text-xs text-muted mt-1">{description}</p>
+        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{label}</p>
+        <p className="text-xs text-muted mt-0.5 truncate">{href}</p>
+        <p className="text-xs text-muted/70 mt-0.5">{description}</p>
       </div>
       <svg className="shrink-0 text-muted" width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

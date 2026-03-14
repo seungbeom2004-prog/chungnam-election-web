@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { supabase } from "@/lib/supabase";
 import ProposalBoardClient from "./ProposalBoardClient";
 
 export const metadata: Metadata = {
@@ -6,44 +7,26 @@ export const metadata: Metadata = {
   description: "후보자에게 공약을 제안하세요.",
 };
 
-async function fetchCandidates() {
-  try {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${base}/api/candidates?limit=100`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return (json.data ?? []) as { id: string; name: string; district: string }[];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchDistricts() {
-  try {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${base}/api/districts`, {
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return (json.data ?? []) as { name: string }[];
-  } catch {
-    return [];
-  }
-}
-
 export default async function ProposalsPage() {
-  const [candidates, districts] = await Promise.all([
-    fetchCandidates(),
-    fetchDistricts(),
-  ]);
+  // Fetch all verified candidates directly from DB (avoids HTTP round-trip issues in production)
+  const { data: candidatesRaw } = await supabase
+    .from("Candidate")
+    .select("id, name, district")
+    .eq("verified", true)
+    .eq("role", "candidate")
+    .order("name", { ascending: true })
+    .limit(500);
+
+  const candidates = (candidatesRaw ?? []) as { id: string; name: string; district: string }[];
+
+  // Deduplicate district names from candidates
+  const districtSet = new Set<string>();
+  candidates.forEach((c) => { if (c.district) districtSet.add(c.district); });
+  const districts = Array.from(districtSet).sort().map((name) => ({ name }));
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-md mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground mb-2">공약 제안 게시판</h1>
           <p className="text-sm text-muted leading-relaxed">
