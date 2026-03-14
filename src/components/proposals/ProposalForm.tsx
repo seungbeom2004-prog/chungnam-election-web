@@ -28,7 +28,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const MAX_CONTENT = 500;
-  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "6LeAGYosAAAAAK164nVrXIvD6s5d86YxeJRAC95Z";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
