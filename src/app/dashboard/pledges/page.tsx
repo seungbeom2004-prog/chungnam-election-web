@@ -335,9 +335,7 @@ export default function PledgesPage() {
                   className="flex items-start gap-3 p-4 border border-border rounded-xl bg-surface"
                 >
                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                    <span className="text-blue-600 text-sm font-bold">
-                      {"\u00A7"}
-                    </span>
+                    <span className="text-base">📜</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground text-sm">{b.title}</p>

@@ -8,6 +8,7 @@ const navItems = [
   {
     href: "/dashboard/pledges",
     label: "공약 관리",
+    shortLabel: "공약",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -23,6 +24,7 @@ const navItems = [
   {
     href: "/dashboard/schedule",
     label: "일정 관리",
+    shortLabel: "일정",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -38,6 +40,7 @@ const navItems = [
   {
     href: "/dashboard/profile",
     label: "내 프로필",
+    shortLabel: "프로필",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -53,6 +56,7 @@ const navItems = [
   {
     href: "/dashboard/qr",
     label: "QR 코드",
+    shortLabel: "QR",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -68,6 +72,7 @@ const navItems = [
   {
     href: "/dashboard/settings",
     label: "개인 정보 관리",
+    shortLabel: "설정",
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
@@ -176,7 +181,10 @@ export default function DashboardSidebar() {
 
       {/* Mobile Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-40">
-        <div className="flex">
+        <div
+          className="flex overflow-x-auto"
+          style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+        >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -184,19 +192,21 @@ export default function DashboardSidebar() {
                 key={item.href}
                 href={item.href}
                 className={`
-                  flex-1 flex flex-col items-center gap-1 py-2 text-xs
+                  shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px]
                   ${isActive ? "text-primary" : "text-muted"}
                 `}
               >
                 {item.icon}
-                {item.label}
+                <span className="leading-tight">{item.shortLabel}</span>
               </Link>
             );
           })}
+          {/* Separator */}
+          <div className="shrink-0 w-px bg-border my-2" />
           {/* Visitor View */}
           <Link
             href="/"
-            className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted"
+            className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px] text-muted hover:text-foreground"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path
@@ -207,8 +217,24 @@ export default function DashboardSidebar() {
                 strokeLinejoin="round"
               />
             </svg>
-            방문자
+            <span className="leading-tight">방문자</span>
           </Link>
+          {/* Logout */}
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 text-[10px] text-muted hover:text-red-500"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M13 14l4-4m0 0l-4-4m4 4H5m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4a2 2 0 012 2v1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="leading-tight">로그아웃</span>
+          </button>
         </div>
       </nav>
     </>
