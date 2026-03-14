@@ -31,8 +31,6 @@ export default function Footer() {
           홈페이지 관련 문의:{" "}
           <a
             href="mailto:seungbeom2004@gmail.com"
-            target="_blank"
-            rel="noopener noreferrer"
             className="underline hover:text-foreground transition-colors"
           >
             seungbeom2004@gmail.com (손승범)

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Candidate {
   id: string;
@@ -18,6 +19,7 @@ type SortOrder = "signup" | "likes";
 
 export default function AboutClient({ candidates }: { candidates: Candidate[] }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("signup");
+  const { isCute } = useTheme();
 
   const sorted = [...candidates].sort((a, b) => {
     if (sortOrder === "likes") {
@@ -34,7 +36,7 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
       <div className="max-w-screen-md mx-auto px-4 py-8">
         {/* Site description */}
         <div className="mb-10">
-          <h1 className="text-2xl font-bold text-foreground mb-4">사이트 & 후보자 소개</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-4">{isCute && <span className="mr-2">🌸</span>}사이트 & 후보자 소개</h1>
           <div className="p-5 bg-surface border border-border rounded-xl text-sm text-muted leading-relaxed space-y-3">
             <p>
               <span className="font-semibold text-foreground">개혁신당 충남 공동 선거운동 홈페이지</span>에 오신 것을 환영합니다.
@@ -64,8 +66,6 @@ export default function AboutClient({ candidates }: { candidates: Candidate[] })
               홈페이지 관련 연락:{" "}
               <a
                 href="mailto:seungbeom2004@gmail.com"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >
                 seungbeom2004@gmail.com (손승범)

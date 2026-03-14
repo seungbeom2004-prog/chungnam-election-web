@@ -73,6 +73,16 @@ export default function Navbar() {
             제안 게시판
           </Link>
           <Link
+            href="/pledges"
+            className={`shrink-0 text-xs font-medium transition-colors ${
+              pathname.startsWith("/pledges")
+                ? "text-primary"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            공약 목록
+          </Link>
+          <Link
             href="/about"
             className={`shrink-0 text-xs font-medium transition-colors ${
               pathname.startsWith("/about")

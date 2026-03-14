@@ -31,7 +31,10 @@ export default function DisclaimerModal() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       {/* Darkened backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 

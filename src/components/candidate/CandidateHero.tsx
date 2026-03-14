@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import { Badge } from "@/components/ui";
 import CandidateLikeButton from "./CandidateLikeButton";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface SocialLinks {
   youtube: string | null;
@@ -107,6 +110,7 @@ const SOCIAL_ICONS: {
 
 export default function CandidateHero({ candidate }: CandidateHeroProps) {
   const socialEntries = SOCIAL_ICONS.filter(({ key }) => !!candidate[key]);
+  const { isCute } = useTheme();
 
   return (
     <div className="relative bg-gradient-to-br from-primary to-primary-hover overflow-hidden">
@@ -161,7 +165,7 @@ export default function CandidateHero({ candidate }: CandidateHeroProps) {
               </div>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-              {candidate.name}
+              {isCute && <span className="mr-2">🐣</span>}{candidate.name}
             </h1>
             {candidate.slogan && (
               <p className="text-lg text-white/90 max-w-lg break-keep">

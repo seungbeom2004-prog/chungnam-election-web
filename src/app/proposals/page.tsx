@@ -27,13 +27,6 @@ export default async function ProposalsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-md mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">공약 제안 게시판</h1>
-          <p className="text-sm text-muted leading-relaxed">
-            후보자에게 직접 공약을 제안하고 의견을 나눠보세요. 좋은 제안은 후보자가 채택할 수 있습니다.
-          </p>
-        </div>
-
         <ProposalBoardClient candidates={candidates} districts={districts} />
       </div>
     </div>

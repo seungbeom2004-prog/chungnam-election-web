@@ -140,12 +140,17 @@ export default function PledgeForm({
           placeholder="예: 5억 원"
         />
 
-        <Input
-          label="YouTube 영상 URL (선택)"
-          value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
-          placeholder="예: https://youtu.be/..."
-        />
+        <div>
+          <Input
+            label="미디어 임베드 URL (선택)"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            placeholder="YouTube, Instagram, Facebook URL"
+          />
+          <p className="text-xs text-muted mt-1">
+            YouTube, Instagram(게시물/릴스), Facebook 링크를 지원합니다.
+          </p>
+        </div>
 
         <Input
           label="주소 (선택)"

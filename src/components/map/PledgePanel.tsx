@@ -21,6 +21,16 @@ function extractYouTubeId(text: string): string | null {
   return null;
 }
 
+type MediaType = "youtube" | "instagram" | "facebook" | null;
+
+/** Detect the type of media URL. */
+function detectMediaType(url: string): MediaType {
+  if (/youtube\.com|youtu\.be/.test(url)) return "youtube";
+  if (/instagram\.com\/(p|reel)\//.test(url)) return "instagram";
+  if (/facebook\.com/.test(url)) return "facebook";
+  return null;
+}
+
 export default function PledgePanel() {
   const { selectedPledge, isPanelOpen, setIsPanelOpen } = useMapStore();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -101,9 +111,12 @@ function PledgePanelContent({
   const router = useRouter();
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
+  const embedUrl = pledge.youtubeUrl || "";
+  const mediaType = embedUrl ? detectMediaType(embedUrl) : null;
   const youtubeId =
-    (pledge.youtubeUrl ? extractYouTubeId(pledge.youtubeUrl) : null) ??
-    extractYouTubeId(pledge.description ?? "");
+    mediaType === "youtube"
+      ? extractYouTubeId(embedUrl)
+      : extractYouTubeId(pledge.description ?? "");
 
   const pledgeUrl = typeof window !== "undefined"
     ? `${window.location.origin}/?pledge=${pledge.id}`
@@ -151,7 +164,7 @@ function PledgePanelContent({
         </div>
       )}
 
-      {/* YouTube iframe — shown when description contains a YouTube link */}
+      {/* Media embed — YouTube, Instagram, or Facebook */}
       {youtubeId && (
         <div className="relative w-full rounded-xl overflow-hidden mb-4 bg-black" style={{ paddingBottom: "56.25%" }}>
           <iframe
@@ -160,6 +173,31 @@ function PledgePanelContent({
             title="관련 영상"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+          />
+        </div>
+      )}
+      {mediaType === "instagram" && (
+        <div className="flex justify-center my-4">
+          <blockquote
+            className="instagram-media"
+            data-instgrm-permalink={embedUrl}
+            data-instgrm-version="14"
+            style={{ maxWidth: 540, width: "100%" }}
+          />
+          {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+          <script async src="//www.instagram.com/embed.js" />
+        </div>
+      )}
+      {mediaType === "facebook" && (
+        <div className="flex justify-center my-4">
+          <iframe
+            src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(embedUrl)}&show_text=true&width=500`}
+            width="500"
+            height="400"
+            style={{ border: "none", overflow: "hidden" }}
+            scrolling="no"
+            allowFullScreen
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
           />
         </div>
       )}

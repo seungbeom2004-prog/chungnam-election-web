@@ -385,53 +385,105 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* City (시군구) selector — top-left of map */}
-        <div ref={districtDropdownRef} className="absolute top-3 left-3 z-20">
-          <button
-            onClick={() => setDistrictDropdownOpen((o) => !o)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md text-xs font-medium text-foreground hover:bg-background transition-colors"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            {selectedDistrict ?? "도시 (시군구) 별"}
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              style={{ transition: "transform 0.15s", transform: districtDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+        {/* Top-left controls: city selector + category legend */}
+        <div className="absolute top-3 left-3 z-20 flex items-start gap-2">
+          {/* City (시군구) selector */}
+          <div ref={districtDropdownRef} className="relative">
+            <button
+              onClick={() => setDistrictDropdownOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md text-xs font-medium text-foreground hover:bg-background transition-colors"
             >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-
-          {districtDropdownOpen && districts.length > 0 && (
-            <div className="absolute top-full left-0 mt-1.5 bg-white/98 backdrop-blur-sm border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px] max-h-64 overflow-y-auto">
-              <button
-                onClick={() => { setSelectedDistrict(null); setDistrictDropdownOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
-                  !selectedDistrict ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
-                }`}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              {selectedDistrict ?? "도시 (시군구) 별"}
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                style={{ transition: "transform 0.15s", transform: districtDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               >
-                전체 지역
-              </button>
-              {districts.map((d) => (
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            {districtDropdownOpen && districts.length > 0 && (
+              <div className="absolute top-full left-0 mt-1.5 bg-white/98 backdrop-blur-sm border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px] max-h-64 overflow-y-auto">
                 <button
-                  key={d.name}
-                  onClick={() => handleDistrictSelect(d)}
+                  onClick={() => { setSelectedDistrict(null); setDistrictDropdownOpen(false); }}
                   className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
-                    selectedDistrict === d.name ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
+                    !selectedDistrict ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
                   }`}
                 >
-                  {d.name}
+                  전체 지역
                 </button>
-              ))}
-            </div>
-          )}
+                {districts.map((d) => (
+                  <button
+                    key={d.name}
+                    onClick={() => handleDistrictSelect(d)}
+                    className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
+                      selectedDistrict === d.name ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"
+                    }`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Category legend — next to city button */}
+          <div className="relative">
+            {legendOpen ? (
+              <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 min-w-[140px]">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-xs font-semibold text-foreground">카테고리</span>
+                  <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3 text-xs">✕</button>
+                </div>
+                <button
+                  onClick={() => setSelectedCategory("all")}
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                    selectedCategory === "all" ? "font-semibold" : "text-foreground hover:bg-background/60"
+                  }`}
+                  style={selectedCategory === "all" ? { background: `${primaryColor}18`, color: primaryColor } : {}}
+                >
+                  <span className="w-5 text-center text-sm">🗺️</span>
+                  <span className="flex-1 text-left">전체</span>
+                </button>
+                {activeCategories.map(({ id, icon, count }) => (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
+                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                      selectedCategory === id ? "font-semibold" : "text-foreground hover:bg-background/60"
+                    }`}
+                    style={selectedCategory === id ? { background: `${primaryColor}18`, color: primaryColor } : {}}
+                  >
+                    <span className="w-5 text-center text-sm">{icon}</span>
+                    <span className="flex-1 text-left">{id}</span>
+                    <span
+                      className="text-[10px] px-1 rounded-full"
+                      style={{ background: `${primaryColor}18`, color: primaryColor }}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => setLegendOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md text-xs font-medium text-foreground hover:bg-background transition-colors"
+              >
+                <span>🗺️</span>
+                {selectedCategory !== "all" ? selectedCategory : "카테고리"}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Empty city state overlay */}
@@ -457,62 +509,6 @@ export default function MapPageContent() {
             </div>
           </div>
         )}
-
-        {/* Legend — bottom-left, fixed position for safe area */}
-        <div
-          className="absolute left-3 z-10"
-          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
-        >
-          {legendOpen ? (
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-border shadow-md p-3 min-w-[140px]">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-xs font-semibold text-foreground">카테고리</span>
-                <button onClick={() => setLegendOpen(false)} className="text-muted hover:text-foreground ml-3 text-xs">✕</button>
-              </div>
-              {/* "전체" option */}
-              <button
-                onClick={() => setSelectedCategory("all")}
-                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
-                  selectedCategory === "all"
-                    ? "font-semibold"
-                    : "text-foreground hover:bg-background/60"
-                }`}
-                style={selectedCategory === "all" ? { background: `${primaryColor}18`, color: primaryColor } : {}}
-              >
-                <span className="w-5 text-center text-sm">🗺️</span>
-                <span className="flex-1 text-left">전체</span>
-              </button>
-              {activeCategories.map(({ id, icon, count }) => (
-                <button
-                  key={id}
-                  onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
-                    selectedCategory === id
-                      ? "font-semibold"
-                      : "text-foreground hover:bg-background/60"
-                  }`}
-                  style={selectedCategory === id ? { background: `${primaryColor}18`, color: primaryColor } : {}}
-                >
-                  <span className="w-5 text-center text-sm">{icon}</span>
-                  <span className="flex-1 text-left">{id}</span>
-                  <span
-                    className="text-[10px] px-1 rounded-full"
-                    style={{ background: `${primaryColor}18`, color: primaryColor }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <button
-              onClick={() => setLegendOpen(true)}
-              className="bg-white/95 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs font-medium text-foreground shadow-md hover:bg-background transition-colors"
-            >
-              카테고리
-            </button>
-          )}
-        </div>
 
         <PledgePanel />
 

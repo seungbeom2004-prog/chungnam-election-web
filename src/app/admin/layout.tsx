@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import AlertSidebar from "@/components/dashboard/AlertSidebar";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export default function AdminLayout({
   children,
@@ -35,13 +36,15 @@ export default function AdminLayout({
   }
 
   return (
-    // h + overflow-hidden: sidebars stay fixed; content area scrolls independently
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      <AdminSidebar />
-      <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto min-w-0">
-        {children}
+    <ThemeProvider initialTheme="regular">
+      {/* h + overflow-hidden: sidebars stay fixed; content area scrolls independently */}
+      <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+        <AdminSidebar />
+        <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto min-w-0">
+          {children}
+        </div>
+        <AlertSidebar role="admin" />
       </div>
-      <AlertSidebar role="admin" />
-    </div>
+    </ThemeProvider>
   );
 }
