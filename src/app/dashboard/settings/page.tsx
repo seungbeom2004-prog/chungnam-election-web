@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Button, Input } from "@/components/ui";
 import Card from "@/components/ui/Card";
 
@@ -49,6 +49,11 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwMessage, setPwMessage] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
+
+  // Account deletion
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!unlocked || !candidateId) return;
@@ -158,6 +163,24 @@ export default function SettingsPage() {
       setPwMessage("네트워크 오류가 발생했습니다.");
     }
     setPwSaving(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!candidateId || deleteConfirmText !== "삭제") return;
+    setDeleting(true);
+    setDeleteMessage("");
+    try {
+      const res = await fetch(`/api/candidates/${candidateId}`, { method: "DELETE" });
+      if (res.ok) {
+        await signOut({ callbackUrl: "/" });
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setDeleteMessage(json.error || "계정 삭제에 실패했습니다.");
+      }
+    } catch {
+      setDeleteMessage("네트워크 오류가 발생했습니다.");
+    }
+    setDeleting(false);
   };
 
   // Password gate screen
@@ -369,6 +392,39 @@ export default function SettingsPage() {
             {pwSaving ? "변경 중..." : "비밀번호 변경"}
           </Button>
         </form>
+      </Card>
+
+      {/* Account deletion danger zone */}
+      <Card className="mt-6 border-red-200 bg-red-50/30">
+        <h2 className="text-base font-semibold text-red-600 mb-1">계정 삭제</h2>
+        <p className="text-sm text-muted mb-4">
+          계정을 삭제하면 모든 공약, 프로필 정보가 영구적으로 삭제되며 복구할 수 없습니다.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              확인을 위해 <span className="font-bold text-red-600">삭제</span>를 입력하세요
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="삭제"
+              className="w-full px-3 py-2 text-sm border border-red-200 rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-colors"
+            />
+          </div>
+          {deleteMessage && (
+            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{deleteMessage}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={deleting || deleteConfirmText !== "삭제"}
+            className="w-full px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {deleting ? "삭제 중..." : "계정 영구 삭제"}
+          </button>
+        </div>
       </Card>
     </div>
   );

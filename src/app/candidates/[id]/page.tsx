@@ -94,6 +94,7 @@ export default async function CandidateProfilePage({ params }: Props) {
     slogan: candidate.slogan,
     bio: candidate.bio,
     party: candidate.party,
+    caucusStatus: candidate.caucusStatus ?? null,
     pinLat: candidate.pinLat ?? null,
     pinLng: candidate.pinLng ?? null,
     youtube: candidate.youtube ?? null,

@@ -91,10 +91,15 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         )}
       </div>
 
+      {!selectedCandidateId && (
+        <p className="text-sm text-muted text-center py-3 mb-2 border border-dashed border-border rounded-lg bg-surface">
+          후보자를 선택하면 공약을 제안할 수 있습니다.
+        </p>
+      )}
       <ProposalList
         candidateId={selectedCandidateId || undefined}
         city={selectedCity || undefined}
-        showForm={true}
+        showForm={!!selectedCandidateId}
       />
     </div>
   );

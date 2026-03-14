@@ -20,6 +20,7 @@ interface CandidateHeroProps {
     profileImage: string | null;
     slogan: string | null;
     party: string;
+    caucusStatus?: string | null;
   } & Partial<SocialLinks>;
 }
 
@@ -140,9 +141,21 @@ export default function CandidateHero({ candidate }: CandidateHeroProps) {
 
           {/* Info */}
           <div className="text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-              <Badge className="bg-white/20 text-white">{candidate.party}</Badge>
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-2 flex-wrap">
+              {/* Reform party logo replaces text badge */}
+              <div className="bg-white rounded-lg px-2 py-1 flex items-center justify-center shrink-0">
+                <Image
+                  src="/images/reform-party-logo.png"
+                  alt={candidate.party}
+                  width={72}
+                  height={24}
+                  className="h-5 w-auto object-contain"
+                />
+              </div>
               <Badge className="bg-white/20 text-white break-keep">{candidate.district}</Badge>
+              {candidate.caucusStatus === "공천 확정" && (
+                <Badge className="bg-green-500 text-white border-transparent">공천 확정</Badge>
+              )}
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
               {candidate.name}

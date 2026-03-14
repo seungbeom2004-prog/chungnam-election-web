@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       .order("createdAt", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (city) query = query.eq("city", city);
+    if (city) query = query.ilike("city", `${city}%`);
     if (candidateId) query = query.eq("candidateId", candidateId);
 
     const { data: proposals, count, error } = await query;
@@ -102,6 +102,17 @@ export async function POST(request: NextRequest) {
 
     // Strip internal fields before inserting
     const { honeypot: _h, captchaToken: _ct, captchaAnswer: _ca, ...insertData } = validated;
+
+    // Auto-populate city from candidate's district if not provided
+    if (insertData.candidateId && !insertData.city) {
+      const { data: cand } = await supabaseAdmin
+        .from("Candidate")
+        .select("district")
+        .eq("id", insertData.candidateId)
+        .single();
+      if (cand?.district) insertData.city = cand.district;
+    }
+
     const { data: proposal, error } = await supabaseAdmin
       .from("ProposalPost")
       .insert({

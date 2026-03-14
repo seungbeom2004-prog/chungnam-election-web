@@ -87,3 +87,40 @@ export async function PUT(
     return apiError("프로필 수정에 실패했습니다", 500);
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { id } = await params;
+
+    if (!session || (session.user as { id: string }).id !== id) {
+      return apiError("권한이 없습니다", 403);
+    }
+
+    // Delete candidate record (pledges and related records cascade via DB)
+    const { error: deleteError } = await supabaseAdmin
+      .from("Candidate")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      console.error("[DELETE /api/candidates/:id] Supabase error:", deleteError);
+      return apiError("계정 삭제에 실패했습니다", 500);
+    }
+
+    // Delete auth user
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (authError) {
+      console.error("[DELETE /api/candidates/:id] Auth delete error:", authError);
+      // Candidate row already deleted; proceed
+    }
+
+    return apiSuccess({ deleted: true });
+  } catch (error) {
+    console.error("[DELETE /api/candidates/:id]", error);
+    return apiError("계정 삭제에 실패했습니다", 500);
+  }
+}

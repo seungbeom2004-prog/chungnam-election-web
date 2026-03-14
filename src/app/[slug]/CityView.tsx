@@ -80,6 +80,7 @@ export default function CityView({ district }: Props) {
           tiktok?: string | null;
           kakao?: string | null;
           naverBlog?: string | null;
+          caucusStatus?: string | null;
           election?: { id: string; name: string } | null;
         }> = json.data ?? [];
         setCandidates(
@@ -91,6 +92,7 @@ export default function CityView({ district }: Props) {
             electionType: c.electionType ?? null,
             electionName: c.election?.name ?? null,
             candidateStatus: c.candidateStatus ?? "",
+            caucusStatus: c.caucusStatus ?? null,
             pinLat: c.pinLat ?? null,
             pinLng: c.pinLng ?? null,
             youtube: c.youtube ?? null,

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import CandidateMiniMap from "./CandidateMiniMap";
 import ProposalList from "@/components/proposals/ProposalList";
+import SnsTab from "./SnsTab";
 
 interface PledgeCategory {
   id: string;
@@ -37,6 +38,13 @@ interface CandidateContentProps {
     pinLng?: number | null;
     pledges: PledgeData[];
     bylaws?: PledgeData[];
+    youtube?: string | null;
+    instagram?: string | null;
+    twitter?: string | null;
+    facebook?: string | null;
+    tiktok?: string | null;
+    kakao?: string | null;
+    naverBlog?: string | null;
   };
 }
 
@@ -69,7 +77,8 @@ function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
 }
 
 export default function CandidateContent({ candidate }: CandidateContentProps) {
-  const [activeView, setActiveView] = useState<"list" | "map" | "proposals">("list");
+  const [activeView, setActiveView] = useState<"list" | "map" | "proposals" | "sns">("list");
+  const hasSns = !!(candidate.youtube || candidate.instagram || candidate.twitter || candidate.facebook || candidate.tiktok || candidate.kakao || candidate.naverBlog);
 
   const allPledges = [
     ...candidate.pledges.map((p) => ({ ...p, isBylaw: false })),
@@ -120,6 +129,18 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           <span className="hidden sm:inline">{candidate.name} 후보에게 공약 제안하기</span>
           <span className="sm:hidden">공약 제안</span>
         </button>
+        {hasSns && (
+          <button
+            onClick={() => setActiveView("sns")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeView === "sns"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            SNS 활동
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -193,9 +214,20 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
             candidateName={candidate.name}
           />
         </div>
-      ) : (
+      ) : activeView === "proposals" ? (
         /* ── Proposals view ──────────────────────────────────────────── */
         <ProposalList candidateId={candidate.id} showForm={true} />
+      ) : (
+        /* ── SNS tab ─────────────────────────────────────────────────── */
+        <SnsTab
+          youtube={candidate.youtube}
+          instagram={candidate.instagram}
+          twitter={candidate.twitter}
+          facebook={candidate.facebook}
+          tiktok={candidate.tiktok}
+          kakao={candidate.kakao}
+          naverBlog={candidate.naverBlog}
+        />
       )}
     </div>
   );

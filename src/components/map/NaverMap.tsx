@@ -105,21 +105,28 @@ function buildCandidateMarkerHTML(candidate: CandidateForMap): string {
   const electionLabel = candidate.electionType || candidate.electionName || "";
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
+  const isConfirmed = candidate.caucusStatus === "공천 확정";
 
-  // Initial letter is always rendered as a fallback. The profile photo is
-  // loaded via CSS background-image (not <img>) so the Naver Maps SDK never
-  // attaches its internal error handler — eliminating the SDK crash on 400s.
   const bgLayer = candidate.profileImage
     ? `<div style="position:absolute;top:0;right:0;bottom:0;left:0;` +
       `background-image:url('${escapeHtml(candidate.profileImage)}');background-size:cover;background-position:center;"></div>`
     : "";
 
+  const confirmedBadge = isConfirmed
+    ? `<div style="position:absolute;top:-6px;right:-6px;background:#16a34a;color:white;` +
+      `font-size:8px;font-weight:700;font-family:sans-serif;padding:2px 4px;border-radius:4px;` +
+      `border:1.5px solid white;line-height:1.2;white-space:nowrap;">공천 확정</div>`
+    : "";
+
   return (
     `<div style="width:110px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
+    `<div style="position:relative;display:inline-block;">` +
     `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:14px;overflow:hidden;border:3px solid ${BRAND_COLOR};background:${BRAND_COLOR};box-shadow:0 4px 12px rgba(0,0,0,0.35);">` +
     `<span style="font-size:22px;font-weight:800;color:white;font-family:sans-serif;">${escapeHtml(candidate.name.charAt(0))}</span>` +
     bgLayer +
+    `</div>` +
+    confirmedBadge +
     `</div>` +
     `<div style="background:#fff;border:2px solid ${BRAND_COLOR};border-radius:10px;padding:5px 8px;margin-top:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">` +
     `<div style="font-weight:800;font-size:13px;color:#111;line-height:1.3;font-family:sans-serif;">${escapeHtml(candidate.name)}</div>` +
@@ -173,12 +180,17 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
   const statusParts = [electionLabel, candidate.candidateStatus].filter(Boolean);
   const statusLine = statusParts.join(" · ");
   const cuteFont = `font-family:'Bingre','Pretendard Variable',sans-serif;`;
+  const isConfirmed = candidate.caucusStatus === "공천 확정";
 
-  // Initial letter always rendered as fallback; profile photo loaded via CSS
-  // background-image so the SDK's internal error handler never fires.
   const bgLayer = candidate.profileImage
     ? `<div style="position:absolute;top:0;right:0;bottom:0;left:0;` +
       `background-image:url('${escapeHtml(candidate.profileImage)}');background-size:cover;background-position:center;"></div>`
+    : "";
+
+  const confirmedBadge = isConfirmed
+    ? `<div style="position:absolute;bottom:-4px;right:-4px;background:#16a34a;color:white;` +
+      `font-size:8px;font-weight:700;font-family:sans-serif;padding:2px 4px;border-radius:4px;` +
+      `border:1.5px solid white;line-height:1.2;white-space:nowrap;">공천 확정</div>`
     : "";
 
   return (
@@ -192,6 +204,7 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap): string {
     bgLayer +
     `</div>` +
     `<div style="position:absolute;top:-2px;right:-2px;font-size:14px;">⭐</div>` +
+    confirmedBadge +
     `</div>` +
     `<div style="position:relative;background:#fff;border:2px solid #FFB6D5;border-radius:16px;padding:6px 10px;margin-top:6px;` +
     `box-shadow:0 2px 10px rgba(255,182,213,0.25);">` +
