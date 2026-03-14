@@ -24,29 +24,27 @@ export default function CandidateLikeButton({ candidateId }: Props) {
   }, [candidateId]);
 
   const handleClick = async () => {
-    if (pending) return;
-    // Optimistic update
-    const nextLiked = !hasLiked;
-    const nextCount = likeCount + (nextLiked ? 1 : -1);
-    setHasLiked(nextLiked);
-    setLikeCount(nextCount);
+    if (pending || hasLiked) return; // 이미 응원했으면 재클릭 불가
     setPending(true);
+    // Optimistic update
+    setHasLiked(true);
+    setLikeCount((c) => c + 1);
     try {
       const res = await fetch(`/api/candidates/${candidateId}/like`, {
         method: "POST",
       });
       const json = await res.json();
       if (res.ok) {
-        setLikeCount(json.likeCount ?? nextCount);
-        setHasLiked(json.hasLiked ?? nextLiked);
+        setLikeCount(json.likeCount ?? likeCount + 1);
+        setHasLiked(true);
       } else {
         // Revert on error
-        setHasLiked(!nextLiked);
-        setLikeCount(likeCount);
+        setHasLiked(false);
+        setLikeCount((c) => c - 1);
       }
     } catch {
-      setHasLiked(!nextLiked);
-      setLikeCount(likeCount);
+      setHasLiked(false);
+      setLikeCount((c) => c - 1);
     } finally {
       setPending(false);
     }
@@ -57,13 +55,14 @@ export default function CandidateLikeButton({ candidateId }: Props) {
   return (
     <button
       onClick={handleClick}
-      disabled={pending}
+      disabled={pending || hasLiked}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
         hasLiked
-          ? "bg-red-500 text-white hover:bg-red-600"
+          ? "bg-red-500 text-white cursor-default"
           : "bg-white/20 text-white hover:bg-white/30"
       }`}
-      aria-label="응원하기"
+      aria-label={hasLiked ? "이미 응원했습니다" : "응원하기"}
+      title={hasLiked ? "이미 응원했습니다" : "응원하기"}
     >
       <svg
         width="14"
@@ -77,7 +76,7 @@ export default function CandidateLikeButton({ candidateId }: Props) {
       >
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
-      <span>응원하기 ({likeCount})</span>
+      <span>{hasLiked ? `응원 중 (${likeCount})` : `응원하기 (${likeCount})`}</span>
     </button>
   );
 }

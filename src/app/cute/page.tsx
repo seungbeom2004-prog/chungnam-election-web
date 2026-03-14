@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import MapPageContent from "@/components/map/MapPageContent";
 import CuteMascot from "@/components/theme/CuteMascot";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -14,7 +14,9 @@ export default function CutePage() {
 
   return (
     <>
-      <MapPageContent />
+      <Suspense>
+        <MapPageContent />
+      </Suspense>
       <CuteMascot />
     </>
   );

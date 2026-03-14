@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import MapPageContent from "@/components/map/MapPageContent";
 import CuteInviteBox from "@/components/theme/CuteInviteBox";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -14,7 +14,9 @@ export default function RegularPage() {
 
   return (
     <>
-      <MapPageContent />
+      <Suspense>
+        <MapPageContent />
+      </Suspense>
       <CuteInviteBox />
     </>
   );

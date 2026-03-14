@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { QRCodeCanvas } from "qrcode.react";
 import { useMapStore } from "@/store/useMapStore";
 import { Badge } from "@/components/ui";
 
@@ -98,9 +99,22 @@ function PledgePanelContent({
   panelRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const router = useRouter();
+  const [showQR, setShowQR] = useState(false);
+  const [copied, setCopied] = useState(false);
   const youtubeId =
     (pledge.youtubeUrl ? extractYouTubeId(pledge.youtubeUrl) : null) ??
     extractYouTubeId(pledge.description ?? "");
+
+  const pledgeUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/?pledge=${pledge.id}`
+    : "";
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(pledgeUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   const navigateToCandidate = () => {
     if (!pledge.candidate) return;
@@ -228,6 +242,39 @@ function PledgePanelContent({
           </svg>
         </button>
       )}
+
+      {/* Share / QR code section */}
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowQR((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+              <path d="M14 14h1v1h-1zM17 14h1v1h-1zM14 17h1v1h-1zM17 17h4v4h-4z"/>
+            </svg>
+            QR 코드
+          </button>
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            {copied ? "복사됨!" : "링크 복사"}
+          </button>
+        </div>
+        {showQR && pledgeUrl && (
+          <div className="mt-3 flex flex-col items-center gap-2 p-3 bg-background rounded-xl">
+            <QRCodeCanvas value={pledgeUrl} size={160} level="M" includeMargin />
+            <p className="text-[10px] text-muted text-center break-all">{pledgeUrl}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

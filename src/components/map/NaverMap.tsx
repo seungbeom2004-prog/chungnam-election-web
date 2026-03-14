@@ -15,6 +15,8 @@ interface NaverMapProps {
   isCute?: boolean;
   /** Category name to filter pledge markers. 'all' = show everything. */
   selectedCategory?: string;
+  /** ID of the currently selected pledge — shows a highlight ring on the map. */
+  selectedPledgeId?: string | null;
 }
 
 interface PinSettings {
@@ -64,6 +66,11 @@ const MARKER_ANIM_CSS =
   "@-webkit-keyframes markerFadeIn{" +
   "0%{opacity:0;-webkit-transform:scale(0.75)}" +
   "100%{opacity:1;-webkit-transform:scale(1)}" +
+  "}" +
+  "@keyframes pledgePulse{" +
+  "0%{transform:scale(1);opacity:0.9}" +
+  "50%{transform:scale(1.35);opacity:0.4}" +
+  "100%{transform:scale(1.7);opacity:0}" +
   "}";
 
 // ─── Marker HTML builders ────────────────────────────────────────────────────
@@ -238,6 +245,7 @@ export default function NaverMap({
   onCandidateClick,
   isCute = false,
   selectedCategory = "all",
+  selectedPledgeId = null,
 }: NaverMapProps) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstance    = useRef<naver.maps.Map | null>(null);
@@ -257,6 +265,8 @@ export default function NaverMap({
   // Candidate markers
   const candidateMarkersRef   = useRef<naver.maps.Marker[]>([]);
   const candidateListenersRef = useRef<naver.maps.MapEventListener[]>([]);
+  // Selection highlight ring (shown at the selected pledge's position)
+  const selectedRingRef = useRef<naver.maps.Marker | null>(null);
 
   // ── Supercluster ──────────────────────────────────────────────────────────
   const superclusterRef = useRef<Supercluster<PledgePointProps> | null>(null);
@@ -720,17 +730,30 @@ export default function NaverMap({
           );
         });
 
+        // Debounced cluster re-render — avoids rapid DOM churn on slow Android
+        // devices where zoom_changed fires many times during zoom animation.
+        let clusterRenderTimer: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRenderClusters = () => {
+          if (clusterRenderTimer) clearTimeout(clusterRenderTimer);
+          clusterRenderTimer = setTimeout(() => {
+            clusterRenderTimer = null;
+            if (!destroyed && mapInstance.current === map) {
+              renderClustersRef.current(map);
+            }
+          }, 80);
+        };
+
         // zoom_changed: recompute clusters only (candidate positions are static)
         naver.maps.Event.addListener(map, "zoom_changed", () => {
           setZoomLevel(toStoreLevel(map.getZoom()));
-          renderClustersRef.current(map);
+          debouncedRenderClusters();
         });
 
         // dragend: recompute clusters for the new viewport bbox
         naver.maps.Event.addListener(map, "dragend", () => {
           const c = map.getCenter() as naver.maps.LatLng;
           setCenter(c.lat(), c.lng());
-          renderClustersRef.current(map);
+          debouncedRenderClusters();
         });
 
         renderClustersRef.current(map);
@@ -786,6 +809,36 @@ export default function NaverMap({
     if (!mapInstance.current) return;
     addCandidateMarkers(mapInstance.current);
   }, [candidates, districts, addCandidateMarkers]);
+
+  // Show / update selection highlight ring when selectedPledgeId changes
+  useEffect(() => {
+    // Remove any existing ring
+    if (selectedRingRef.current) {
+      try { selectedRingRef.current.setMap(null); } catch { /* already detached */ }
+      selectedRingRef.current = null;
+    }
+    if (!selectedPledgeId || !mapInstance.current) return;
+    const pledge = pledges.find((p) => p.id === selectedPledgeId);
+    if (!pledge) return;
+
+    const ringColor = isCute ? "#FF6B9D" : "#FF5A00";
+    const ringHtml =
+      `<div style="width:56px;height:56px;border-radius:50%;border:3px solid ${ringColor};` +
+      `box-shadow:0 0 0 6px ${ringColor}44;pointer-events:none;` +
+      `animation:pledgePulse 1.4s ease-out infinite;"></div>`;
+
+    try {
+      selectedRingRef.current = new naver.maps.Marker({
+        map: mapInstance.current,
+        position: new naver.maps.LatLng(pledge.latitude, pledge.longitude),
+        icon: {
+          content: ringHtml,
+          anchor: new naver.maps.Point(28, 28),
+        },
+        zIndex: 200,
+      });
+    } catch { /* SDK not ready */ }
+  }, [selectedPledgeId, pledges, isCute]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

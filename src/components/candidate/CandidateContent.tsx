@@ -117,7 +117,8 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               : "text-muted hover:text-foreground"
           }`}
         >
-          공약 제안
+          <span className="hidden sm:inline">{candidate.name} 후보에게 공약 제안하기</span>
+          <span className="sm:hidden">공약 제안</span>
         </button>
       </div>
 

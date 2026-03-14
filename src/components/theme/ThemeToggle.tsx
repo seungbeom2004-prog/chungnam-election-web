@@ -20,11 +20,11 @@ export default function ThemeToggleFAB() {
   return (
     <button
       onClick={handleToggle}
-      className="md:hidden fixed left-4 z-50 w-12 h-12 rounded-full
+      className="md:hidden fixed right-4 z-50 w-10 h-10 rounded-full
         bg-white/95 backdrop-blur-sm border-2 border-primary shadow-lg
-        flex items-center justify-center text-lg
+        flex items-center justify-center text-base
         hover:scale-105 active:scale-95 transition-transform"
-      style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}
+      style={{ top: "calc(3.5rem + 0.75rem)" }}
       title={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
       aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
     >

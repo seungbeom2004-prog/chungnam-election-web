@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import NaverMap from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
@@ -153,8 +154,10 @@ export default function MapPageContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
   const districtDropdownRef = useRef<HTMLDivElement>(null);
+  const deepLinkHandledRef = useRef(false);
+  const searchParams = useSearchParams();
 
-  const { setSelectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
+  const { setSelectedPledge, selectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
   const t = useUITexts();
   const { isCute } = useTheme();
 
@@ -191,6 +194,19 @@ export default function MapPageContent() {
       })
       .catch(console.error);
   }, []);
+
+  // Deep-link: open pledge specified in ?pledge=ID query param
+  useEffect(() => {
+    if (deepLinkHandledRef.current || pledges.length === 0) return;
+    const pledgeId = searchParams.get("pledge");
+    if (!pledgeId) return;
+    const found = pledges.find((p) => p.id === pledgeId);
+    if (found) {
+      deepLinkHandledRef.current = true;
+      setSelectedPledge(found);
+      setCenter(found.latitude, found.longitude);
+    }
+  }, [pledges, searchParams, setSelectedPledge, setCenter]);
 
   // Fetch all verified candidates
   useEffect(() => {
@@ -310,8 +326,11 @@ export default function MapPageContent() {
   }, [setCenter, setZoomLevel, setSelectedDistrict]);
 
   const handlePledgeClick = useCallback(
-    (pledge: Pledge) => { setSelectedPledge(pledge); },
-    [setSelectedPledge]
+    (pledge: Pledge) => {
+      setSelectedPledge(pledge);
+      setCenter(pledge.latitude, pledge.longitude);
+    },
+    [setSelectedPledge, setCenter]
   );
 
   const handleCandidateClick = useCallback((candidate: CandidateForMap) => {
@@ -331,6 +350,7 @@ export default function MapPageContent() {
             onCandidateClick={handleCandidateClick}
             isCute={isCute}
             selectedCategory={selectedCategory}
+            selectedPledgeId={selectedPledge?.id ?? null}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">

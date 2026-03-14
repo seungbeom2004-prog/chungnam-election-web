@@ -57,27 +57,16 @@ export async function POST(
       "127.0.0.1";
     const ipHash = hashIp(rawIp);
 
-    // Try to insert; if duplicate (23505) then delete (toggle off)
+    // Try to insert; if duplicate (23505) the IP already liked — no cancellation allowed
     const { error: insertError } = await supabaseAdmin
       .from("CandidateLike")
       .insert({ candidateId, ipHash });
 
     if (insertError) {
       if (insertError.code === "23505") {
-        // Already liked — remove the like
-        const { error: deleteError } = await supabaseAdmin
-          .from("CandidateLike")
-          .delete()
-          .eq("candidateId", candidateId)
-          .eq("ipHash", ipHash);
-
-        if (deleteError) {
-          console.error("[POST /api/candidates/:id/like] Delete error:", deleteError);
-          return apiError("좋아요 처리에 실패했습니다", 500);
-        }
-
+        // Already liked — return current liked state (응원 취소 불가)
         const likeCount = await getLikeCount(candidateId);
-        return apiSuccess({ liked: false, likeCount });
+        return apiSuccess({ liked: true, likeCount });
       }
 
       console.error("[POST /api/candidates/:id/like] Insert error:", insertError);
