@@ -50,6 +50,8 @@ interface CandidateContentProps {
     tiktok?: string | null;
     kakao?: string | null;
     naverBlog?: string | null;
+    articleUrl?: string | null;
+    articleTitle?: string | null;
   };
 }
 
@@ -270,6 +272,8 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           tiktok={candidate.tiktok}
           kakao={candidate.kakao}
           naverBlog={candidate.naverBlog}
+          articleUrl={candidate.articleUrl}
+          articleTitle={candidate.articleTitle}
         />
       )}
     </div>

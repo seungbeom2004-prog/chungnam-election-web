@@ -37,6 +37,8 @@ model Candidate {
   tiktok          String?
   kakao           String?
   naverBlog       String?
+  articleUrl      String?
+  articleTitle    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   pledges         Pledge[]

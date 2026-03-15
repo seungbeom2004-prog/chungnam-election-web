@@ -114,6 +114,8 @@ export default async function CandidateProfilePage({ params }: Props) {
     tiktok: candidate.tiktok ?? null,
     kakao: candidate.kakao ?? null,
     naverBlog: candidate.naverBlog ?? null,
+    articleUrl: (candidate as { articleUrl?: string | null }).articleUrl ?? null,
+    articleTitle: (candidate as { articleTitle?: string | null }).articleTitle ?? null,
     pledges: (pledgesRaw ?? []).map((p) => mapPledge(p)),
     bylaws: (bylawsPledgesRaw ?? []).map((p) => mapPledge(p)),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -14,7 +14,10 @@ interface SocialLinks {
   naverBlog?: string | null;
 }
 
-interface Props extends SocialLinks {}
+interface Props extends SocialLinks {
+  articleUrl?: string | null;
+  articleTitle?: string | null;
+}
 
 const PLATFORM_META: {
   key: keyof SocialLinks;
@@ -109,25 +112,28 @@ function getPlatformHref(key: keyof SocialLinks, url: string): string {
 }
 
 export default function SnsTab(props: Props) {
-  const availablePlatforms = PLATFORM_META.filter(({ key }) => !!props[key]);
+  const { articleUrl, articleTitle, ...socialProps } = props;
+  const availablePlatforms = PLATFORM_META.filter(({ key }) => !!socialProps[key]);
   const [activeKey, setActiveKey] = useState<keyof SocialLinks | "all">("all");
   const [ytVideos, setYtVideos] = useState<YouTubeVideo[]>([]);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytFetched, setYtFetched] = useState(false);
 
-  const needYt = (activeKey === "all" || activeKey === "youtube") && !!props.youtube;
+  const needYt = (activeKey === "all" || activeKey === "youtube") && !!socialProps.youtube;
 
   useEffect(() => {
-    if (!needYt || ytFetched || !props.youtube) return;
+    if (!needYt || ytFetched || !socialProps.youtube) return;
     setYtLoading(true);
-    fetch(`/api/sns/youtube?url=${encodeURIComponent(props.youtube)}`)
+    fetch(`/api/sns/youtube?url=${encodeURIComponent(socialProps.youtube)}`)
       .then((r) => r.json())
       .then((json) => { setYtVideos(json.videos ?? []); })
       .catch(() => {})
       .finally(() => { setYtLoading(false); setYtFetched(true); });
-  }, [needYt, ytFetched, props.youtube]);
+  }, [needYt, ytFetched, socialProps.youtube]);
 
-  if (availablePlatforms.length === 0) {
+  const hasAnySns = availablePlatforms.length > 0;
+
+  if (!hasAnySns && !articleUrl) {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-muted">등록된 SNS 계정이 없습니다.</p>
@@ -136,7 +142,7 @@ export default function SnsTab(props: Props) {
   }
 
   const nonYtPlatforms = availablePlatforms.filter((p) => p.key !== "youtube");
-  const showYt = (activeKey === "all" || activeKey === "youtube") && !!props.youtube;
+  const showYt = (activeKey === "all" || activeKey === "youtube") && !!socialProps.youtube;
   const showLinks =
     activeKey === "all"
       ? nonYtPlatforms
@@ -144,8 +150,8 @@ export default function SnsTab(props: Props) {
 
   return (
     <div>
-      {/* Platform selector tabs */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      {/* Platform selector tabs — only shown when there are SNS accounts */}
+      {hasAnySns && <div className="flex flex-wrap gap-2 mb-6">
         <button
           onClick={() => setActiveKey("all")}
           className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
@@ -171,7 +177,7 @@ export default function SnsTab(props: Props) {
             {label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Content */}
       <div className="space-y-8">
@@ -188,7 +194,7 @@ export default function SnsTab(props: Props) {
                   </span>
                   <span className="text-sm font-semibold text-foreground">YouTube</span>
                 </div>
-                <a href={props.youtube ?? "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-red-600 hover:underline">
+                <a href={socialProps.youtube ?? "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-red-600 hover:underline">
                   채널 방문 ↗
                 </a>
               </div>
@@ -231,7 +237,7 @@ export default function SnsTab(props: Props) {
                 </div>
                 <div className="mt-3 text-center">
                   <a
-                    href={props.youtube ?? "#"}
+                    href={socialProps.youtube ?? "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-full hover:bg-red-50 transition-colors"
@@ -242,7 +248,7 @@ export default function SnsTab(props: Props) {
               </>
             ) : (
               <LinkCard
-                href={props.youtube ?? "#"}
+                href={socialProps.youtube ?? "#"}
                 label="YouTube 채널 방문"
                 color="#FF0000"
                 icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>}
@@ -260,7 +266,7 @@ export default function SnsTab(props: Props) {
             )}
             <div className="space-y-3">
               {showLinks.map(({ key, label, color, icon }) => {
-                const url = props[key];
+                const url = socialProps[key];
                 if (!url) return null;
                 return (
                   <LinkCard
@@ -274,6 +280,34 @@ export default function SnsTab(props: Props) {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Article card — shown below all SNS content */}
+        {articleUrl && (
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">📰 관련 기사</p>
+            <a
+              href={articleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-4 p-4 border border-border rounded-xl bg-surface hover:shadow-md transition-shadow group"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-600">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 4h16v4H4zM4 10h10M4 14h10M4 18h6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                  {articleTitle || "기사 읽기"}
+                </p>
+                <p className="text-xs text-muted mt-1 truncate">{articleUrl}</p>
+              </div>
+              <svg className="shrink-0 text-muted mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
           </div>
         )}
       </div>

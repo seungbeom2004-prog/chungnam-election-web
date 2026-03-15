@@ -709,8 +709,8 @@ export default function NaverMap({
       if (!Array.isArray(candidates) || !Array.isArray(districts)) return;
 
       // Hide label box when zoomed out (overlapping pins)
-      let compact = false;
-      try { compact = map.getZoom() < CANDIDATE_LABEL_ZOOM; } catch { /* ignore */ }
+      let baseCompact = false;
+      try { baseCompact = map.getZoom() < CANDIDATE_LABEL_ZOOM; } catch { /* ignore */ }
 
       const byDistrict: Record<string, CandidateForMap[]> = {};
       candidates.forEach((c) => {
@@ -728,6 +728,10 @@ export default function NaverMap({
       sortedByJoin.forEach((c, i) => {
         zIndexByCandidate[c.id] = 100 + (sortedByJoin.length - i);
       });
+
+      // ── Pass 1: compute lat/lng for every candidate ────────────────────────
+      type CandidatePos = { candidate: CandidateForMap; lat: number; lng: number };
+      const positions: CandidatePos[] = [];
 
       candidates.forEach((candidate) => {
         let lat: number;
@@ -750,6 +754,80 @@ export default function NaverMap({
           lng = districtInfo.centerLng + (idx - (total - 1) / 2) * 0.004;
         }
 
+        positions.push({ candidate, lat, lng });
+      });
+
+      // ── Pass 2: pixel-space collision detection → per-candidate compact ────
+      // Full-mode label bbox offsets from anchor (non-cute: anchor 55,35; cute: anchor 60,38)
+      // Non-cute full:  left=-55  right=+119  top=-35  bottom=+29  (174×64 px)
+      // Cute full:      left=-60  right=+114  top=-38  bottom=+26  (~174×64 px)
+      // Compact circle radius ≈ 32 (non-cute) / 34 (cute)
+      const fullBox = isCute
+        ? { l: -60, r: 114, t: -38, b: 26 }
+        : { l: -55, r: 119, t: -35, b: 29 };
+      const compactR = isCute ? 34 : 32;
+
+      const compactById: Record<string, boolean> = {};
+      const pixelPos: Record<string, { x: number; y: number }> = {};
+
+      // Convert geo → screen pixel for every candidate
+      if (!baseCompact) {
+        try {
+          const projection = map.getProjection();
+          if (projection) {
+            for (const { candidate, lat, lng } of positions) {
+              const offset = projection.fromCoordToOffset(new naver.maps.LatLng(lat, lng));
+              pixelPos[candidate.id] = { x: offset.x, y: offset.y };
+            }
+          }
+        } catch { /* projection unavailable — skip collision detection */ }
+      }
+
+      // Process candidates in priority order (earlier-joined = higher priority = full mode kept)
+      for (const c of sortedByJoin) {
+        if (baseCompact) { compactById[c.id] = true; continue; }
+        const pos = pixelPos[c.id];
+        if (!pos) { compactById[c.id] = false; continue; }
+
+        let collision = false;
+        // Check against every higher-priority candidate that was already processed
+        for (const other of sortedByJoin) {
+          if (other.id === c.id) break; // reached current candidate — stop
+          const op = pixelPos[other.id];
+          if (!op) continue;
+
+          const otherCompact = compactById[other.id] ?? false;
+
+          // Current candidate's full label bbox in screen space
+          const cL = pos.x + fullBox.l;
+          const cR = pos.x + fullBox.r;
+          const cT = pos.y + fullBox.t;
+          const cB = pos.y + fullBox.b;
+
+          if (otherCompact) {
+            // Other is compact circle — rect vs circle test
+            const closestX = Math.max(cL, Math.min(op.x, cR));
+            const closestY = Math.max(cT, Math.min(op.y, cB));
+            const dx = closestX - op.x;
+            const dy = closestY - op.y;
+            if (dx * dx + dy * dy < compactR * compactR) { collision = true; break; }
+          } else {
+            // Other is full label bbox — AABB overlap test
+            const oL = op.x + fullBox.l;
+            const oR = op.x + fullBox.r;
+            const oT = op.y + fullBox.t;
+            const oB = op.y + fullBox.b;
+            if (cL < oR && cR > oL && cT < oB && cB > oT) { collision = true; break; }
+          }
+        }
+
+        compactById[c.id] = collision;
+      }
+
+      // ── Pass 3: create markers ─────────────────────────────────────────────
+      for (const { candidate, lat, lng } of positions) {
+        const compact = compactById[candidate.id] ?? baseCompact;
+
         const markerHtml = isCute
           ? buildCuteCandidateMarkerHTML(candidate, compact)
           : buildCandidateMarkerHTML(candidate, compact);
@@ -771,7 +849,7 @@ export default function NaverMap({
         );
         candidateMarkersRef.current.push(marker);
         candidateListenersRef.current.push(listener);
-      });
+      }
     },
     [candidates, districts, onCandidateClick, clearCandidateMarkers, isCute] // eslint-disable-line react-hooks/exhaustive-deps
   );

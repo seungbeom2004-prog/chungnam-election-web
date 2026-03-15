@@ -15,6 +15,8 @@ export interface Candidate {
   tiktok: string | null;
   kakao: string | null;
   naverBlog: string | null;
+  articleUrl: string | null;
+  articleTitle: string | null;
   party: string;
   role: string;
   verified: boolean;

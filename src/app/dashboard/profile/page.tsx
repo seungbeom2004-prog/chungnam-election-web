@@ -41,6 +41,8 @@ export default function ProfilePage() {
     tiktok: "",
     kakao: "",
     naverBlog: "",
+    articleUrl: "",
+    articleTitle: "",
   });
   const [socialSaving, setSocialSaving] = useState(false);
   const [socialMessage, setSocialMessage] = useState("");
@@ -111,6 +113,8 @@ export default function ProfilePage() {
           tiktok: data.tiktok || "",
           kakao: data.kakao || "",
           naverBlog: data.naverBlog || "",
+          articleUrl: data.articleUrl || "",
+          articleTitle: data.articleTitle || "",
         });
         setIsNecRegistered(data.isNecRegistered ?? false);
         setNecName(data.name ?? null);
@@ -199,6 +203,8 @@ export default function ProfilePage() {
         tiktok: socialForm.tiktok || null,
         kakao: socialForm.kakao || null,
         naverBlog: socialForm.naverBlog || null,
+        articleUrl: socialForm.articleUrl || null,
+        articleTitle: socialForm.articleTitle || null,
       };
       const res = await fetch(`/api/candidates/${candidateId}`, {
         method: "PUT",
@@ -624,6 +630,33 @@ export default function ProfilePage() {
               />
             </div>
           ))}
+
+          {/* Article section */}
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs font-semibold text-muted mb-3">📰 관련 기사 (최대 1개)</p>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">기사 URL</label>
+                <input
+                  type="text"
+                  value={socialForm.articleUrl}
+                  onChange={(e) => setSocialForm((f) => ({ ...f, articleUrl: e.target.value }))}
+                  placeholder="https://news.example.com/article/..."
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">기사 제목 <span className="text-muted/60">(선택)</span></label>
+                <input
+                  type="text"
+                  value={socialForm.articleTitle}
+                  onChange={(e) => setSocialForm((f) => ({ ...f, articleTitle: e.target.value }))}
+                  placeholder="기사 제목을 입력하세요"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+            </div>
+          </div>
           {socialMessage && (
             <p className={`text-xs px-3 py-2 rounded-lg ${
               socialMessage.includes("실패") ? "text-red-500 bg-red-50" : "text-green-600 bg-green-50"
