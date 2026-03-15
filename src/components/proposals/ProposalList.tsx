@@ -32,15 +32,16 @@ interface Props {
   candidateId?: string;
   city?: string;
   showForm?: boolean;
+  onRankingRefresh?: () => void;
 }
 
-export default function ProposalList({ candidateId, city, showForm }: Props) {
+export default function ProposalList({ candidateId, city, showForm, onRankingRefresh }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<"latest" | "popular">("latest");
+  const [sort, setSort] = useState<"latest" | "popular">("popular");
 
   const buildUrl = useCallback(
     (p: number, sortMode = sort) => {
@@ -125,7 +126,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
         setProposals((prev) =>
           prev.map((p) =>
             p.id === proposal.id
-              ? { ...p, hasLiked: json.hasLiked ?? nextLiked, likeCount: json.likeCount ?? nextCount }
+              ? { ...p, hasLiked: json.hasLiked ?? json.liked ?? nextLiked, likeCount: json.likeCount ?? nextCount }
               : p
           )
         );
@@ -160,7 +161,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
         <ProposalForm
           candidateId={candidateId}
           city={city}
-          onSuccess={() => fetchProposals(true)}
+          onSuccess={() => { fetchProposals(true); onRankingRefresh?.(); }}
         />
       )}
 
@@ -169,6 +170,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
         <div className="flex items-center gap-1.5 bg-surface border border-border rounded-full p-0.5">
           <button
             onClick={() => handleSortChange("latest")}
+            aria-pressed={sort === "latest"}
             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
               sort === "latest"
                 ? "bg-primary text-white"
@@ -179,6 +181,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
           </button>
           <button
             onClick={() => handleSortChange("popular")}
+            aria-pressed={sort === "popular"}
             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
               sort === "popular"
                 ? "bg-primary text-white"
@@ -232,7 +235,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                         <span className="text-sm font-semibold text-foreground">
                           {proposal.authorName}
                         </span>
-                        <time className="text-xs text-muted">
+                        <time className="text-xs text-muted" dateTime={proposal.createdAt}>
                           {relativeTime(proposal.createdAt)}
                         </time>
                         {proposal.latitude && proposal.longitude && (
@@ -243,7 +246,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {proposal.status === "accepted" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                             ✅ 채택됨
                           </span>
                         )}
@@ -258,7 +261,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                     )}
 
                     {/* Content */}
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap line-clamp-5">
                       {proposal.content}
                     </p>
 
@@ -267,6 +270,8 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                       <button
                         onClick={() => handleLike(proposal)}
                         disabled={likePending.has(proposal.id)}
+                        aria-label={proposal.hasLiked ? "좋아요 취소" : "좋아요"}
+                        aria-pressed={proposal.hasLiked}
                         className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
                           proposal.hasLiked
                             ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100 scale-105"
@@ -274,6 +279,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                         }`}
                       >
                         <svg
+                          aria-hidden="true"
                           width="12"
                           height="12"
                           viewBox="0 0 24 24"
@@ -292,6 +298,11 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
                         <div className="flex items-center gap-1 flex-1 min-w-0">
                           <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
                             <div
+                              role="progressbar"
+                              aria-valuenow={proposal.likeCount ?? 0}
+                              aria-valuemin={0}
+                              aria-valuemax={proposals[0]?.likeCount ?? 1}
+                              aria-label="인기도"
                               className="h-full bg-primary rounded-full transition-all"
                               style={{
                                 width: `${Math.min(100, ((proposal.likeCount ?? 0) / Math.max(proposals[0]?.likeCount ?? 1, 1)) * 100)}%`,
@@ -314,7 +325,7 @@ export default function ProposalList({ candidateId, city, showForm }: Props) {
             <div className="text-center">
               <button
                 onClick={loadMore}
-                className="px-4 py-2 text-sm font-medium text-muted border border-border rounded-lg hover:text-foreground hover:bg-background transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-primary border border-primary rounded-lg hover:text-foreground hover:bg-background transition-colors"
               >
                 더보기
               </button>

@@ -291,7 +291,7 @@ export default function SignupPage() {
       setError("지역을 선택해주세요.");
       return;
     }
-    if (districtLevel === "ward" && !manualDistrictMode && !ward && !(manualWardMode && manualWardText.trim())) {
+    if (districtLevel === "ward" && !necPrefilled && !manualDistrictMode && !ward && !(manualWardMode && manualWardText.trim())) {
       setError("선거구를 선택하거나 직접 입력해주세요.");
       return;
     }
@@ -814,201 +814,191 @@ export default function SignupPage() {
             required
           />
 
-          {/* Election type, province, district, ward — read-only if NEC pre-filled */}
-          {necPrefilled ? (
+          {/* Election type, province, district, ward */}
+          <>
+            {/* Election Type */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">선거 정보</label>
-              <div className="px-3 py-2 border border-border rounded-lg bg-muted/10 text-sm text-foreground space-y-0.5">
-                <p>{electionType}</p>
-                <p className="text-muted text-xs">{province} · {district}{ward ? ` ${ward}` : ""}</p>
-              </div>
-              <p className="text-xs text-muted mt-1">출처: 중앙선관위 · 제9회 전국동시지방선거</p>
-            </div>
-          ) : (
-            <>
-              {/* Election Type */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  선거 종류 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={electionType}
-                  onChange={(e) => setElectionType(e.target.value)}
-                  required
-                  disabled={electionTypes.length === 0}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-                >
-                  <option value="">
-                    {electionTypes.length === 0 ? "불러오는 중..." : "선택하세요"}
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                선거 종류 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={electionType}
+                onChange={(e) => setElectionType(e.target.value)}
+                required
+                disabled={electionTypes.length === 0}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+              >
+                <option value="">
+                  {electionTypes.length === 0 ? "불러오는 중..." : "선택하세요"}
+                </option>
+                {electionTypes.map((type) => (
+                  <option key={type.code} value={type.name}>
+                    {type.name}
                   </option>
-                  {electionTypes.map((type) => (
-                    <option key={type.code} value={type.name}>
-                      {type.name}
+                ))}
+              </select>
+              <p className="text-xs text-muted mt-1">
+                출처: 중앙선관위 · 제9회 전국동시지방선거
+              </p>
+            </div>
+
+            {/* Province */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                시도 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              >
+                {PROVINCES.map((prov) => (
+                  <option key={prov.value} value={prov.value}>
+                    {prov.label}
+                  </option>
+                ))}
+              </select>
+              {necPrefilled && <p className="text-xs text-green-600 mt-1">✓ 선관위에서 자동입력 — 필요시 수정하세요</p>}
+            </div>
+
+            {/* District (구시군) */}
+            {districtLevel !== "none" && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    시군구{" "}
+                    <span className="text-xs text-muted font-normal">(선거구)</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualDistrictMode((m) => !m);
+                      setManualDistrictText(district);
+                    }}
+                    className="text-xs text-primary hover:underline shrink-0"
+                  >
+                    {manualDistrictMode ? "드롭다운으로 전환" : "직접 입력"}
+                  </button>
+                </div>
+
+                {manualDistrictMode ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="예: 천안시동남구"
+                      value={manualDistrictText}
+                      onChange={(e) => setManualDistrictText(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    />
+                    <p className="text-xs text-amber-600 mt-1">정확한 선거구 명칭을 적어주세요</p>
+                  </div>
+                ) : (
+                  <select
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    required
+                    disabled={loadingDistricts}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
+                  >
+                    <option value="">
+                      {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
                     </option>
-                  ))}
-                </select>
+                    {districts.map((d) => (
+                      <option key={d.name} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <p className="text-xs text-muted mt-1">
                   출처: 중앙선관위 · 제9회 전국동시지방선거
                 </p>
               </div>
+            )}
 
-              {/* Province */}
+            {/* Ward */}
+            {districtLevel === "ward" && !manualDistrictMode && (
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  시도 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                >
-                  {PROVINCES.map((prov) => (
-                    <option key={prov.value} value={prov.value}>
-                      {prov.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    선거구{" "}
+                    <span className="text-xs text-muted font-normal">(세부 선거구)</span>
+                    {!necPrefilled && <span className="text-red-500">*</span>}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualWardMode((m) => !m);
+                      setManualWardText(ward);
+                    }}
+                    className="text-xs text-primary hover:underline shrink-0"
+                  >
+                    {manualWardMode ? "드롭다운으로 전환" : "직접 입력"}
+                  </button>
+                </div>
 
-              {/* District (구시군) */}
-              {districtLevel !== "none" && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-foreground">
-                      시군구{" "}
-                      <span className="text-xs text-muted font-normal">(선거구)</span>
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setManualDistrictMode((m) => !m);
-                        setManualDistrictText(district);
-                      }}
-                      className="text-xs text-primary hover:underline shrink-0"
-                    >
-                      {manualDistrictMode ? "드롭다운으로 전환" : "직접 입력"}
-                    </button>
+                {manualWardMode ? (
+                  /* Manual text input */
+                  <input
+                    type="text"
+                    placeholder="예: 다선거구, 제1선거구"
+                    value={manualWardText}
+                    onChange={(e) => setManualWardText(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  />
+                ) : loadingWards ? (
+                  <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                    선거구 정보를 불러오는 중...
                   </div>
-
-                  {manualDistrictMode ? (
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="예: 천안시동남구"
-                        value={manualDistrictText}
-                        onChange={(e) => setManualDistrictText(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                      />
-                      <p className="text-xs text-amber-600 mt-1">정확한 선거구 명칭을 적어주세요</p>
-                    </div>
-                  ) : (
-                    <select
-                      value={district}
-                      onChange={(e) => setDistrict(e.target.value)}
-                      required
-                      disabled={loadingDistricts}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60"
-                    >
-                      <option value="">
-                        {loadingDistricts ? "불러오는 중..." : "시군구를 선택하세요"}
+                ) : !district ? (
+                  <div className="px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
+                    시군구를 먼저 선택하세요
+                  </div>
+                ) : wards.length > 0 ? (
+                  <select
+                    value={ward}
+                    onChange={(e) => setWard(e.target.value)}
+                    required={!necPrefilled}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  >
+                    <option value="">{necPrefilled ? "선거구 선택 (선택사항)" : "선거구를 선택하세요"}</option>
+                    {wards.map((w) => (
+                      <option key={w.electCode} value={w.electName}>
+                        {w.electName}
                       </option>
-                      {districts.map((d) => (
-                        <option key={d.name} value={d.name}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  <p className="text-xs text-muted mt-1">
-                    출처: 중앙선관위 · 제9회 전국동시지방선거
-                  </p>
-                </div>
-              )}
-
-              {/* Ward */}
-              {districtLevel === "ward" && !manualDistrictMode && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-foreground">
-                      선거구{" "}
-                      <span className="text-xs text-muted font-normal">(세부 선거구)</span>
-                      <span className="text-red-500">*</span>
-                    </label>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="px-3 py-2 text-sm text-amber-700 border border-amber-200 rounded-lg bg-amber-50/50">
+                    선거구 정보 없음 —{" "}
                     <button
                       type="button"
-                      onClick={() => {
-                        setManualWardMode((m) => !m);
-                        setManualWardText(ward);
-                      }}
-                      className="text-xs text-primary hover:underline shrink-0"
+                      onClick={() => { setManualWardMode(true); setManualWardText(""); }}
+                      className="underline font-medium hover:text-amber-900"
                     >
-                      {manualWardMode ? "드롭다운으로 전환" : "직접 입력"}
+                      직접 입력하기
                     </button>
                   </div>
+                )}
+                <p className="text-xs text-muted mt-1">
+                  출처: 중앙선관위 · 제9회 전국동시지방선거
+                </p>
+              </div>
+            )}
 
-                  {manualWardMode ? (
-                    /* Manual text input */
-                    <input
-                      type="text"
-                      placeholder="예: 다선거구, 제1선거구"
-                      value={manualWardText}
-                      onChange={(e) => setManualWardText(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                    />
-                  ) : loadingWards ? (
-                    <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                      선거구 정보를 불러오는 중...
-                    </div>
-                  ) : !district ? (
-                    <div className="px-3 py-2 border border-border rounded-lg bg-surface text-sm text-muted">
-                      시군구를 먼저 선택하세요
-                    </div>
-                  ) : wards.length > 0 ? (
-                    <select
-                      value={ward}
-                      onChange={(e) => setWard(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                    >
-                      <option value="">선거구를 선택하세요</option>
-                      {wards.map((w) => (
-                        <option key={w.electCode} value={w.electName}>
-                          {w.electName}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="px-3 py-2 text-sm text-amber-700 border border-amber-200 rounded-lg bg-amber-50/50">
-                      선거구 정보 없음 —{" "}
-                      <button
-                        type="button"
-                        onClick={() => { setManualWardMode(true); setManualWardText(""); }}
-                        className="underline font-medium hover:text-amber-900"
-                      >
-                        직접 입력하기
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted mt-1">
-                    출처: 중앙선관위 · 제9회 전국동시지방선거
-                  </p>
-                </div>
-              )}
-
-              {/* Province-level notice */}
-              {districtLevel === "none" && electionType && (
-                <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-700">
-                    선택하신 선거는 <strong>충청남도 전체</strong>를 선거구로 합니다.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+            {/* Province-level notice */}
+            {districtLevel === "none" && electionType && (
+              <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  선택하신 선거는 <strong>충청남도 전체</strong>를 선거구로 합니다.
+                </p>
+              </div>
+            )}
+          </>
 
           {/* Detailed Election Name — shown for all candidates */}
           <div>

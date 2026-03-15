@@ -2,6 +2,9 @@
 
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
+import dynamic from "next/dynamic";
+
+const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: false });
 
 interface Props {
   candidateId?: string;
@@ -25,9 +28,8 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
   const [content, setContent] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [useLocation, setUseLocation] = useState(false);
-  const [latitude, setLatitude] = useState<string>("");
-  const [longitude, setLongitude] = useState<string>("");
-  const [locating, setLocating] = useState(false);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,27 +37,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
 
   const MAX_CONTENT = 500;
   const MAX_TITLE = 50;
-  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "6LeAGYosAAAAAK164nVrXIvD6s5d86YxeJRAC95Z";
-
-  const detectLocation = () => {
-    if (!navigator.geolocation) {
-      setError("이 브라우저에서는 위치 정보를 사용할 수 없습니다.");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6));
-        setLongitude(pos.coords.longitude.toFixed(6));
-        setLocating(false);
-      },
-      () => {
-        setError("위치 정보를 가져올 수 없습니다.");
-        setLocating(false);
-      },
-      { timeout: 10000 }
-    );
-  };
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,25 +45,29 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
 
     if (honeypot) return;
 
-    if (title.length < 2 || title.length > MAX_TITLE) {
+    if (title.trim().length < 2 || title.trim().length > MAX_TITLE) {
       setError(`제목은 2자 이상 ${MAX_TITLE}자 이하로 입력해주세요.`);
       return;
     }
-    if (authorName.length < 2 || authorName.length > 20) {
-      setError("이름은 2자 이상 20자 이하로 입력해주세요.");
+    if (authorName.trim().length < 2 || authorName.trim().length > 20) {
+      setError("제안자명은 2자 이상 20자 이하로 입력해주세요.");
       return;
     }
     if (password.length < 4 || password.length > 20) {
       setError("비밀번호는 4자 이상 20자 이하로 입력해주세요.");
       return;
     }
-    if (content.length < 10 || content.length > MAX_CONTENT) {
+    if (content.trim().length < 10 || content.trim().length > MAX_CONTENT) {
       setError(`내용은 10자 이상 ${MAX_CONTENT}자 이하로 입력해주세요.`);
+      return;
+    }
+    if (useLocation && (latitude == null || longitude == null)) {
+      setError("지도에서 위치를 클릭해서 선택해주세요.");
       return;
     }
 
     const recaptchaToken = recaptchaRef.current?.getValue();
-    if (!recaptchaToken) {
+    if (siteKey && !recaptchaToken) {
       setError("보안 문자를 완료해주세요.");
       return;
     }
@@ -89,17 +75,17 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
-        title,
-        authorName,
+        title: title.trim(),
+        authorName: authorName.trim(),
         password,
-        content,
-        candidateId,
-        city,
-        captchaToken: recaptchaToken,
+        content: content.trim(),
+        captchaToken: recaptchaToken ?? "no-captcha",
       };
-      if (useLocation && latitude && longitude) {
-        body.latitude = parseFloat(latitude);
-        body.longitude = parseFloat(longitude);
+      if (candidateId) body.candidateId = candidateId;
+      if (city) body.city = city;
+      if (useLocation && latitude != null && longitude != null) {
+        body.latitude = latitude;
+        body.longitude = longitude;
       }
 
       const res = await fetch("/api/proposals", {
@@ -109,7 +95,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       });
 
       if (res.status === 429) {
-        setError("잠시 후 다시 시도해주세요.");
+        setError("1시간에 최대 5개의 제안만 작성할 수 있습니다. 잠시 후 다시 시도해주세요.");
         recaptchaRef.current?.reset();
         return;
       }
@@ -126,8 +112,8 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       setAuthorName("");
       setPassword("");
       setContent("");
-      setLatitude("");
-      setLongitude("");
+      setLatitude(null);
+      setLongitude(null);
       setUseLocation(false);
       recaptchaRef.current?.reset();
       onSuccess?.();
@@ -143,12 +129,12 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
     return (
       <div className="p-5 border border-border rounded-xl bg-surface text-center">
         <p className="text-sm font-medium text-foreground mb-1">🎉 제안이 접수되었습니다!</p>
-        <p className="text-xs text-muted mb-3">소중한 의견 감사합니다.</p>
+        <p className="text-xs text-muted mb-3">소중한 의견 감사합니다. 검토 후 게시됩니다.</p>
         <button
           onClick={() => setSuccess(false)}
-          className="text-xs text-primary hover:underline"
+          className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
         >
-          추가 제안하기
+          ✍️ 추가 제안하기
         </button>
       </div>
     );
@@ -162,9 +148,16 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       <h3 className="text-sm font-semibold text-foreground">✍️ 제안 작성</h3>
 
       {/* Legal notice */}
-      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed whitespace-pre-line">
-        {LEGAL_NOTICE}
-      </div>
+      <details className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <summary className="text-xs font-semibold text-amber-800 cursor-pointer select-none">
+          📋 게시물 작성 시 유의사항 및 법적 책임 (펼치기)
+        </summary>
+        <div className="mt-2 text-xs text-amber-800 leading-relaxed whitespace-pre-line">
+          {LEGAL_NOTICE}
+        </div>
+      </details>
+
+      <p className="text-xs text-muted -mt-1 mb-1">* 표시는 필수 항목입니다</p>
 
       {/* Honeypot */}
       <input
@@ -181,7 +174,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       {/* Title */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-sm font-medium text-foreground">제목 *</label>
+          <label className="block text-sm font-medium text-foreground">제목<span aria-hidden="true"> *</span></label>
           <span className={`text-xs ${title.length > MAX_TITLE ? "text-red-500" : "text-muted"}`}>
             {title.length}/{MAX_TITLE}
           </span>
@@ -191,23 +184,21 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제안 제목을 입력해주세요"
-          minLength={2}
           maxLength={MAX_TITLE}
           required
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
         />
       </div>
 
-      {/* Name + Password */}
+      {/* 제안자명 + Password */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">이름 *</label>
+          <label className="block text-sm font-medium text-foreground mb-1.5">제안자명<span aria-hidden="true"> *</span></label>
           <input
             type="text"
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             placeholder="홍길동"
-            minLength={2}
             maxLength={20}
             required
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
@@ -215,7 +206,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-1.5">
-            비밀번호 * <span className="text-xs text-muted font-normal">(수정·삭제용)</span>
+            비밀번호<span aria-hidden="true"> *</span> <span className="text-xs text-muted font-normal">(삭제용)</span>
           </label>
           <input
             type="password"
@@ -233,7 +224,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       {/* Content */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-sm font-medium text-foreground">내용 *</label>
+          <label className="block text-sm font-medium text-foreground">내용<span aria-hidden="true"> *</span></label>
           <span className={`text-xs ${content.length > MAX_CONTENT ? "text-red-500" : "text-muted"}`}>
             {content.length} / {MAX_CONTENT}
           </span>
@@ -241,8 +232,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="후보자에게 제안하고 싶은 내용을 구체적으로 작성해주세요."
-          minLength={10}
+          placeholder="공약으로 제안하고 싶은 내용을 구체적으로 작성해주세요."
           maxLength={MAX_CONTENT}
           rows={4}
           required
@@ -250,7 +240,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         />
       </div>
 
-      {/* Location */}
+      {/* Location via Map */}
       <div className="border border-dashed border-border rounded-lg p-3 space-y-2">
         <div className="flex items-center gap-2">
           <input
@@ -259,48 +249,34 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
             checked={useLocation}
             onChange={(e) => {
               setUseLocation(e.target.checked);
-              if (!e.target.checked) { setLatitude(""); setLongitude(""); }
+              if (!e.target.checked) { setLatitude(null); setLongitude(null); }
             }}
             className="w-4 h-4 accent-primary"
           />
           <label htmlFor="use-location" className="text-sm text-foreground cursor-pointer">
-            📍 위치 정보 첨부 <span className="text-xs text-muted">(선택, 지도에 표시)</span>
+            📍 위치 정보 첨부 <span className="text-xs text-muted">(선택, 지도에 표시됩니다)</span>
           </label>
         </div>
         {useLocation && (
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={detectLocation}
-              disabled={locating}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors disabled:opacity-60"
-            >
-              {locating ? "📡 위치 가져오는 중..." : "📡 현재 위치 자동 입력"}
-            </button>
+            <LocationPickerMap
+              lat={latitude}
+              lng={longitude}
+              onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+            />
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-muted mb-1">위도</label>
-                <input
-                  type="number"
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="37.123456"
-                  step="0.000001"
-                  className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
+                <label htmlFor="lat-input" className="block text-xs text-muted mb-1">위도 (직접입력)</label>
+                <input id="lat-input" type="number" value={latitude ?? ""} onChange={e => setLatitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="36.5184" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">경도</label>
-                <input
-                  type="number"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="127.123456"
-                  step="0.000001"
-                  className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
+                <label htmlFor="lng-input" className="block text-xs text-muted mb-1">경도 (직접입력)</label>
+                <input id="lng-input" type="number" value={longitude ?? ""} onChange={e => setLongitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="126.8000" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
               </div>
             </div>
+            {latitude != null && longitude != null && (
+              <p className="text-xs text-primary text-center font-medium">✅ 위치 선택됨: {latitude.toFixed(5)}, {longitude.toFixed(5)}</p>
+            )}
           </div>
         )}
       </div>
@@ -312,14 +288,18 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && (
+        <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-xs text-red-700">{error}</p>
+        </div>
+      )}
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+        className="w-full px-4 py-2.5 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
       >
-        {submitting ? "제출 중..." : "🚀 제안 제출"}
+        {submitting ? "제출 중..." : "🚀 제안 제출하기"}
       </button>
     </form>
   );

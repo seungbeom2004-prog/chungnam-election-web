@@ -26,7 +26,7 @@ export default async function ProposalsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-screen-md mx-auto px-4 py-8">
+      <div className="max-w-screen-xl mx-auto px-4 py-8">
         <ProposalBoardClient candidates={candidates} districts={districts} />
       </div>
     </div>
