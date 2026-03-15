@@ -1037,9 +1037,11 @@ export default function NaverMap({
         [300, 800, 2000].forEach((ms) => {
           resizeTimers.push(
             setTimeout(() => {
-              if (!destroyed && mapInstance.current === map) {
-                naver.maps.Event.trigger(map, "resize");
-              }
+              try {
+                if (!destroyed && mapInstance.current === map) {
+                  naver.maps.Event.trigger(map, "resize");
+                }
+              } catch { /* SDK may have been unloaded (e.g. auth failure on localhost) */ }
             }, ms)
           );
         });
@@ -1120,7 +1122,7 @@ export default function NaverMap({
       clearBylawMarkers();
       clearProposalMarkers();
       if (mapInstance.current) {
-        mapInstance.current.destroy();
+        try { mapInstance.current.destroy(); } catch { /* SDK may throw on auth-failed maps */ }
         mapInstance.current = null;
       }
     };

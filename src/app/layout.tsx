@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import { NavbarConditional, FooterConditional } from "@/components/layout/NavbarConditional";
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -60,9 +59,9 @@ export default function RootLayout({
               본문으로 건너뛰기
             </a>
             <DisclaimerModal />
-            <Navbar />
+            <NavbarConditional />
             <main id="main-content" tabIndex={-1}>{children}</main>
-            <Footer />
+            <FooterConditional />
           </ThemeProvider>
         </AuthProvider>
       </body>

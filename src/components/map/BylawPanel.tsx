@@ -42,7 +42,7 @@ export default function BylawPanel() {
       </div>
       {/* Desktop Sidebar */}
       <div
-        className="hidden md:block fixed top-14 left-0 z-30 w-96 h-[calc(100vh-3.5rem)] bg-surface border-r border-border shadow-xl overflow-y-auto"
+        className="hidden md:block fixed top-0 left-[3.75rem] z-30 w-96 h-screen bg-surface border-r border-border shadow-xl overflow-y-auto"
         style={{ animation: "slideRight 300ms ease-out" }}
         onClick={(e) => e.stopPropagation()}
       >
