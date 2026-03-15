@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import { NavbarConditional, FooterConditional, MobileBottomNavConditional, MobileContentSpacer } from "@/components/layout/NavbarConditional";
+import {
+  NavbarConditional,
+  FooterConditional,
+  MobileBottomNavConditional,
+  MobileContentSpacer,
+  MainContentWrapper,
+} from "@/components/layout/NavbarConditional";
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -59,12 +65,16 @@ export default function RootLayout({
               본문으로 건너뛰기
             </a>
             <DisclaimerModal />
+            {/* Desktop left rail (fixed) on non-map pages */}
             <NavbarConditional />
-            <main id="main-content" tabIndex={-1}>
-              {children}
-              <MobileContentSpacer />
-            </main>
-            <FooterConditional />
+            {/* Main content area — offset by 80px on desktop for non-map pages */}
+            <MainContentWrapper>
+              <main id="main-content" tabIndex={-1}>
+                {children}
+                <MobileContentSpacer />
+              </main>
+              <FooterConditional />
+            </MainContentWrapper>
             <MobileBottomNavConditional />
           </ThemeProvider>
         </AuthProvider>

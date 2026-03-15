@@ -17,6 +17,8 @@ import type { Pledge, BylawGroup } from "@/types";
 import { findDistrictCity } from "@/lib/districts";
 
 const CITY_ZOOM = 6;
+const PANEL_PLEDGES_LIMIT = 6;
+const PANEL_CANDIDATES_LIMIT = 5;
 
 const CATEGORY_ICONS: Record<string, string> = {
   "교통": "🚌",
@@ -146,7 +148,7 @@ const IconDashboard = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
-// ─── Election D-Day (inline, compact versions) ───────────────────────────────
+// ─── Election D-Day ───────────────────────────────────────────────────────────
 
 const ELECTION_DATE = new Date("2026-06-03T00:00:00+09:00");
 
@@ -171,7 +173,7 @@ function DDayBadge({ compact = false }: { compact?: boolean }) {
   const isUrgent = dday >= 0 && dday <= 30;
   if (compact) {
     return (
-      <Link href="/about" title="2026 전국동시지방선거" className={`flex items-center justify-center w-9 h-9 rounded-xl text-[9px] font-bold shrink-0 transition-colors ${isUrgent ? "bg-red-500 text-white animate-pulse" : "bg-primary/10 text-primary hover:bg-primary/20"}`}>
+      <Link href="/about" title="2026 전국동시지방선거" className={`flex items-center justify-center w-11 h-8 rounded-xl text-[9px] font-bold shrink-0 transition-colors ${isUrgent ? "bg-red-500 text-white animate-pulse" : "bg-primary/10 text-primary hover:bg-primary/20"}`}>
         {label}
       </Link>
     );
@@ -202,8 +204,8 @@ function FontSizeCompact() {
   };
   return (
     <div className="flex flex-col gap-0.5 items-center" title="글씨 크기">
-      <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-7 h-6 flex items-center justify-center text-[10px] font-bold text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 크게">A+</button>
-      <button onClick={() => apply(scale - 0.1)} disabled={scale <= 0.8} className="w-7 h-6 flex items-center justify-center text-[10px] font-medium text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 작게">A-</button>
+      <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-8 h-7 flex items-center justify-center text-[10px] font-bold text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 크게">A+</button>
+      <button onClick={() => apply(scale - 0.1)} disabled={scale <= 0.8} className="w-8 h-7 flex items-center justify-center text-[10px] font-medium text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 작게">A-</button>
     </div>
   );
 }
@@ -223,7 +225,7 @@ function RailItem({
   onClick?: () => void;
   href?: string;
 }) {
-  const cls = `relative group flex flex-col items-center justify-center w-11 h-11 rounded-xl transition-all cursor-pointer select-none ${
+  const cls = `relative group flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all cursor-pointer select-none ${
     active
       ? "bg-primary/15 text-primary"
       : "text-muted hover:bg-background/80 hover:text-foreground"
@@ -231,7 +233,7 @@ function RailItem({
   const inner = (
     <>
       {icon}
-      <span className="text-[8.5px] font-semibold mt-0.5 leading-none tracking-tight">{label}</span>
+      <span className="text-[9px] font-semibold mt-0.5 leading-none tracking-tight">{label}</span>
       <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 bg-gray-900 text-white text-xs py-1.5 px-2.5 rounded-lg whitespace-nowrap transition-opacity z-50 shadow-lg">
         {label}
       </span>
@@ -256,12 +258,12 @@ function BottomNavItem({
   onClick?: () => void;
   href?: string;
 }) {
-  const cls = `flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 transition-colors ${
+  const cls = `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
     active ? "text-primary" : "text-muted hover:text-foreground"
   }`;
   const inner = (
     <>
-      <span className="text-[18px] leading-none">{icon}</span>
+      <span className="leading-none">{icon}</span>
       <span className="text-[10px] font-medium leading-none">{label}</span>
     </>
   );
@@ -317,20 +319,21 @@ export default function MapPageContent() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(true);
-  const [listCollapsed, setListCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const [categoryLegendOpen, setCategoryLegendOpen] = useState(false);
   const [mobileDistrictOpen, setMobileDistrictOpen] = useState(false);
   const [mobileCategoryOpen, setMobileCategoryOpen] = useState(false);
   const [mobileCandidateListOpen, setMobileCandidateListOpen] = useState(false);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryLegendRef = useRef<HTMLDivElement>(null);
   const mobileDistrictRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef(false);
   const searchParams = useSearchParams();
 
-  const { setSelectedPledge, selectedPledge, selectedDistrict, isPanelOpen, setCenter, setZoomLevel, setSelectedDistrict, setSelectedBylawGroup } = useMapStore();
+  const { setSelectedPledge, selectedPledge, selectedDistrict, setCenter, setZoomLevel, setSelectedDistrict, setSelectedBylawGroup } = useMapStore();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _t = useUITexts();
   const { isCute, setTheme } = useTheme();
@@ -360,7 +363,7 @@ export default function MapPageContent() {
     return Array.from(map.entries()).map(([name, info]) => ({ id: name, ...info }));
   })();
 
-  // Filtered pledges for panel list
+  // Filtered pledges for panel list (limited)
   const panelPledges = pledges
     .filter((p) => selectedCategory === "all" || p.category?.name === selectedCategory)
     .filter((p) => !selectedDistrict || (p.candidate?.district ?? "").startsWith(selectedDistrict))
@@ -368,7 +371,7 @@ export default function MapPageContent() {
       const q = searchQuery.trim().toLowerCase();
       return !q || p.title.toLowerCase().includes(q) || (p.candidate?.name ?? "").toLowerCase().includes(q);
     })
-    .slice(0, 10);
+    .slice(0, PANEL_PLEDGES_LIMIT);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
@@ -479,7 +482,7 @@ export default function MapPageContent() {
     return () => clearInterval(timer);
   }, []);
 
-  // Close dropdowns on outside click
+  // Close district dropdown on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (districtDropdownRef.current && !districtDropdownRef.current.contains(e.target as Node)) setDistrictDropdownOpen(false);
@@ -488,7 +491,14 @@ export default function MapPageContent() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [districtDropdownOpen]);
 
-  // Mobile district modal closes via its own backdrop click handler
+  // Close category legend on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (categoryLegendRef.current && !categoryLegendRef.current.contains(e.target as Node)) setCategoryLegendOpen(false);
+    };
+    if (categoryLegendOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [categoryLegendOpen]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -528,16 +538,19 @@ export default function MapPageContent() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex w-screen overflow-hidden md:h-dvh" style={{ height: "calc(100dvh - 3.5rem)" }}>
+    <div className="flex w-screen overflow-hidden h-dvh">
 
       {/* ══════════════════════════════════════════════
-          DESKTOP LEFT RAIL
+          DESKTOP LEFT RAIL (wider: 80px)
       ══════════════════════════════════════════════ */}
-      <aside className="hidden md:flex w-[3.75rem] shrink-0 flex-col items-center py-3 bg-surface border-r border-border z-30 gap-0.5" style={{ boxShadow: "1px 0 0 0 var(--color-border)" }}>
+      <aside
+        className="hidden md:flex w-20 shrink-0 flex-col items-center py-3 bg-surface border-r border-border z-30 gap-1"
+        style={{ boxShadow: "1px 0 0 0 var(--color-border)" }}
+      >
         {/* Logo */}
         <Link
           href="/"
-          className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 shrink-0 transition-transform hover:scale-105 ${isCute ? "bg-pink-100" : "bg-primary"}`}
+          className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 shrink-0 transition-transform hover:scale-105 ${isCute ? "bg-pink-100" : "bg-primary"}`}
           title="개혁 충남"
         >
           <span className={`font-bold text-xs leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
@@ -545,14 +558,14 @@ export default function MapPageContent() {
 
         {/* Main nav items */}
         <RailItem
-          icon={<IconMapPin size={18} />}
+          icon={<IconMapPin size={19} />}
           label="공약지도"
           active
           onClick={() => setPanelOpen((o) => !o)}
         />
-        <RailItem icon={<IconBulb size={18} />} label="제안" href="/proposals" />
-        <RailItem icon={<IconClipboard size={18} />} label="공약" href="/pledges" />
-        <RailItem icon={<IconUsers size={18} />} label="후보자" href="/about" />
+        <RailItem icon={<IconBulb size={19} />} label="제안" href="/proposals" />
+        <RailItem icon={<IconClipboard size={19} />} label="공약" href="/pledges" />
+        <RailItem icon={<IconUsers size={19} />} label="후보자" href="/about" />
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -563,20 +576,23 @@ export default function MapPageContent() {
         {/* Font size */}
         <FontSizeCompact />
 
-        {/* Theme toggle */}
+        {/* Theme toggle compact */}
         <button
           onClick={handleThemeToggle}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-sm bg-transparent hover:bg-background transition-colors"
+          className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm transition-colors ${
+            isCute ? "bg-pink-100 text-pink-600 hover:bg-pink-200" : "text-muted hover:bg-background"
+          }`}
           title={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
+          aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
         >
           {isCute ? "🏛️" : "✨"}
         </button>
 
         {/* User / Login */}
         {session ? (
-          <Link href="/dashboard" title="대시보드" className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/40 transition-all">
+          <Link href="/dashboard" title="대시보드" className="w-11 h-11 rounded-xl overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/40 transition-all">
             {session.user?.image ? (
-              <Image src={session.user.image} alt={session.user.name ?? ""} width={36} height={36} className="object-cover w-full h-full" />
+              <Image src={session.user.image} alt={session.user.name ?? ""} width={44} height={44} className="object-cover w-full h-full" />
             ) : (
               <div className="w-full h-full bg-primary/10 flex items-center justify-center">
                 <span className="text-primary font-bold text-xs">{(session.user?.name ?? "?")[0]}</span>
@@ -584,200 +600,81 @@ export default function MapPageContent() {
             )}
           </Link>
         ) : (
-          <Link href="/login" title="로그인" className="w-9 h-9 rounded-xl flex items-center justify-center text-muted hover:bg-background hover:text-foreground transition-colors">
-            <IconPerson size={18} />
+          <Link href="/login" title="로그인" className="w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:bg-background hover:text-foreground transition-colors">
+            <IconPerson size={19} />
           </Link>
         )}
       </aside>
 
       {/* ══════════════════════════════════════════════
           DESKTOP CONTENT PANEL
+          Outer wrapper has overflow:visible so the
+          border-toggle button can stick out to the right.
       ══════════════════════════════════════════════ */}
       <div
-        className={`hidden md:flex shrink-0 flex-col bg-surface border-r border-border overflow-hidden transition-[width] duration-200 ease-in-out`}
+        className="hidden md:block relative shrink-0 transition-[width] duration-200 ease-in-out"
         style={{ width: panelOpen ? "17.5rem" : "0px" }}
       >
-        {panelOpen && (
-          <>
-            {/* Panel header */}
-            <div className="flex items-center gap-1.5 px-3 pt-4 pb-2 shrink-0">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-base font-bold text-foreground truncate">
-                  {selectedDistrict ?? "충남"}의 공약
+        {/* Toggle button on the right border — always visible */}
+        <button
+          onClick={() => setPanelOpen((o) => !o)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-40 w-5 h-14 bg-white border-y border-r border-border/70 rounded-r-xl shadow-md flex items-center justify-center text-muted hover:text-primary hover:bg-gray-50 transition-colors"
+          aria-label={panelOpen ? "패널 닫기" : "패널 열기"}
+          title={panelOpen ? "패널 닫기" : "패널 열기"}
+        >
+          {panelOpen ? <IconChevronLeft size={12} /> : <IconChevronRight size={12} />}
+        </button>
+
+        {/* Panel inner content — overflow:hidden clips the animated width */}
+        <div className="flex flex-col bg-surface border-r border-border h-full overflow-hidden w-full">
+          {panelOpen && (
+            <>
+              {/* Panel Header */}
+              <div className="px-4 pt-5 pb-3 shrink-0 border-b border-border/40">
+                <h1 className="text-[15px] font-bold text-foreground truncate">
+                  {selectedDistrict ? `${selectedDistrict}의 공약` : "충남의 공약"}
                 </h1>
-                <p className="text-xs text-muted">후보자 {filteredCandidates.length}명</p>
-              </div>
-              {/* 접기: collapse list only */}
-              <button
-                onClick={() => setListCollapsed((o) => !o)}
-                className={`flex items-center gap-1 h-7 px-2.5 rounded-lg transition-colors shrink-0 text-[11px] font-semibold ${
-                  listCollapsed
-                    ? "bg-primary/10 text-primary hover:bg-primary/20"
-                    : "bg-background text-muted hover:text-foreground border border-border/70"
-                }`}
-                aria-label={listCollapsed ? "목록 펼치기" : "목록 접기"}
-                title={listCollapsed ? "목록 펼치기" : "목록 접기"}
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ transition: "transform 0.2s", transform: listCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-                >
-                  <path d="M18 15l-6-6-6 6" />
-                </svg>
-                {listCollapsed ? "펼치기" : "접기"}
-              </button>
-              {/* 닫기: hide panel entirely — uses × for clear close affordance */}
-              <button
-                onClick={() => setPanelOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-muted hover:text-red-500 transition-colors shrink-0"
-                aria-label="패널 닫기"
-                title="패널 닫기"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="px-3 pb-2 shrink-0">
-              <div className="flex items-center gap-2 bg-background rounded-xl px-3 py-2 border border-border focus-within:border-primary/50 transition-colors">
-                <IconSearch size={14} className="text-muted shrink-0" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="후보자, 공약 등 검색"
-                  className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} className="text-muted hover:text-foreground text-base leading-none transition-colors">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* District selector */}
-            <div className="px-3 pb-2 shrink-0">
-              <div ref={districtDropdownRef} className="relative">
-                <button
-                  onClick={() => setDistrictDropdownOpen((o) => !o)}
-                  className="w-full flex items-center gap-2 px-3 py-2 bg-background rounded-xl border border-border text-sm text-left hover:border-primary/40 transition-colors"
-                >
-                  <IconLocation size={13} />
-                  <span className="flex-1 font-medium truncate text-foreground">{selectedDistrict ?? "전체 지역"}</span>
-                  <IconChevronDown size={13} style={{ transition: "transform 0.15s", transform: districtDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-                </button>
-                {districtDropdownOpen && districts.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-surface border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto z-50">
-                    <button
-                      onClick={() => { setSelectedDistrict(null); setDistrictDropdownOpen(false); }}
-                      className={`w-full text-left px-3 py-2.5 text-sm font-medium transition-colors ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"}`}
-                    >
-                      전체 지역
-                    </button>
-                    {districts.map((d) => (
-                      <button
-                        key={d.name}
-                        onClick={() => handleDistrictSelect(d)}
-                        className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"}`}
-                      >
-                        {d.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Category filter */}
-            <div className="px-3 pb-3 shrink-0">
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                <button
-                  onClick={() => setSelectedCategory("all")}
-                  className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border ${selectedCategory === "all" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted hover:text-foreground hover:border-border/80"}`}
-                >
-                  🗺️ 전체
-                </button>
-                {activeCategories.map(({ id, icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
-                    className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border ${selectedCategory === id ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted hover:text-foreground"}`}
-                  >
-                    {icon} {id}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Scrollable content list — hidden when list is collapsed */}
-            <div className={`overflow-y-auto transition-all duration-200 ${listCollapsed ? "h-0 opacity-0 pointer-events-none" : "flex-1 opacity-100"}`}>
-              {/* ─ Candidates section ─ */}
-              <div className="px-4 py-2 flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-sm z-10 border-b border-border/50">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest">후보자</span>
-                <span className="text-[10px] text-muted">{filteredCandidates.length}명</span>
+                <p className="text-xs text-muted mt-0.5">후보자 {filteredCandidates.length}명</p>
               </div>
 
-              {filteredCandidates.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted">
-                  <IconPerson size={28} />
-                  <p className="text-xs mt-2">{searchQuery ? "검색 결과 없음" : "등록된 후보자 없음"}</p>
+              {/* Search */}
+              <div className="px-3 py-2.5 shrink-0 border-b border-border/30">
+                <div className="flex items-center gap-2 bg-background rounded-xl px-3 py-2.5 border border-border focus-within:border-primary/50 transition-colors">
+                  <IconSearch size={14} className="text-muted shrink-0" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="후보자, 공약 검색"
+                    className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="text-muted hover:text-foreground text-base leading-none transition-colors">×</button>
+                  )}
                 </div>
-              ) : (
-                <div className="divide-y divide-border/50">
-                  {filteredCandidates.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => handleCandidateClick(c)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background/60 transition-colors text-left"
-                    >
-                      <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/50">
-                        {c.profileImage ? (
-                          <Image src={c.profileImage} alt={c.name} fill sizes="40px" className="object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-primary font-bold text-sm">{c.name[0]}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground text-sm leading-tight">{c.name}</p>
-                        {c.electionType && <p className="text-[11px] text-muted truncate mt-0.5">{c.electionType}</p>}
-                        <p className="text-[11px] text-primary truncate">{c.district}</p>
-                      </div>
-                      {c.candidateStatus && (
-                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${primaryColor}18`, color: primaryColor }}>
-                          {c.candidateStatus}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+              </div>
 
-              {/* ─ Pledges section ─ */}
-              {panelPledges.length > 0 && (
-                <>
-                  <div className="px-4 py-2 flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-sm z-10 border-t border-border border-b border-border/50 mt-1">
-                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest">주요 공약</span>
-                    <Link href="/pledges" className="text-[10px] font-medium hover:underline" style={{ color: primaryColor }}>
-                      전체 보기
-                    </Link>
-                  </div>
-                  <div className="divide-y divide-border/50">
+              {/* Scrollable content list */}
+              <div className="flex-1 overflow-y-auto">
+
+                {/* ─ Pledges section — FIRST ─ */}
+                <div className="px-4 pt-3 pb-1 flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-sm z-10">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-widest">주요 공약</span>
+                  <Link href="/pledges" className="text-[10px] font-semibold hover:underline" style={{ color: primaryColor }}>
+                    전체 보기
+                  </Link>
+                </div>
+
+                {panelPledges.length === 0 ? (
+                  <p className="px-4 py-4 text-xs text-muted text-center">공약이 없습니다</p>
+                ) : (
+                  <div className="divide-y divide-border/40">
                     {panelPledges.map((p) => (
                       <button
                         key={p.id}
                         onClick={() => handlePledgeClick(p)}
-                        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-background/60 transition-colors text-left"
+                        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-background/70 transition-colors text-left"
                       >
-                        <span className="text-lg shrink-0 mt-0.5 leading-none">{p.category?.emoji || "📌"}</span>
+                        <span className="text-base shrink-0 mt-0.5 leading-none">{p.category?.emoji || "📌"}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{p.title}</p>
                           <p className="text-[11px] text-muted mt-0.5">{p.candidate?.name}</p>
@@ -785,27 +682,73 @@ export default function MapPageContent() {
                       </button>
                     ))}
                   </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
+                )}
+
+                {/* ─ Candidates section ─ */}
+                <div className="px-4 pt-4 pb-1 flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-sm z-10 border-t border-border/50 mt-1">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-widest">후보자</span>
+                  <Link href="/about" className="text-[10px] font-semibold hover:underline" style={{ color: primaryColor }}>
+                    전체 보기
+                  </Link>
+                </div>
+
+                {filteredCandidates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted">
+                    <IconPerson size={28} />
+                    <p className="text-xs mt-2">{searchQuery ? "검색 결과 없음" : "등록된 후보자 없음"}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/40">
+                    {filteredCandidates.slice(0, PANEL_CANDIDATES_LIMIT).map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleCandidateClick(c)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background/70 transition-colors text-left"
+                      >
+                        <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/50">
+                          {c.profileImage ? (
+                            <Image src={c.profileImage} alt={c.name} fill sizes="40px" className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-primary font-bold text-sm">{c.name[0]}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground text-sm leading-tight">{c.name}</p>
+                          {c.electionType && <p className="text-[11px] text-muted truncate mt-0.5">{c.electionType}</p>}
+                          <p className="text-[11px] text-primary truncate">{c.district}</p>
+                        </div>
+                        {c.candidateStatus && (
+                          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${primaryColor}18`, color: primaryColor }}>
+                            {c.candidateStatus}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    {filteredCandidates.length > PANEL_CANDIDATES_LIMIT && (
+                      <Link
+                        href="/about"
+                        className="flex items-center justify-center gap-1 py-3 text-xs font-semibold hover:bg-primary/5 transition-colors border-t border-border/30"
+                        style={{ color: primaryColor }}
+                      >
+                        {filteredCandidates.length - PANEL_CANDIDATES_LIMIT}명 더 보기 →
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                <div className="h-4" />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════
           MAP AREA
       ══════════════════════════════════════════════ */}
       <div className="flex-1 relative min-w-0 h-full">
-        {/* Panel re-open button (desktop, when panel is closed) */}
-        {!panelOpen && (
-          <button
-            onClick={() => setPanelOpen(true)}
-            className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-3 z-20 flex-col items-center justify-center w-6 h-16 bg-white/95 backdrop-blur-sm border border-border rounded-full shadow-md hover:bg-background transition-colors text-muted hover:text-foreground"
-            aria-label="패널 열기"
-          >
-            <IconChevronRight size={14} />
-          </button>
-        )}
 
         {/* Map rendering */}
         {mapReady && !mapError ? (
@@ -846,25 +789,122 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* ─── Mobile Top Header (2 rows) ──────────────────────────────────── */}
-        <div className="md:hidden absolute top-0 left-0 right-0 z-20">
-          {/* Row 1: Logo + Search input + Theme toggle */}
-          <div className="flex items-center gap-2 px-2 pt-2 pb-1">
-            {/* Logo - "개혁" text icon */}
-            <Link href="/" aria-label="개혁 충남 홈" className="shrink-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCute ? "bg-pink-100" : "bg-primary"}`}>
-                <span className={`font-bold text-[10px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
+        {/* ─── Desktop: District + Category overlay (top-left) ─────────────── */}
+        <div className="hidden md:flex absolute top-3 left-3 z-20 flex-col gap-2">
+          {/* District dropdown */}
+          <div ref={districtDropdownRef} className="relative">
+            <button
+              onClick={() => setDistrictDropdownOpen((o) => !o)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 bg-white/97 backdrop-blur-sm rounded-xl border shadow-md text-sm font-semibold transition-colors ${
+                selectedDistrict ? "border-primary/50 text-primary" : "border-border/50 text-foreground hover:bg-white"
+              }`}
+            >
+              <IconLocation size={14} />
+              <span>{selectedDistrict ?? "전체 지역"}</span>
+              <IconChevronDown
+                size={12}
+                style={{ transition: "transform 0.15s", transform: districtDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+            {districtDropdownOpen && districts.length > 0 && (
+              <div className="absolute top-full left-0 mt-1.5 bg-white/98 border border-border rounded-xl shadow-2xl overflow-hidden min-w-[160px] max-h-64 overflow-y-auto z-50">
+                <button
+                  onClick={() => { setSelectedDistrict(null); setDistrictDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-gray-50"}`}
+                >
+                  전체 지역
+                </button>
+                {districts.map((d) => (
+                  <button
+                    key={d.name}
+                    onClick={() => handleDistrictSelect(d)}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-gray-50"}`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
               </div>
-            </Link>
+            )}
+          </div>
 
-            {/* Search input */}
-            <div className="flex-1 flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-xl border border-border/50 px-2.5 py-1.5 focus-within:border-primary/50 transition-colors">
-              <IconSearch size={13} className="text-muted shrink-0" aria-hidden="true" />
+          {/* Category button + legend */}
+          <div ref={categoryLegendRef} className="relative">
+            <button
+              onClick={() => setCategoryLegendOpen((o) => !o)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 bg-white/97 backdrop-blur-sm rounded-xl border shadow-md text-sm font-semibold transition-colors ${
+                selectedCategory !== "all" || categoryLegendOpen
+                  ? "border-primary/50 text-primary bg-primary/5"
+                  : "border-border/50 text-foreground hover:bg-white"
+              }`}
+            >
+              <span>📂</span>
+              <span>카테고리{selectedCategory !== "all" ? ` (${selectedCategory})` : ""}</span>
+            </button>
+            {categoryLegendOpen && (
+              <div className="absolute top-full left-0 mt-1.5 bg-white/98 border border-border rounded-xl shadow-2xl overflow-hidden min-w-[200px] z-50">
+                <div className="p-2 space-y-0.5">
+                  <button
+                    onClick={() => { setSelectedCategory("all"); setCategoryLegendOpen(false); }}
+                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${selectedCategory === "all" ? "text-primary bg-primary/10" : "text-foreground hover:bg-gray-50"}`}
+                  >
+                    <span className="text-base">🗺️</span>
+                    <span className="flex-1">전체</span>
+                    {selectedCategory === "all" && <span className="text-primary text-xs">✓</span>}
+                  </button>
+                  {activeCategories.map(({ id, icon, count }) => (
+                    <button
+                      key={id}
+                      onClick={() => { setSelectedCategory(selectedCategory === id ? "all" : id); setCategoryLegendOpen(false); }}
+                      className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${selectedCategory === id ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-gray-50"}`}
+                    >
+                      <span className="text-base">{icon}</span>
+                      <span className="flex-1">{id}</span>
+                      <span className="text-xs text-muted">{count}개</span>
+                      {selectedCategory === id && <span className="text-primary text-xs ml-1">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Desktop: Theme toggle buttons (top-right) ───────────────────── */}
+        <div className="hidden md:flex absolute top-3 right-3 z-20 items-center gap-1 p-1 bg-white/97 backdrop-blur-sm rounded-2xl border border-border/50 shadow-md">
+          <button
+            onClick={() => { if (isCute) handleThemeToggle(); }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              !isCute ? "bg-primary text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
+            }`}
+            aria-pressed={!isCute}
+          >
+            🏛️ 일반 테마
+          </button>
+          <button
+            onClick={() => { if (!isCute) handleThemeToggle(); }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              isCute ? "bg-pink-500 text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
+            }`}
+            aria-pressed={isCute}
+          >
+            ✨ 귀여운 테마
+          </button>
+        </div>
+
+        {/* ─── Mobile Top Header ──────────────────────────────────────────── */}
+        <div className="md:hidden absolute top-0 left-0 right-0 z-20">
+          {/* Row 1: Integrated search + theme button */}
+          <div className="flex items-center gap-2.5 px-3 pt-3 pb-1.5">
+            {/* Search input with integrated logo */}
+            <div className="flex-1 flex items-center gap-2.5 bg-white/92 backdrop-blur-sm rounded-2xl border border-border/30 px-3 py-2.5 shadow-sm focus-within:border-primary/50 transition-colors">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCute ? "bg-pink-100" : "bg-primary"}`}>
+                <span className={`font-bold text-[9px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
+              </div>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="검색"
-                className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted min-w-0"
+                placeholder="후보자, 공약 검색"
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
                 aria-label="후보자 및 공약 검색"
                 type="search"
               />
@@ -879,96 +919,93 @@ export default function MapPageContent() {
               )}
             </div>
 
-            {/* Theme toggle */}
+            {/* Theme toggle - big, colored */}
             <button
               onClick={handleThemeToggle}
-              className={`shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center text-sm transition-colors ${
+              className={`shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 border-2 text-base transition-all shadow-md ${
                 isCute
-                  ? "border-pink-300 bg-pink-50/80 text-pink-600"
-                  : "border-border/50 bg-white/80 text-muted hover:text-foreground"
+                  ? "border-pink-400 bg-pink-500 text-white"
+                  : "border-orange-600/70 bg-primary text-white"
               }`}
               aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
             >
-              {isCute ? "🏛️" : "✨"}
+              <span className="text-lg leading-none">{isCute ? "🏛️" : "✨"}</span>
+              <span className="text-[8px] font-bold leading-none">{isCute ? "일반" : "귀여운"}</span>
             </button>
           </div>
 
           {/* Row 2: Category / City / Candidate buttons */}
-          <div className="flex gap-1.5 px-2 pb-1.5">
-            {/* Category button */}
+          <div className="flex gap-2 px-3 pb-2 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setMobileCategoryOpen(true)}
-              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
                 selectedCategory !== "all"
-                  ? "bg-primary/90 text-white border-primary shadow-sm"
-                  : "bg-white/85 backdrop-blur-sm text-foreground border-border/50"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
               }`}
             >
-              <span aria-hidden="true">📂</span>
-              <span>카테고리</span>
-              {selectedCategory !== "all" && <span className="text-[9px] opacity-80">({selectedCategory})</span>}
+              <span>📂</span>
+              <span>카테고리{selectedCategory !== "all" ? ` (${selectedCategory})` : ""}</span>
             </button>
 
-            {/* City button */}
             <button
               onClick={() => setMobileDistrictOpen(true)}
-              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
                 selectedDistrict
-                  ? "bg-primary/90 text-white border-primary shadow-sm"
-                  : "bg-white/85 backdrop-blur-sm text-foreground border-border/50"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
               }`}
             >
-              <IconLocation size={11} />
-              <span>{selectedDistrict ?? "도시"}</span>
+              <IconLocation size={12} />
+              <span>{selectedDistrict ?? "지역"}</span>
             </button>
 
-            {/* Candidate button */}
             <button
               onClick={() => setMobileCandidateListOpen(true)}
-              className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/85 backdrop-blur-sm text-foreground border-border/50 transition-colors"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-white/90 backdrop-blur-sm text-foreground border-border/50 shadow-sm transition-colors"
             >
-              <IconPerson size={11} />
-              <span>후보자 {filteredCandidates.length}</span>
+              <IconPerson size={12} />
+              <span className="whitespace-nowrap">후보자 {filteredCandidates.length}명</span>
             </button>
           </div>
         </div>
 
-        {/* Mobile Category Legend Popup */}
+        {/* ─── Mobile Category Legend Popup ──────────────────────────────── */}
         {mobileCategoryOpen && (
           <div className="md:hidden fixed inset-0 z-50" onClick={() => setMobileCategoryOpen(false)}>
             <div className="absolute inset-0 bg-black/40" />
             <div
-              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl overflow-hidden"
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
               style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
             >
-              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border">
-                <h2 className="font-bold text-foreground text-base">카테고리</h2>
-                <button onClick={() => setMobileCategoryOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <h2 className="font-bold text-foreground text-lg">카테고리</h2>
+                <button onClick={() => setMobileCategoryOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-background text-muted text-xl leading-none" aria-label="닫기">×</button>
               </div>
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-1.5">
                 <button
                   onClick={() => { setSelectedCategory("all"); setMobileCategoryOpen(false); }}
-                  className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors ${
                     selectedCategory === "all" ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"
                   }`}
                 >
-                  <span className="text-lg">🗺️</span>
-                  <span>전체</span>
-                  {selectedCategory === "all" && <span className="ml-auto text-primary text-xs">✓</span>}
+                  <span className="text-xl">🗺️</span>
+                  <span className="flex-1">전체</span>
+                  {selectedCategory === "all" && <span className="text-primary text-sm font-bold">✓</span>}
                 </button>
                 {activeCategories.map(({ id, icon, count }) => (
                   <button
                     key={id}
                     onClick={() => { setSelectedCategory(selectedCategory === id ? "all" : id); setMobileCategoryOpen(false); }}
-                    className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+                    className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors ${
                       selectedCategory === id ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"
                     }`}
                   >
-                    <span className="text-lg">{icon}</span>
-                    <span>{id}</span>
-                    <span className="ml-auto text-xs text-muted">{count}개</span>
-                    {selectedCategory === id && <span className="text-primary text-xs">✓</span>}
+                    <span className="text-xl">{icon}</span>
+                    <span className="flex-1">{id}</span>
+                    <span className="text-sm text-muted">{count}개</span>
+                    {selectedCategory === id && <span className="text-primary text-sm font-bold ml-1">✓</span>}
                   </button>
                 ))}
               </div>
@@ -976,49 +1013,52 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Mobile Candidate List Popup */}
+        {/* ─── Mobile Candidate List Popup (improved visibility) ─────────── */}
         {mobileCandidateListOpen && (
           <div className="md:hidden fixed inset-0 z-50" onClick={() => setMobileCandidateListOpen(false)}>
-            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-black/50" />
             <div
-              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl flex flex-col"
-              style={{ maxHeight: "65dvh", paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "72dvh", paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border shrink-0">
-                <h2 className="font-bold text-foreground text-base">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                <h2 className="font-bold text-foreground text-lg">
                   {selectedDistrict ? `${selectedDistrict}의 후보자` : "충남의 후보자"}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted">{filteredCandidates.length}명</span>
-                  <button onClick={() => setMobileCandidateListOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+                  <span className="text-sm text-muted font-medium">{filteredCandidates.length}명</span>
+                  <button onClick={() => setMobileCandidateListOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-background text-muted text-xl leading-none" aria-label="닫기">×</button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto divide-y divide-border/50">
+              <div className="flex-1 overflow-y-auto">
                 {filteredCandidates.length === 0 ? (
-                  <div className="py-10 text-center text-muted text-sm">등록된 후보자가 없습니다</div>
+                  <div className="py-14 text-center text-muted">
+                    <IconPerson size={36} />
+                    <p className="text-sm mt-3">등록된 후보자가 없습니다</p>
+                  </div>
                 ) : filteredCandidates.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => { handleCandidateClick(c); setMobileCandidateListOpen(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background/60 transition-colors text-left"
+                    className="w-full flex items-center gap-4 px-5 py-4 hover:bg-background/60 active:bg-background transition-colors text-left border-b border-border/30 last:border-b-0"
                   >
-                    <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/50">
+                    <div className="relative w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-primary/10 border-2 border-border/50">
                       {c.profileImage ? (
-                        <Image src={c.profileImage} alt={c.name} fill sizes="40px" className="object-cover" />
+                        <Image src={c.profileImage} alt={c.name} fill sizes="56px" className="object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-primary font-bold text-sm">{c.name[0]}</span>
+                          <span className="text-primary font-bold text-xl">{c.name[0]}</span>
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-sm">{c.name}</p>
-                      {c.electionType && <p className="text-xs text-muted truncate">{c.electionType}</p>}
-                      <p className="text-xs text-primary truncate">{c.district}</p>
+                      <p className="font-bold text-foreground text-base leading-tight">{c.name}</p>
+                      {c.electionType && <p className="text-xs text-muted mt-0.5 truncate">{c.electionType}</p>}
+                      <p className="text-sm font-semibold mt-0.5 truncate" style={{ color: primaryColor }}>{c.district}</p>
                     </div>
                     {c.candidateStatus && (
-                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${primaryColor}18`, color: primaryColor }}>
+                      <span className="shrink-0 text-[11px] px-2.5 py-1 rounded-xl font-bold" style={{ background: `${primaryColor}15`, color: primaryColor }}>
                         {c.candidateStatus}
                       </span>
                     )}
@@ -1029,7 +1069,7 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Mobile district selector (for menu drawer) */}
+        {/* ─── Mobile district selector ────────────────────────────────────── */}
         {mobileDistrictOpen && districts.length > 0 && (
           <div
             ref={mobileDistrictRef}
@@ -1038,17 +1078,17 @@ export default function MapPageContent() {
           >
             <div className="absolute inset-0 bg-black/40" />
             <div
-              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl overflow-hidden max-h-[60dvh] overflow-y-auto"
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl overflow-hidden max-h-[60dvh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
               style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
             >
-              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border">
-                <h2 className="font-bold text-foreground text-base">지역 선택</h2>
-                <button onClick={() => setMobileDistrictOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-surface z-10">
+                <h2 className="font-bold text-foreground text-lg">지역 선택</h2>
+                <button onClick={() => setMobileDistrictOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-background text-muted text-xl leading-none" aria-label="닫기">×</button>
               </div>
               <button
                 onClick={() => { setSelectedDistrict(null); setMobileDistrictOpen(false); }}
-                className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"}`}
+                className={`w-full text-left px-5 py-3.5 text-sm font-medium transition-colors border-b border-border/30 ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"}`}
               >
                 전체 지역
               </button>
@@ -1056,7 +1096,7 @@ export default function MapPageContent() {
                 <button
                   key={d.name}
                   onClick={() => { handleDistrictSelect(d); setMobileDistrictOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-sm transition-colors ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"}`}
+                  className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-b border-border/30 ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-semibold" : "text-foreground hover:bg-background/70"}`}
                 >
                   {d.name}
                 </button>
@@ -1065,7 +1105,7 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Empty state overlay */}
+        {/* ─── Empty state overlay ─────────────────────────────────────────── */}
         {mapReady && !mapError && candidatesLoaded && candidates.length === 0 && !emptyOverlayDismissed && (
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none" style={{ top: "110px" }}>
             <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-6 py-5 shadow-lg border border-border text-center max-w-xs mx-4">
@@ -1113,12 +1153,10 @@ export default function MapPageContent() {
             </div>
           </div>
         )}
-
-        {/* (Candidate list is now accessible via the header "후보자" button) */}
       </div>
 
       {/* ══════════════════════════════════════════════
-          MOBILE BOTTOM NAV BAR (separated from map, not overlaid)
+          MOBILE BOTTOM NAV BAR
       ══════════════════════════════════════════════ */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border"
@@ -1133,8 +1171,6 @@ export default function MapPageContent() {
           <BottomNavItem icon={<IconMenu size={20} />} label="더보기" onClick={() => setMenuOpen(true)} />
         </div>
       </nav>
-
-      {/* (Mobile candidate list is now integrated in the header area popups) */}
 
       {/* ══════════════════════════════════════════════
           MOBILE MENU DRAWER (right side)
@@ -1206,7 +1242,7 @@ export default function MapPageContent() {
 
             {/* Footer */}
             <div className="p-3 border-t border-border space-y-0.5">
-              {/* Accessibility: font size */}
+              {/* Font size */}
               <div className="flex items-center gap-3 px-3 py-2.5">
                 <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🔤</span>
                 <span className="text-sm font-medium text-foreground flex-1">글씨 크기</span>
