@@ -104,6 +104,7 @@ function PledgePanelContent({
   const [copied, setCopied] = useState(false);
   const [collaborators, setCollaborators] = useState<PledgeCollaboration[]>([]);
   const [collabLoading, setCollabLoading] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
 
   const embedUrl = pledge.youtubeUrl || "";
   const mediaType = embedUrl ? detectMediaType(embedUrl) : null;
@@ -156,11 +157,17 @@ function PledgePanelContent({
       </button>
 
       {/* Title — always visible */}
-      <h3 className="text-lg font-bold text-foreground pr-8 mb-3">{pledge.title}</h3>
+      <h3 className="text-lg font-bold text-foreground pr-8 mb-2">{pledge.title}</h3>
+
+      {/* Like button directly below title */}
+      <div className="mb-3">
+        <PledgeLikeButton pledgeId={pledge.id} />
+      </div>
 
       {/* Tabs */}
       <div role="tablist" aria-label="공약 상세 탭" className="flex gap-0 border-b border-border mb-4">
         <button
+          id="tab-btn-description"
           role="tab"
           aria-selected={activeTab === "description"}
           aria-controls="tab-description"
@@ -174,6 +181,7 @@ function PledgePanelContent({
           공약 설명
         </button>
         <button
+          id="tab-btn-sns"
           role="tab"
           aria-selected={activeTab === "sns"}
           aria-controls="tab-sns"
@@ -190,6 +198,7 @@ function PledgePanelContent({
           )}
         </button>
         <button
+          id="tab-btn-comments"
           role="tab"
           aria-selected={activeTab === "comments"}
           aria-controls="tab-comments"
@@ -200,13 +209,13 @@ function PledgePanelContent({
               : "border-transparent text-muted hover:text-foreground"
           }`}
         >
-          💬 댓글
+          💬 댓글{commentCount !== null && commentCount > 0 ? ` (${commentCount})` : ""}
         </button>
       </div>
 
       {/* ── 공약 설명 tab ──────────────────────────────────────────────────── */}
       {activeTab === "description" && (
-        <div className="space-y-4">
+        <div id="tab-description" role="tabpanel" aria-labelledby="tab-btn-description" className="space-y-4">
           {/* Budget Badge */}
           {pledge.budget && (
             <Badge variant="primary">예산: {pledge.budget}</Badge>
@@ -320,7 +329,7 @@ function PledgePanelContent({
 
       {/* ── 관련 SNS tab ───────────────────────────────────────────────────── */}
       {activeTab === "sns" && (
-        <div className="space-y-4">
+        <div id="tab-sns" role="tabpanel" aria-labelledby="tab-btn-sns" className="space-y-4">
           {/* Pledge Image */}
           {pledge.imageUrl && (
             <div className="relative w-full h-48 rounded-xl overflow-hidden">
@@ -362,8 +371,8 @@ function PledgePanelContent({
                 src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(embedUrl)}&show_text=true&width=500`}
                 width="500"
                 height="400"
+                title="Facebook 게시물"
                 style={{ border: "none", overflow: "hidden" }}
-                scrolling="no"
                 allowFullScreen
                 allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
               />
@@ -381,7 +390,9 @@ function PledgePanelContent({
 
       {/* ── 댓글 tab ───────────────────────────────────────────────────── */}
       {activeTab === "comments" && (
-        <PledgeComments pledgeId={pledge.id} />
+        <div id="tab-comments" role="tabpanel" aria-labelledby="tab-btn-comments">
+          <PledgeComments pledgeId={pledge.id} onCountChange={setCommentCount} />
+        </div>
       )}
 
       {/* Like + Share / QR — always visible at bottom */}

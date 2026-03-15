@@ -108,6 +108,7 @@ export function PledgeLikeButton({ pledgeId, isCute }: LikeButtonProps) {
 interface CommentsProps {
   pledgeId: string;
   isCute?: boolean;
+  onCountChange?: (count: number) => void;
 }
 
 const siteKey =
@@ -115,7 +116,7 @@ const siteKey =
     ? (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "6LeAGYosAAAAAK164nVrXIvD6s5d86YxeJRAC95Z")
     : "6LeAGYosAAAAAK164nVrXIvD6s5d86YxeJRAC95Z";
 
-export function PledgeComments({ pledgeId, isCute }: CommentsProps) {
+export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProps) {
   const [comments, setComments] = useState<PledgeComment[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -139,8 +140,10 @@ export function PledgeComments({ pledgeId, isCute }: CommentsProps) {
     try {
       const r = await fetch(`/api/pledges/${pledgeId}/comments?limit=50`);
       const d = await r.json();
+      const newTotal = d.total ?? 0;
       setComments(d.data ?? []);
-      setTotal(d.total ?? 0);
+      setTotal(newTotal);
+      onCountChange?.(newTotal);
     } catch {
       // ignore
     } finally {

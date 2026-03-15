@@ -25,8 +25,11 @@ export default function CuteMascot() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-40 pointer-events-none select-none"
-      style={{ maxWidth: 260 }}
+      className="fixed right-4 z-50 pointer-events-none select-none"
+      style={{
+        maxWidth: 260,
+        bottom: "calc(3.5rem + 1rem + env(safe-area-inset-bottom))",
+      }}
     >
       {/* Speech bubble */}
       <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 mb-2 shadow-lg border-2 border-pink-200 relative">

@@ -113,24 +113,38 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center gap-3">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+        <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="개혁 충남 홈으로">
           {isCute ? (
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-pink-100">
               {cuteLogoError ? (
-                <span className="text-pink-500 font-bold text-sm">개혁</span>
+                <span className="text-pink-500 font-bold text-sm" aria-hidden="true">개혁</span>
               ) : (
                 <Image
                   src="/themes/cute/images/logo-cute.png"
                   width={32}
                   height={32}
-                  alt="개혁"
+                  alt="개혁 충남 로고"
                   onError={() => setCuteLogoError(true)}
                 />
               )}
             </div>
           ) : (
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">개혁</span>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+              <Image
+                src="/images/reform-party-logo.png"
+                width={28}
+                height={28}
+                alt="개혁신당 로고"
+                className="object-contain"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.style.display = "none";
+                  const span = document.createElement("span");
+                  span.textContent = "개혁";
+                  span.className = "text-white font-bold text-sm";
+                  img.parentElement?.appendChild(span);
+                }}
+              />
             </div>
           )}
           <span className="hidden sm:block font-semibold text-foreground">{t.logoSubText}</span>
@@ -192,16 +206,18 @@ export default function Navbar() {
           <FontSizeControl />
         </div>
 
-        {/* Theme toggle — desktop only */}
+        {/* Theme toggle — visible on all screens */}
         <button
           onClick={handleThemeToggle}
-          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors shrink-0 ${
             isCute
               ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
               : "border-border bg-background text-muted hover:text-foreground hover:bg-border/50"
           }`}
+          aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
         >
-          {isCute ? "🏛️ 일반 모드" : "✨ 귀여운 모드"}
+          <span className="hidden sm:inline">{isCute ? "🏛️ 일반 모드" : "✨ 귀여운 모드"}</span>
+          <span className="sm:hidden">{isCute ? "🏛️" : "✨"}</span>
         </button>
 
         {/* Auth Button */}
