@@ -127,6 +127,29 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/notifications",
+    label: "알림 관리",
+    shortLabel: "알림",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M13.73 21a2 2 0 0 1-3.46 0"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "관리자 설정",
     shortLabel: "설정",

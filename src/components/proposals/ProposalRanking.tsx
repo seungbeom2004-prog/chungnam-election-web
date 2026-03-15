@@ -43,7 +43,7 @@ export default function ProposalRanking({ refreshKey }: Props) {
         <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
           🔥 인기 제안 랭킹
         </h2>
-        <p className="text-[11px] text-muted mt-0.5">좋아요를 많이 받은 제안이 채택됩니다!</p>
+        <p className="text-[11px] text-muted mt-0.5">좋아요를 많이 받은 제안이 채택 될 수 있습니다</p>
       </div>
 
       <div className="p-3 space-y-2">

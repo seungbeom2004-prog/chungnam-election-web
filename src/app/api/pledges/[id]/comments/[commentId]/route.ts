@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { ZodError } from "zod";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 import { deletePledgeCommentSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 
@@ -15,7 +15,7 @@ export async function DELETE(
     const body = await request.json();
     const { password } = deletePledgeCommentSchema.parse(body);
 
-    const { data: comment, error } = await supabaseAdmin
+    const { data: comment, error } = await supabase
       .from("PledgeComment")
       .select("id, passwordHash, status")
       .eq("id", commentId)
@@ -27,7 +27,7 @@ export async function DELETE(
     const match = await bcrypt.compare(password, comment.passwordHash);
     if (!match) return apiError("비밀번호가 올바르지 않습니다", 403);
 
-    await supabaseAdmin
+    await supabase
       .from("PledgeComment")
       .update({ status: "deleted", deletedAt: new Date().toISOString() })
       .eq("id", commentId);

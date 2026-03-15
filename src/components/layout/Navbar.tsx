@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
+import UserProfileButton from "@/components/layout/UserProfileButton";
 
 // 2026년 지방선거일: 6월 3일(수) — 짝수 해 6월 첫째 수요일
 const ELECTION_DATE = new Date("2026-06-03T00:00:00+09:00");
@@ -205,12 +206,7 @@ export default function Navbar() {
 
         {/* Auth Button */}
         {session ? (
-          <Link
-            href={session.user?.role === "admin" ? "/admin" : "/dashboard"}
-            className="shrink-0 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
-          >
-            {session.user?.role === "admin" ? t.navAdminButton : t.navDashboardButton}
-          </Link>
+          <UserProfileButton />
         ) : (
           <Link
             href="/login"

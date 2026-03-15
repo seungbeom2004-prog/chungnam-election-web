@@ -114,8 +114,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         </div>
 
         {/* ── Right / Ranking sidebar ─────────────────────────────── */}
-        {/* Mobile: shown after main column (flex-col order) */}
-        <div className="lg:w-72 xl:w-80 shrink-0">
+        {/* Mobile: order-first (appears at top); Desktop: normal right sidebar */}
+        <div className="order-first lg:order-last lg:w-72 xl:w-80 shrink-0">
           <div className="lg:sticky lg:top-20">
             <ProposalRanking refreshKey={rankingRefreshKey} />
           </div>

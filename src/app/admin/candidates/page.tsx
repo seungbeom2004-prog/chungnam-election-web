@@ -86,7 +86,7 @@ export default function AdminCandidatesPage() {
   const [districts, setDistricts] = useState<DistrictOption[]>([]);
   const [elections, setElections] = useState<ElectionOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterTab>("pending");
+  const [filter, setFilter] = useState<FilterTab>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -250,9 +250,9 @@ export default function AdminCandidatesPage() {
   };
 
   const filterTabs: { key: FilterTab; label: string }[] = [
+    { key: "all", label: "전체" },
     { key: "pending", label: "승인 대기" },
     { key: "approved", label: "승인됨" },
-    { key: "all", label: "전체" },
   ];
 
   const filtered = candidates.filter((c) => {

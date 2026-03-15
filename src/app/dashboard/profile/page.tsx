@@ -68,6 +68,10 @@ export default function ProfilePage() {
   const [manualDistrictMode, setManualDistrictMode] = useState(false);
   const [manualDistrictText, setManualDistrictText] = useState("");
 
+  // NEC integration state
+  const [isNecRegistered, setIsNecRegistered] = useState<boolean | null>(null);
+  const [necName, setNecName] = useState<string | null>(null);
+
   // Both 구·시·군의회의원선거 (기초의원: 가/나/다선거구) and
   // 시·도의회의원선거 (광역의원: 제1/2/3선거구) have ward-level subdivisions.
   const isWardLevel =
@@ -108,6 +112,8 @@ export default function ProfilePage() {
           kakao: data.kakao || "",
           naverBlog: data.naverBlog || "",
         });
+        setIsNecRegistered(data.isNecRegistered ?? false);
+        setNecName(data.name ?? null);
         setElectionType(data.electionType || "");
         const district: string = data.district || "";
         const spaceIdx = district.indexOf(" ");
@@ -543,6 +549,50 @@ export default function ProfilePage() {
             <p className="text-xs text-muted">📍 핀 위치 변경은 관리자에게 문의하세요.</p>
           </div>
         </div>
+      </Card>
+
+      {/* NEC Integration card */}
+      <Card className="mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            🏛️ 선관위 등록 정보 연동
+          </h2>
+          {isNecRegistered && (
+            <span className="text-[11px] px-2 py-0.5 bg-green-100 text-green-700 border border-green-200 rounded-full font-medium">
+              ✓ 연동됨
+            </span>
+          )}
+        </div>
+
+        {isNecRegistered ? (
+          <div className="space-y-2">
+            <div className="px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-xs font-medium text-green-800 mb-1">✓ 선관위 등록 정보와 연동되어 있습니다</p>
+              {necName && (
+                <p className="text-xs text-green-700">등록 이름: <span className="font-semibold">{necName}</span></p>
+              )}
+            </div>
+            <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-700">
+                ⚠️ 선관위 등록 정보와 연동되면 <strong>이름, 생년월일, 지역구</strong>를 직접 변경할 수 없습니다.
+                변경이 필요하면 관리자에게 문의하세요.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="px-3 py-2.5 bg-muted/10 border border-border rounded-lg">
+              <p className="text-xs text-muted mb-1">선관위 후보자 등록 정보와 연동하면 자동으로 이름, 선거구가 입력됩니다.</p>
+              <p className="text-xs text-amber-600">
+                ⚠️ 연동 후에는 <strong>이름, 생년월일, 지역구</strong>를 직접 변경할 수 없습니다.
+              </p>
+            </div>
+            <p className="text-xs text-muted">
+              선관위 등록 연동은 관리자 검토 후 처리됩니다.
+              관리자에게 문의하거나 <a href="/admin/nec-sync" className="text-primary underline">선관위 동기화 페이지</a>를 통해 요청하세요.
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Social accounts card */}
