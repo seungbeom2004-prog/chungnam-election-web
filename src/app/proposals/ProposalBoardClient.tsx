@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import ProposalList from "@/components/proposals/ProposalList";
+import ProposalForm from "@/components/proposals/ProposalForm";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const ProposalRanking = dynamic(() => import("@/components/proposals/ProposalRanking"), { ssr: false });
+const ProposalMapEmbed = dynamic(() => import("@/components/proposals/ProposalMapEmbed"), { ssr: false });
 
 interface CandidateOption {
   id: string;
@@ -22,106 +24,179 @@ interface Props {
   districts: DistrictOption[];
 }
 
+interface MapPost {
+  id: string;
+  title: string;
+  content: string;
+  authorName: string;
+  postType: string;
+  latitude: number;
+  longitude: number;
+  likeCount?: number;
+  createdAt: string;
+}
+
 export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
   const [rankingRefreshKey, setRankingRefreshKey] = useState(0);
+  const [showForm, setShowForm] = useState(false);
+  const [postTypeFilter, setPostTypeFilter] = useState<"all" | "제안" | "민원">("all");
+  const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const { isCute } = useTheme();
+
+  // Fetch posts with location for the map
+  useEffect(() => {
+    fetch("/api/proposals?limit=500&hasLocation=true")
+      .then((r) => r.json())
+      .then((json) => {
+        const data = (json.data ?? []) as Array<{
+          id: string; title: string; content: string; authorName: string;
+          postType?: string; latitude: number | null; longitude: number | null;
+          likeCount?: number; createdAt: string;
+        }>;
+        setMapPosts(
+          data
+            .filter((p) => p.latitude != null && p.longitude != null)
+            .map((p) => ({
+              id: p.id,
+              title: p.title,
+              content: p.content,
+              authorName: p.authorName,
+              postType: p.postType ?? "제안",
+              latitude: p.latitude as number,
+              longitude: p.longitude as number,
+              likeCount: p.likeCount,
+              createdAt: p.createdAt,
+            }))
+        );
+      })
+      .catch(() => {});
+  }, [rankingRefreshKey]);
 
   const filteredCandidates = selectedCity
     ? candidates.filter((c) => c.district === selectedCity || c.district.startsWith(selectedCity))
     : candidates;
 
-  const hasFilter = !!(selectedCity || selectedCandidateId);
-
   return (
     <div>
-      {/* Title */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">
-          {isCute && <span className="mr-2">🌼</span>}공약 제안 게시판
-        </h1>
-        <p className="text-sm text-muted leading-relaxed">
-          후보자에게 직접 공약을 제안하고 의견을 나눠보세요. 좋아요를 많이 받은 제안은 후보자가 채택할 수 있습니다.
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground mb-1">
+            {isCute && <span className="mr-2">🌼</span>}민원 & 제안
+          </h1>
+          <p className="text-sm text-muted leading-relaxed">
+            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요. 지도에서 위치를 지정할 수 있습니다.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          {showForm ? "✕ 닫기" : "✍️ 글 작성하기"}
+        </button>
       </div>
 
-      {/* Layout: mobile = stack (filters/form first), desktop = 2-col (list left, ranking right) */}
-      <div className="flex flex-col lg:flex-row lg:gap-6 gap-6">
-        {/* ── Left / Main column ─────────────────────────────────── */}
-        <div className="flex-1 min-w-0 space-y-5">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[140px]">
-              <label htmlFor="filter-city" className="block text-xs font-medium text-muted mb-1.5">시군구</label>
-              <select
-                id="filter-city"
-                value={selectedCity}
-                onChange={(e) => {
-                  setSelectedCity(e.target.value);
-                  if (e.target.value) {
-                    const valid = candidates.some(
-                      (c) =>
-                        c.id === selectedCandidateId &&
-                        (c.district === e.target.value || c.district.startsWith(e.target.value))
-                    );
-                    if (!valid) setSelectedCandidateId("");
-                  }
-                }}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-              >
-                <option value="">전체 지역</option>
-                {districts.map((d) => (
-                  <option key={d.name} value={d.name}>{d.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex-1 min-w-[140px]">
-              <label htmlFor="filter-candidate" className="block text-xs font-medium text-muted mb-1.5">후보자</label>
-              <select
-                id="filter-candidate"
-                value={selectedCandidateId}
-                onChange={(e) => setSelectedCandidateId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-              >
-                <option value="">모두에게 제안 (전체)</option>
-                {filteredCandidates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.district})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {hasFilter && (
-              <div className="flex items-end">
-                <button
-                  onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }}
-                  className="px-3 py-2 text-sm text-muted hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
-                >
-                  초기화
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Proposal list + form */}
-          <ProposalList
+      {/* Write form */}
+      {showForm && (
+        <div className="mb-6">
+          <ProposalForm
             candidateId={selectedCandidateId || undefined}
             city={selectedCity || undefined}
-            showForm
-            onRankingRefresh={() => setRankingRefreshKey(k => k + 1)}
+            onSuccess={() => {
+              setShowForm(false);
+              setRankingRefreshKey((k) => k + 1);
+            }}
           />
         </div>
+      )}
 
-        {/* ── Right / Ranking sidebar ─────────────────────────────── */}
-        {/* Mobile: order-first (appears at top); Desktop: normal right sidebar */}
-        <div className="order-first lg:order-last lg:w-72 xl:w-80 shrink-0">
-          <div className="lg:sticky lg:top-20">
-            <ProposalRanking refreshKey={rankingRefreshKey} />
+      {/* Map section */}
+      <div className="mb-6 rounded-2xl overflow-hidden border border-border shadow-sm" style={{ height: 380 }}>
+        {/* Legend */}
+        <div className="flex items-center gap-4 px-4 py-2 bg-white/95 border-b border-border text-xs font-medium">
+          <span className="font-semibold text-foreground">📍 지도</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#3B82F6" }} />
+            <span className="text-muted">제안</span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#FF5A00" }} />
+            <span className="text-muted">민원</span>
+          </div>
+          <span className="text-muted ml-auto">{mapPosts.length}개 게시물</span>
         </div>
+        <div style={{ height: "calc(380px - 40px)" }}>
+          <ProposalMapEmbed items={mapPosts} />
+        </div>
+      </div>
+
+      {/* Rankings - 2 columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} />
+        <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} />
+      </div>
+
+      {/* Filters + list */}
+      <div className="space-y-4">
+        {/* Filters row */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Post type tabs */}
+          <div className="flex items-center gap-1 bg-background rounded-xl p-1 border border-border">
+            {(["all", "제안", "민원"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setPostTypeFilter(t)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  postTypeFilter === t
+                    ? t === "민원" ? "bg-orange-500 text-white" : t === "제안" ? "bg-blue-500 text-white" : "bg-primary text-white"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {t === "all" ? "전체" : t === "제안" ? "💡 제안" : "📢 민원"}
+              </button>
+            ))}
+          </div>
+
+          {/* City filter */}
+          <select
+            value={selectedCity}
+            onChange={(e) => { setSelectedCity(e.target.value); setSelectedCandidateId(""); }}
+            className="px-3 py-2 text-xs border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 transition-colors"
+          >
+            <option value="">전체 지역</option>
+            {districts.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+          </select>
+
+          {/* Candidate filter */}
+          <select
+            value={selectedCandidateId}
+            onChange={(e) => setSelectedCandidateId(e.target.value)}
+            className="px-3 py-2 text-xs border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 transition-colors"
+          >
+            <option value="">전체 후보자</option>
+            {filteredCandidates.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.district})</option>)}
+          </select>
+
+          {(selectedCity || selectedCandidateId) && (
+            <button
+              onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }}
+              className="px-3 py-2 text-xs text-muted hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+
+        {/* Post list */}
+        <ProposalList
+          candidateId={selectedCandidateId || undefined}
+          city={selectedCity || undefined}
+          postType={postTypeFilter === "all" ? undefined : postTypeFilter}
+          showForm={false}
+          onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
+        />
       </div>
     </div>
   );

@@ -126,6 +126,7 @@ export interface ProposalPost {
   latitude?: number | null;
   longitude?: number | null;
   likeCount?: number;
+  postType?: string;  // "민원" | "제안"
   hasLiked?: boolean;
   candidate?: { id: string; name: string; district: string } | null;
 }

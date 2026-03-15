@@ -201,6 +201,7 @@ export const createProposalSchema = z.object({
   longitude: z.number().min(-180).max(180).optional().nullable(),
   honeypot: z.string().max(0, "Bot detected").optional(), // anti-bot
   captchaToken: z.string().min(1, "보안 문자 토큰이 누락되었습니다"),
+  postType: z.enum(["민원", "제안"]).default("제안"),
 });
 
 // ── Pledge Comment Schemas ────────────────────────────────────

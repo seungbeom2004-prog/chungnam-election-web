@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function AboutPage() {
   const { data: candidatesRaw } = await supabase
     .from("Candidate")
-    .select("id, name, district, profileImage, slogan, createdAt")
+    .select("id, name, district, profileImage, slogan, createdAt, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog")
     .eq("verified", true)
     .eq("role", "candidate")
     .eq("caucusStatus", "공천 확정")
@@ -51,6 +51,13 @@ export default async function AboutPage() {
     profileImage: c.profileImage ?? null,
     slogan: c.slogan ?? null,
     createdAt: c.createdAt,
+    youtube: c.youtube ?? null,
+    instagram: c.instagram ?? null,
+    twitter: c.twitter ?? null,
+    facebook: c.facebook ?? null,
+    tiktok: c.tiktok ?? null,
+    kakao: c.kakao ?? null,
+    naverBlog: c.naverBlog ?? null,
     likeCount: likeMap[c.id] ?? 0,
     pledgeCount: pledgeMap[c.id] ?? 0,
   }));

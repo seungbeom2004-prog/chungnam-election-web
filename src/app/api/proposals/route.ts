@@ -16,11 +16,17 @@ function hashIp(ip: string): string {
 const SAFE_SELECT = "id, content, authorName, city, candidateId, status, createdAt";
 /** Columns added in migration v10 */
 const V10_SELECT = "title, latitude, longitude, acceptedAt";
+/** Columns added in migration v11 */
+const V11_SELECT = "postType";
 /** Full select with ProposalLike join */
-const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT},
+const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
   candidate:Candidate!candidateId(id, name, district),
   likes:ProposalLike(count)`;
-/** Fallback select without v10 additions */
+/** Fallback without v11 (postType) */
+const V10_FALLBACK_SELECT = `${SAFE_SELECT}, ${V10_SELECT},
+  candidate:Candidate!candidateId(id, name, district),
+  likes:ProposalLike(count)`;
+/** Fallback select without v10/v11 additions */
 const FALLBACK_SELECT = `${SAFE_SELECT},
   candidate:Candidate!candidateId(id, name, district)`;
 
@@ -30,6 +36,7 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get("city");
     const candidateId = searchParams.get("candidateId");
     const hasLocation = searchParams.get("hasLocation") === "true";
+    const postType = searchParams.get("postType");
     const sort = searchParams.get("sort") ?? "popular"; // "latest" | "popular"
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 500);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
@@ -44,15 +51,22 @@ export async function GET(request: NextRequest) {
 
       if (city) q = q.ilike("city", `${city}%`);
       if (candidateId) q = q.eq("candidateId", candidateId);
+      // postType filter only applied when v11 migration is present
+      if (postType && (selectStr.includes("postType"))) q = q.eq("postType", postType);
       // hasLocation only works after v10 migration
       return q;
     };
 
-    // Try full query first; fall back to safe query if v10 columns missing
+    const MIGRATION_ERRORS = ["42703", "42P01", "PGRST204", "PGRST200"];
+    // Try full query first (v10 + v11 columns)
     let { data: proposals, count, error } = await buildQuery(FULL_SELECT);
 
-    if (error && (error.code === "42703" || error.code === "42P01" || error.code === "PGRST204" || error.code === "PGRST200")) {
-      // v10 migration not applied yet — use safe fallback
+    if (error && MIGRATION_ERRORS.includes(error.code)) {
+      // v11 (postType) not applied yet — try without it
+      ({ data: proposals, count, error } = await buildQuery(V10_FALLBACK_SELECT));
+    }
+    if (error && MIGRATION_ERRORS.includes(error.code)) {
+      // v10 migration not applied yet — use fully safe fallback
       ({ data: proposals, count, error } = await buildQuery(FALLBACK_SELECT));
     }
 
@@ -134,6 +148,7 @@ export async function POST(request: NextRequest) {
       title,
       latitude,
       longitude,
+      postType,
       ...baseInsert
     } = validated;
 
@@ -153,6 +168,7 @@ export async function POST(request: NextRequest) {
       title,
       latitude: latitude ?? null,
       longitude: longitude ?? null,
+      postType: postType ?? "제안",
       ipHash,
       status: "pending",
     };

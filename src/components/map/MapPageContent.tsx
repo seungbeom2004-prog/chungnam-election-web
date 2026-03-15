@@ -570,7 +570,7 @@ export default function MapPageContent() {
           active
           onClick={() => setPanelOpen((o) => !o)}
         />
-        <RailItem icon={<IconBulb size={19} />} label="제안" href="/proposals" />
+        <RailItem icon={<IconBulb size={19} />} label="민원/제안" href="/proposals" />
         <RailItem icon={<IconClipboard size={19} />} label="공약" href="/pledges" />
         <RailItem icon={<IconUsers size={19} />} label="후보자" href="/about" />
 
@@ -1153,7 +1153,7 @@ export default function MapPageContent() {
               </div>
               <div className="px-4 pb-4">
                 <a href="/proposals" className="block w-full text-center py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
-                  제안 게시판에서 보기 →
+                  민원 & 제안 게시판에서 보기 →
                 </a>
               </div>
             </div>
@@ -1171,7 +1171,7 @@ export default function MapPageContent() {
       >
         <div className="flex items-center h-14">
           <BottomNavItem icon={<IconMapPin size={20} />} label="지도" active />
-          <BottomNavItem icon={<IconBulb size={20} />} label="제안" href="/proposals" />
+          <BottomNavItem icon={<IconBulb size={20} />} label="민원/제안" href="/proposals" />
           <BottomNavItem icon={<IconClipboard size={20} />} label="공약" href="/pledges" />
           <BottomNavItem icon={<IconUsers size={20} />} label="소개" href="/about" />
           <BottomNavItem icon={<IconMenu size={20} />} label="더보기" onClick={() => setMenuOpen(true)} />
@@ -1223,7 +1223,7 @@ export default function MapPageContent() {
             {/* Nav links */}
             <div className="flex-1 overflow-y-auto p-3 space-y-0.5">
               <DrawerItem icon={<IconMapPin size={18} />} label="공약지도" href="/" onClick={() => setMenuOpen(false)} />
-              <DrawerItem icon={<IconBulb size={18} />} label="제안 게시판" href="/proposals" onClick={() => setMenuOpen(false)} />
+              <DrawerItem icon={<IconBulb size={18} />} label="민원 & 제안" href="/proposals" onClick={() => setMenuOpen(false)} />
               <DrawerItem icon={<IconClipboard size={18} />} label="공약 목록" href="/pledges" onClick={() => setMenuOpen(false)} />
               <DrawerItem icon={<IconUsers size={18} />} label="후보자 소개" href="/about" onClick={() => setMenuOpen(false)} />
               {session && (

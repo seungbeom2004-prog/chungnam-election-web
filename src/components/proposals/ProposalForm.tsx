@@ -9,6 +9,7 @@ const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: fa
 interface Props {
   candidateId?: string;
   city?: string;
+  postType?: "민원" | "제안";
   onSuccess?: () => void;
 }
 
@@ -22,6 +23,7 @@ const LEGAL_NOTICE = `[게시물 작성 시 유의사항 및 법적 책임]
 3. 본 홈페이지의 관리자는 공직선거법을 위반하는 내용(허위사실, 비방, 불법 선거운동 등)이 포함된 게시물이나 댓글을 발견할 경우, 사전 통보 없이 즉시 삭제할 수 있으며, 해당 게시물로 인해 발생하는 모든 민·형사상 법적 책임은 작성자 본인에게 있습니다.`;
 
 export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
+  const [postType, setPostType] = useState<"민원" | "제안">("제안");
   const [title, setTitle] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [password, setPassword] = useState("");
@@ -81,6 +83,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         content: content.trim(),
         captchaToken: recaptchaToken ?? "no-captcha",
       };
+      body.postType = postType;
       if (candidateId) body.candidateId = candidateId;
       if (city) body.city = city;
       if (useLocation && latitude != null && longitude != null) {
@@ -128,13 +131,13 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
   if (success) {
     return (
       <div className="p-5 border border-border rounded-xl bg-surface text-center">
-        <p className="text-sm font-medium text-foreground mb-1">🎉 제안이 접수되었습니다!</p>
+        <p className="text-sm font-medium text-foreground mb-1">🎉 {postType}이 접수되었습니다!</p>
         <p className="text-xs text-muted mb-3">소중한 의견 감사합니다. 검토 후 게시됩니다.</p>
         <button
           onClick={() => setSuccess(false)}
           className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
         >
-          ✍️ 추가 제안하기
+          ✍️ 추가 작성하기
         </button>
       </div>
     );
@@ -145,7 +148,13 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       onSubmit={handleSubmit}
       className="p-5 border border-border rounded-xl bg-surface space-y-3"
     >
-      <h2 className="text-sm font-semibold text-foreground">✍️ 제안 작성</h2>
+      <h2 className="text-sm font-semibold text-foreground">✍️ 민원 / 제안 작성</h2>
+
+      {/* Post type selector */}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setPostType("제안")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "제안" ? "bg-blue-500 text-white border-blue-500" : "bg-background text-muted border-border"}`}>💡 제안</button>
+        <button type="button" onClick={() => setPostType("민원")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "민원" ? "bg-orange-500 text-white border-orange-500" : "bg-background text-muted border-border"}`}>📢 민원</button>
+      </div>
 
       {/* Legal notice */}
       <details className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -183,7 +192,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="제안 제목을 입력해주세요"
+          placeholder={`${postType} 제목을 입력해주세요`}
           maxLength={MAX_TITLE}
           required
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
@@ -193,7 +202,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       {/* 제안자명 + Password */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">제안자명<span aria-hidden="true"> *</span></label>
+          <label className="block text-sm font-medium text-foreground mb-1.5">작성자명<span aria-hidden="true"> *</span></label>
           <input
             type="text"
             value={authorName}
@@ -234,7 +243,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="공약으로 제안하고 싶은 내용을 구체적으로 작성해주세요."
+          placeholder={postType === "민원" ? "민원 내용을 구체적으로 작성해주세요." : "공약으로 제안하고 싶은 내용을 구체적으로 작성해주세요."}
           maxLength={MAX_CONTENT}
           rows={4}
           required
@@ -303,7 +312,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         disabled={submitting}
         className="w-full px-4 py-2.5 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
       >
-        {submitting ? "제출 중..." : "🚀 제안 제출하기"}
+        {submitting ? "제출 중..." : `🚀 ${postType} 제출하기`}
       </button>
     </form>
   );

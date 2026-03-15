@@ -31,11 +31,12 @@ function RankBadge({ rank }: { rank: number }) {
 interface Props {
   candidateId?: string;
   city?: string;
+  postType?: string;
   showForm?: boolean;
   onRankingRefresh?: () => void;
 }
 
-export default function ProposalList({ candidateId, city, showForm, onRankingRefresh }: Props) {
+export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -49,12 +50,13 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
       const params = new URLSearchParams();
       if (candidateId) params.set("candidateId", candidateId);
       if (city) params.set("city", city);
+      if (postType) params.set("postType", postType);
       params.set("sort", sortMode);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String((p - 1) * PAGE_SIZE));
       return `/api/proposals?${params.toString()}`;
     },
-    [candidateId, city, sort]
+    [candidateId, city, sort, postType]
   );
 
   const fetchProposals = useCallback(
@@ -84,7 +86,7 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
   useEffect(() => {
     fetchProposals(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidateId, city, sort]);
+  }, [candidateId, city, sort, postType]);
 
   const handleSortChange = (newSort: "latest" | "popular") => {
     setSort(newSort);
@@ -99,6 +101,7 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
     const params = new URLSearchParams();
     if (candidateId) params.set("candidateId", candidateId);
     if (city) params.set("city", city);
+    if (postType) params.set("postType", postType);
     params.set("sort", sort);
     params.set("limit", String(PAGE_SIZE));
     params.set("offset", String(page * PAGE_SIZE));
@@ -208,10 +211,10 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
         </div>
       ) : proposals.length === 0 ? (
         <div className="py-12 text-center">
-          <div className="text-4xl mb-3">💡</div>
-          <p className="text-base font-semibold text-foreground mb-1">아직 제안이 없습니다</p>
+          <div className="text-4xl mb-3">{postType === "민원" ? "📢" : "💡"}</div>
+          <p className="text-base font-semibold text-foreground mb-1">아직 {postType === "민원" ? "민원이" : "제안이"} 없습니다</p>
           <p className="text-sm text-muted">
-            {showForm ? "첫 번째 공약 제안을 남겨보세요!" : "아직 등록된 제안이 없습니다."}
+            {showForm ? `첫 번째 ${postType === "민원" ? "민원을" : "공약 제안을"} 남겨보세요!` : `아직 등록된 ${postType === "민원" ? "민원이" : "제안이"} 없습니다.`}
           </p>
         </div>
       ) : (
@@ -237,6 +240,14 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {proposal.postType && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: proposal.postType === "민원" ? "#FF5A00" : "#3B82F6" }}
+                          >
+                            {proposal.postType === "민원" ? "📢 민원" : "💡 제안"}
+                          </span>
+                        )}
                         <span className="text-sm font-semibold text-foreground">
                           {proposal.authorName}
                         </span>

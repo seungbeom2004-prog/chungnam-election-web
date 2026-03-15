@@ -95,6 +95,7 @@ model ProposalPost {
   status       String   @default("pending")
   latitude     Float?
   longitude    Float?
+  postType     String   @default("제안")
   acceptedAt   DateTime?
   deletedAt    DateTime?
   createdAt    DateTime @default(now())

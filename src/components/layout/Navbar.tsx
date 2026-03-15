@@ -224,7 +224,7 @@ export default function Navbar() {
 
         {/* Nav items */}
         <RailNavItem href="/" icon={<IconMapPin />} label="공약지도" active={isMap} />
-        <RailNavItem href="/proposals" icon={<IconBulb />} label="제안" active={isProposals} />
+        <RailNavItem href="/proposals" icon={<IconBulb />} label="민원/제안" active={isProposals} />
         <RailNavItem href="/pledges" icon={<IconClipboard />} label="공약" active={isPledges} />
         <RailNavItem href="/about" icon={<IconUsers />} label="후보자" active={isAbout} />
 
@@ -265,7 +265,7 @@ export default function Navbar() {
           <nav className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar" aria-label="주요 메뉴">
             {[
               { href: "/", label: t.navMapLink, active: isMap },
-              { href: "/proposals", label: "제안 게시판", active: isProposals },
+              { href: "/proposals", label: "민원 & 제안", active: isProposals },
               { href: "/pledges", label: "공약 목록", active: isPledges },
               { href: "/about", label: "후보자 소개", active: isAbout },
             ].map(({ href, label, active }) => (
