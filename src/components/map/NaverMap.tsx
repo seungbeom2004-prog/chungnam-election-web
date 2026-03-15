@@ -817,6 +817,14 @@ export default function NaverMap({
         compactById[c.id] = collision;
       }
 
+      // ── Synchronize: if ANY candidate has a collision, ALL go compact ────
+      // This prevents a mix where some name boxes show and others don't,
+      // which looks visually broken on screen.
+      const anyCollision = Object.values(compactById).some((v) => v);
+      if (anyCollision) {
+        for (const key of Object.keys(compactById)) compactById[key] = true;
+      }
+
       // ── Pass 3: create markers ─────────────────────────────────────────────
       for (const { candidate, lat, lng } of positions) {
         const compact = compactById[candidate.id] ?? baseCompact;

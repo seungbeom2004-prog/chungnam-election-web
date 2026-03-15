@@ -105,24 +105,28 @@ export default function CandidatePopup({ candidate, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-40 flex items-center justify-center"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${candidate.name} 후보자 정보`}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30" />
 
       {/* Popup Card */}
       <div
-        className="relative z-50 bg-surface rounded-2xl shadow-2xl border border-border w-full max-w-sm mx-4 mb-6 md:mb-0 overflow-hidden"
+        className="relative z-50 bg-surface rounded-2xl shadow-2xl border border-border w-full max-w-sm mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         style={{ animation: "popupSlideUp 250ms ease-out" }}
       >
         {/* Close button */}
         <button
           onClick={onClose}
+          aria-label="팝업 닫기"
           className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors z-10"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path
               d="M15 5L5 15M5 5l10 10"
               stroke="currentColor"

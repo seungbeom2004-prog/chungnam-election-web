@@ -177,10 +177,10 @@ function DDayBadge({ compact = false }: { compact?: boolean }) {
     );
   }
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${isUrgent ? "bg-red-500 text-white" : "bg-primary/10 text-primary"}`}>
-      <span>🗳️</span>
+    <Link href="/about" title="2026 전국동시지방선거 소개" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-opacity hover:opacity-80 ${isUrgent ? "bg-red-500 text-white" : "bg-primary/10 text-primary"}`}>
+      <span aria-hidden="true">🗳️</span>
       <span>지방선거 {label}</span>
-    </div>
+    </Link>
   );
 }
 
@@ -322,7 +322,6 @@ export default function MapPageContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
-  const [legendOpen, setLegendOpen] = useState(false);
   const [mobileDistrictOpen, setMobileDistrictOpen] = useState(false);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
@@ -488,13 +487,7 @@ export default function MapPageContent() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [districtDropdownOpen]);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (mobileDistrictRef.current && !mobileDistrictRef.current.contains(e.target as Node)) setMobileDistrictOpen(false);
-    };
-    if (mobileDistrictOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [mobileDistrictOpen]);
+  // Mobile district modal closes via its own backdrop click handler
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -852,92 +845,152 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* ─── Mobile Top Search Bar ─────────────────────────────────────────── */}
-        <div className="md:hidden absolute top-0 left-0 right-0 z-20 px-3 pt-3 flex items-center gap-2">
-          {/* Search / district selector pill */}
-          <div ref={mobileDistrictRef} className="flex-1 relative">
-            {/* outer div (not button) to avoid nested-button hydration error */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setMobileDistrictOpen((o) => !o)}
-              onKeyDown={(e) => e.key === "Enter" && setMobileDistrictOpen((o) => !o)}
-              className="w-full flex items-center gap-2 bg-white/97 backdrop-blur-sm rounded-2xl shadow-lg border border-border px-4 py-2.5 cursor-pointer select-none"
-            >
-              <IconSearch size={14} className="text-muted shrink-0" />
-              <span className="text-sm font-medium text-foreground flex-1 truncate">
-                {selectedDistrict ?? "후보자, 공약 등 검색"}
-              </span>
-              {selectedDistrict && (
+        {/* ─── Mobile Top Header (2 rows) ──────────────────────────────────── */}
+        <div className="md:hidden absolute top-0 left-0 right-0 z-20 bg-white/97 backdrop-blur-sm shadow-sm border-b border-border/40">
+          {/* Row 1: Logo + Search input + Theme toggle */}
+          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+            {/* Logo */}
+            <Link href="/" aria-label="개혁 충남 홈" className="shrink-0">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden ${isCute ? "bg-pink-100" : "bg-primary"}`}>
+                {isCute ? (
+                  <Image
+                    src="/themes/cute/images/logo-cute.png"
+                    width={36}
+                    height={36}
+                    alt="개혁 충남"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <Image
+                    src="/images/reform-party-logo.png"
+                    width={28}
+                    height={28}
+                    alt="개혁신당"
+                    className="object-contain"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = "none";
+                      const span = document.createElement("span");
+                      span.textContent = "개혁";
+                      span.className = "text-white font-bold text-xs";
+                      img.parentElement?.appendChild(span);
+                    }}
+                  />
+                )}
+              </div>
+            </Link>
+
+            {/* Search input */}
+            <div className="flex-1 flex items-center gap-2 bg-background/80 rounded-2xl border border-border px-3 py-2 focus-within:border-primary/50 transition-colors">
+              <IconSearch size={14} className="text-muted shrink-0" aria-hidden="true" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="후보자, 공약 등 검색"
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
+                aria-label="후보자 및 공약 검색"
+                type="search"
+              />
+              {searchQuery && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); setSelectedDistrict(null); }}
-                  className="text-muted text-base leading-none hover:text-foreground transition-colors"
-                  aria-label="지역 선택 초기화"
-                >×</button>
+                  onClick={() => setSearchQuery("")}
+                  className="text-muted hover:text-foreground text-base leading-none transition-colors"
+                  aria-label="검색어 지우기"
+                >
+                  ×
+                </button>
               )}
             </div>
-            {mobileDistrictOpen && districts.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50">
-                <button
-                  onClick={() => { setSelectedDistrict(null); setMobileDistrictOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"}`}
-                >
-                  전체 지역
-                </button>
-                {districts.map((d) => (
-                  <button
-                    key={d.name}
-                    onClick={() => handleDistrictSelect(d)}
-                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"}`}
-                  >
-                    {d.name}
-                  </button>
-                ))}
-              </div>
-            )}
+
+            {/* Theme toggle */}
+            <button
+              onClick={handleThemeToggle}
+              className={`shrink-0 w-11 h-11 rounded-2xl border flex items-center justify-center text-base transition-colors ${
+                isCute
+                  ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
+                  : "border-border bg-background text-muted hover:text-foreground hover:bg-border/50"
+              }`}
+              aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
+              title={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
+            >
+              {isCute ? "🏛️" : "✨"}
+            </button>
           </div>
 
-          {/* Category filter button */}
-          <button
-            onClick={() => setLegendOpen((o) => !o)}
-            className="w-11 h-11 bg-white/97 backdrop-blur-sm rounded-2xl shadow-lg border border-border flex items-center justify-center text-base shrink-0"
-            aria-label="카테고리"
+          {/* Row 2: Category filter buttons (scrollable, always visible labels) */}
+          <div
+            className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 pb-2.5"
+            role="toolbar"
+            aria-label="카테고리 필터"
           >
-            {selectedCategory !== "all" ? (activeCategories.find((c) => c.id === selectedCategory)?.icon ?? "🗺️") : "🗺️"}
-          </button>
-        </div>
-
-        {/* Mobile category popover */}
-        {legendOpen && (
-          <div className="md:hidden absolute top-16 right-3 z-30 bg-white/98 backdrop-blur-sm border border-border rounded-2xl shadow-xl p-3 min-w-[160px]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-foreground">카테고리</span>
-              <button onClick={() => setLegendOpen(false)} className="text-muted text-sm">✕</button>
-            </div>
             <button
-              onClick={() => { setSelectedCategory("all"); setLegendOpen(false); }}
-              className={`flex items-center gap-2 w-full px-2 py-2 rounded-xl text-xs transition-colors mb-0.5 font-medium ${selectedCategory === "all" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"}`}
+              onClick={() => setSelectedCategory("all")}
+              aria-pressed={selectedCategory === "all"}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+                selectedCategory === "all"
+                  ? "bg-primary text-white border-primary shadow-sm"
+                  : "bg-white text-foreground border-border hover:border-primary/40"
+              }`}
             >
-              <span className="w-5 text-center text-sm">🗺️</span>
-              <span className="flex-1 text-left">전체</span>
+              🗺️ 전체
             </button>
-            {activeCategories.map(({ id, icon, count }) => (
+            {activeCategories.map(({ id, icon }) => (
               <button
                 key={id}
-                onClick={() => { setSelectedCategory(selectedCategory === id ? "all" : id); setLegendOpen(false); }}
-                className={`flex items-center gap-2 w-full px-2 py-2 rounded-xl text-xs transition-colors mb-0.5 font-medium ${selectedCategory === id ? "bg-primary/10 text-primary" : "text-foreground hover:bg-background/60"}`}
+                onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
+                aria-pressed={selectedCategory === id}
+                className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+                  selectedCategory === id
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "bg-white text-foreground border-border hover:border-primary/40"
+                }`}
               >
-                <span className="w-5 text-center text-sm">{icon}</span>
-                <span className="flex-1 text-left">{id}</span>
-                <span className="text-[10px] px-1 rounded-full bg-border text-muted">{count}</span>
+                <span aria-hidden="true">{icon}</span>
+                <span>{id}</span>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Mobile district selector (for menu drawer) */}
+        {mobileDistrictOpen && districts.length > 0 && (
+          <div
+            ref={mobileDistrictRef}
+            className="md:hidden fixed inset-0 z-50"
+            onClick={() => setMobileDistrictOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl overflow-hidden max-h-[60dvh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+            >
+              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border">
+                <h2 className="font-bold text-foreground text-base">지역 선택</h2>
+                <button onClick={() => setMobileDistrictOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+              </div>
+              <button
+                onClick={() => { setSelectedDistrict(null); setMobileDistrictOpen(false); }}
+                className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors ${!selectedDistrict ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"}`}
+              >
+                전체 지역
+              </button>
+              {districts.map((d) => (
+                <button
+                  key={d.name}
+                  onClick={() => { handleDistrictSelect(d); setMobileDistrictOpen(false); }}
+                  className={`w-full text-left px-4 py-3 text-sm transition-colors ${selectedDistrict === d.name ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"}`}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Empty state overlay */}
         {mapReady && !mapError && candidatesLoaded && candidates.length === 0 && !emptyOverlayDismissed && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none" style={{ top: "60px" }}>
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none" style={{ top: "110px" }}>
             <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-6 py-5 shadow-lg border border-border text-center max-w-xs mx-4">
               <p className="text-sm font-semibold text-foreground mb-3">아직 등록된 후보자가 없습니다</p>
               <a href="/signup" className="inline-block px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors">
@@ -1109,8 +1162,8 @@ export default function MapPageContent() {
                   </div>
                 </Link>
               )}
-              <button onClick={() => setMenuOpen(false)} className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-background text-muted text-lg transition-colors ml-auto">
-                ×
+              <button onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-background text-muted text-lg transition-colors ml-auto">
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
@@ -1126,13 +1179,32 @@ export default function MapPageContent() {
                   <DrawerItem icon={<IconDashboard size={18} />} label="대시보드" href="/dashboard" onClick={() => setMenuOpen(false)} />
                 </>
               )}
+
+              {/* District selector */}
+              {districts.length > 0 && (
+                <>
+                  <div className="my-2 h-px bg-border" />
+                  <DrawerItem
+                    icon={<IconLocation size={18} />}
+                    label={selectedDistrict ? `지역: ${selectedDistrict}` : "지역 선택 (전체)"}
+                    onClick={() => { setMenuOpen(false); setMobileDistrictOpen(true); }}
+                  />
+                </>
+              )}
             </div>
 
             {/* Footer */}
             <div className="p-3 border-t border-border space-y-0.5">
+              {/* Accessibility: font size */}
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🔤</span>
+                <span className="text-sm font-medium text-foreground flex-1">글씨 크기</span>
+                <FontSizeCompact />
+              </div>
+
               {/* Election D-Day */}
               <div className="flex items-center gap-3 px-3 py-2.5">
-                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0">🗳️</span>
+                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🗳️</span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground">2026 지방선거</p>
                 </div>

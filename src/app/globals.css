@@ -149,3 +149,14 @@ html.theme-cute .rounded-xl { border-radius: 1.25rem; }
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ── Naver Maps copyright: keep it above the fixed bottom nav on mobile ──── */
+/* The Naver Maps SDK renders the attribution inside the map container.
+   On mobile we push it above the 56px bottom navigation ribbon.         */
+@media (max-width: 767px) {
+  .naver-copyright,
+  ._nhn_copyright,
+  [class*="naver-copyright"] {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom)) !important;
+  }
+}

@@ -38,7 +38,10 @@ export default function CuteInviteBox() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 bg-white rounded-2xl shadow-2xl border-2 border-pink-200 p-4 max-w-[280px] animate-slideUp">
+    <div
+      className="fixed right-4 z-50 bg-white rounded-2xl shadow-2xl border-2 border-pink-200 p-4 max-w-[280px] animate-slideUp"
+      style={{ bottom: "calc(3.5rem + 1rem + env(safe-area-inset-bottom))" }}
+    >
       {/* Close button */}
       <button
         onClick={dismiss}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import { NavbarConditional, FooterConditional } from "@/components/layout/NavbarConditional";
+import { NavbarConditional, FooterConditional, MobileBottomNavConditional, MobileContentSpacer } from "@/components/layout/NavbarConditional";
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -60,8 +60,12 @@ export default function RootLayout({
             </a>
             <DisclaimerModal />
             <NavbarConditional />
-            <main id="main-content" tabIndex={-1}>{children}</main>
+            <main id="main-content" tabIndex={-1}>
+              {children}
+              <MobileContentSpacer />
+            </main>
             <FooterConditional />
+            <MobileBottomNavConditional />
           </ThemeProvider>
         </AuthProvider>
       </body>
