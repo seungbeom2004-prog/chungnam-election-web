@@ -30,7 +30,8 @@ export async function GET(
 }
 
 // POST /api/pledges/[id]/collaborators — Add collaborator (join a common pledge)
-// Any candidate can add themselves as a collaborator to an existing pledge
+// - Any candidate can add themselves (body without targetCandidateId)
+// - Pledge owner can add a specific candidate (body with targetCandidateId)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,9 +41,18 @@ export async function POST(
     if (!session) return apiError("로그인이 필요합니다", 401);
 
     const { id: pledgeId } = await params;
-    const candidateId = (session.user as { id: string }).id;
+    const sessionCandidateId = (session.user as { id: string }).id;
 
-    // Verify pledge exists and is visible
+    // Parse optional targetCandidateId from body (owner adding someone else)
+    let targetCandidateId: string | null = null;
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (body.candidateId && typeof body.candidateId === "string") {
+        targetCandidateId = body.candidateId;
+      }
+    } catch { /* body may be empty */ }
+
+    // Verify pledge exists
     const { data: pledge } = await supabase
       .from("Pledge")
       .select("id, candidateId, visible")
@@ -50,9 +60,25 @@ export async function POST(
       .single();
 
     if (!pledge) return apiError("공약을 찾을 수 없습니다", 404);
-    if (!pledge.visible) return apiError("비공개 공약에는 참여할 수 없습니다", 403);
-    if (pledge.candidateId === candidateId) {
-      return apiError("본인의 공약에는 공동공약 참여를 할 수 없습니다", 400);
+
+    let candidateId: string;
+
+    if (targetCandidateId) {
+      // Owner is adding another candidate directly — verify requester is the owner
+      if (pledge.candidateId !== sessionCandidateId) {
+        return apiError("공약 작성자만 다른 후보를 추가할 수 있습니다", 403);
+      }
+      if (targetCandidateId === sessionCandidateId) {
+        return apiError("본인의 공약에는 공동공약 참여를 할 수 없습니다", 400);
+      }
+      candidateId = targetCandidateId;
+    } else {
+      // Candidate is adding themselves — pledge must be visible
+      if (!pledge.visible) return apiError("비공개 공약에는 참여할 수 없습니다", 403);
+      if (pledge.candidateId === sessionCandidateId) {
+        return apiError("본인의 공약에는 공동공약 참여를 할 수 없습니다", 400);
+      }
+      candidateId = sessionCandidateId;
     }
 
     // Add collaboration

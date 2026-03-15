@@ -473,14 +473,19 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
       <div className="flex items-center gap-2 mt-2 flex-wrap">
         {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
         {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
-        {(tile.likeCount ?? 0) > 0 && (
-          <span className="ml-auto shrink-0 flex items-center gap-0.5 text-[11px] text-red-400 font-medium">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            {tile.likeCount}
-          </span>
-        )}
+        <span className={`ml-auto shrink-0 flex items-center gap-0.5 text-[11px] font-medium ${
+          (tile.likeCount ?? 0) > 0 ? "text-red-400" : "text-muted/60"
+        }`}>
+          <svg
+            width="10" height="10" viewBox="0 0 24 24"
+            fill={(tile.likeCount ?? 0) > 0 ? "currentColor" : "none"}
+            stroke="currentColor" strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          {tile.likeCount ?? 0}
+        </span>
       </div>
     </Link>
   );

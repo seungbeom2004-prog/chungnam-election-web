@@ -61,6 +61,26 @@ export default function CollaborationModal({
     fetchData();
   }, [pledge.id, pledge.candidateId, currentCandidateId]);
 
+  const handleAddCollaborator = async (candidateId: string) => {
+    setActionLoading(`add-${candidateId}`);
+    try {
+      const res = await fetch(`/api/pledges/${pledge.id}/collaborators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? "추가에 실패했습니다.");
+      } else {
+        await fetchCollaborators();
+      }
+    } catch {
+      alert("추가에 실패했습니다.");
+    }
+    setActionLoading(null);
+  };
+
   const handleRemoveCollaborator = async (candidateId: string) => {
     setActionLoading(candidateId);
     try {
@@ -166,15 +186,11 @@ export default function CollaborationModal({
               </div>
 
               {/* Add collaborator (owner only) */}
-              {isOwner && filteredCandidates.length > 0 && (
+              {isOwner && (
                 <div>
                   <h3 className="text-sm font-semibold text-foreground mb-2">
                     공동공약 참여자 추가
                   </h3>
-                  <p className="text-xs text-muted mb-2">
-                    다른 후보자가 직접 이 공약에 참여 신청을 할 수도 있습니다.
-                    아래에서 공약 링크를 공유하세요.
-                  </p>
                   <input
                     type="text"
                     value={searchQuery}
@@ -182,23 +198,36 @@ export default function CollaborationModal({
                     placeholder="이름 또는 지역으로 검색"
                     className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-2"
                   />
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {filteredCandidates.map((candidate) => (
-                      <div
-                        key={candidate.id}
-                        className="flex items-center justify-between py-2 px-3 hover:bg-background rounded-lg transition-colors"
-                      >
-                        <div>
-                          <span className="text-sm font-medium text-foreground">
-                            {candidate.name}
-                          </span>
-                          <span className="text-xs text-muted ml-1.5">
-                            ({candidate.district})
-                          </span>
+                  {filteredCandidates.length === 0 ? (
+                    <p className="text-xs text-muted py-2">
+                      {searchQuery ? "검색 결과가 없습니다." : "추가 가능한 후보자가 없습니다."}
+                    </p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {filteredCandidates.map((candidate) => (
+                        <div
+                          key={candidate.id}
+                          className="flex items-center justify-between py-2 px-3 hover:bg-background rounded-lg transition-colors"
+                        >
+                          <div>
+                            <span className="text-sm font-medium text-foreground">
+                              {candidate.name}
+                            </span>
+                            <span className="text-xs text-muted ml-1.5">
+                              ({candidate.district})
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleAddCollaborator(candidate.id)}
+                            disabled={actionLoading === `add-${candidate.id}`}
+                            className="text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-primary/10"
+                          >
+                            {actionLoading === `add-${candidate.id}` ? "추가 중..." : "추가"}
+                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

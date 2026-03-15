@@ -53,7 +53,9 @@ function isNaverReady(): boolean {
       typeof naver !== "undefined" &&
       !!naver.maps &&
       typeof naver.maps.Map === "function" &&
-      typeof naver.maps.LatLng === "function"
+      typeof naver.maps.LatLng === "function" &&
+      !!naver.maps.Event &&
+      typeof naver.maps.Event.addListener === "function"
     );
   } catch {
     return false;
