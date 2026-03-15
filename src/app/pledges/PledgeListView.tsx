@@ -61,7 +61,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [pledgeTypeFilter, setPledgeTypeFilter] = useState<"all" | "map" | "bylaws">("all");
-  const [sortBy, setSortBy] = useState<"latest" | "popular">("latest");
+  const [sortBy, setSortBy] = useState<"latest" | "popular">("popular");
 
   // Extract unique cities from candidate districts
   const cities = useMemo(() => {
@@ -196,7 +196,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
     setSortBy("latest");
   };
 
-  const hasFilters = search || selectedCandidateId || selectedCategories.size > 0 || selectedCities.size > 0 || pledgeTypeFilter !== "all" || sortBy !== "latest";
+  const hasFilters = search || selectedCandidateId || selectedCategories.size > 0 || selectedCities.size > 0 || pledgeTypeFilter !== "all" || sortBy !== "popular";
 
   return (
     <div className="min-h-screen bg-background">
