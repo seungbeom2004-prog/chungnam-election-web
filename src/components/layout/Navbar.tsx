@@ -8,6 +8,50 @@ import { useState, useEffect } from "react";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 
+// 2026년 지방선거일: 6월 3일(수) — 짝수 해 6월 첫째 수요일
+const ELECTION_DATE = new Date("2026-06-03T00:00:00+09:00");
+
+function ElectionDDay() {
+  const [dday, setDday] = useState<number | null>(null);
+
+  useEffect(() => {
+    const calc = () => {
+      const now = new Date();
+      const diff = ELECTION_DATE.getTime() - now.getTime();
+      setDday(Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    };
+    calc();
+    const timer = setInterval(calc, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (dday === null) return null;
+
+  const label =
+    dday > 0
+      ? `D-${dday}`
+      : dday === 0
+      ? "D-Day"
+      : `D+${Math.abs(dday)}`;
+
+  const isUrgent = dday >= 0 && dday <= 30;
+
+  return (
+    <Link
+      href="/about"
+      title="2026 전국동시지방선거"
+      className={`shrink-0 hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+        isUrgent
+          ? "bg-red-500 text-white border-red-500 animate-pulse"
+          : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+      }`}
+    >
+      <span>🗳️</span>
+      <span>지방선거 {label}</span>
+    </Link>
+  );
+}
+
 /** Persistent font-size scaler stored in localStorage. */
 function FontSizeControl() {
   const [scale, setScale] = useState(1.0);
@@ -138,6 +182,9 @@ export default function Navbar() {
             후보자 소개
           </Link>
         </nav>
+
+        {/* D-Day counter */}
+        <ElectionDDay />
 
         {/* Font size controls — hidden on smallest phones to prevent overflow */}
         <div className="hidden sm:block shrink-0">

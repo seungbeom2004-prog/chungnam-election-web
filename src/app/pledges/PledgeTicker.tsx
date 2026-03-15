@@ -26,6 +26,8 @@ export interface PledgeTile {
   candidateProfileImage: string | null;
   /** Co-proposers (excludes the original author). */
   collaborators: { id: string; name: string; profileImage: string | null }[];
+  /** Cumulative like count from PledgeLike table. */
+  likeCount?: number;
 }
 
 function truncate(text: string, max: number) {

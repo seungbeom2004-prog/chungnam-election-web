@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import NaverMap from "@/components/map/NaverMap";
+import type { ProposalMapItem } from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
 import BylawPanel from "@/components/map/BylawPanel";
 import CandidatePopup from "@/components/map/CandidatePopup";
@@ -149,6 +150,8 @@ function CandidateSidebar({
 export default function MapPageContent() {
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [bylawGroups, setBylawGroups] = useState<BylawGroup[]>([]);
+  const [proposals, setProposals] = useState<ProposalMapItem[]>([]);
+  const [selectedProposal, setSelectedProposal] = useState<ProposalMapItem | null>(null);
   const [candidates, setCandidates] = useState<CandidateForMap[]>([]);
   const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
@@ -226,6 +229,36 @@ export default function MapPageContent() {
       .then((json) => {
         const data = json.data ?? json;
         setPledges(Array.isArray(data) ? data : []);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Fetch citizen proposals that have a location (for map pins)
+  useEffect(() => {
+    fetch("/api/proposals?limit=200&hasLocation=true")
+      .then((res) => res.json())
+      .then((json) => {
+        const data: Array<{
+          id: string;
+          title?: string;
+          content: string;
+          authorName: string;
+          latitude: number | null;
+          longitude: number | null;
+          likeCount?: number;
+        }> = json.data ?? json ?? [];
+        const items: ProposalMapItem[] = data
+          .filter((p) => p.latitude != null && p.longitude != null)
+          .map((p) => ({
+            id: p.id,
+            title: p.title ?? p.content.slice(0, 30),
+            content: p.content,
+            authorName: p.authorName,
+            latitude: p.latitude as number,
+            longitude: p.longitude as number,
+            likeCount: p.likeCount ?? 0,
+          }));
+        setProposals(items);
       })
       .catch(console.error);
   }, []);
@@ -383,6 +416,11 @@ export default function MapPageContent() {
     setCenter(group.councilLat, group.councilLng);
   }, [setSelectedBylawGroup, setCenter]);
 
+  const handleProposalClick = useCallback((proposal: ProposalMapItem) => {
+    setSelectedProposal(proposal);
+    setCenter(proposal.latitude, proposal.longitude);
+  }, [setCenter]);
+
   return (
     <div className="flex w-full overflow-hidden" style={{ height: "calc(100dvh - 3.5rem)" }}>
       {/* Map area */}
@@ -396,6 +434,8 @@ export default function MapPageContent() {
             onCandidateClick={handleCandidateClick}
             onBylawGroupClick={handleBylawGroupClick}
             bylawGroups={bylawGroups}
+            proposals={proposals}
+            onProposalClick={handleProposalClick}
             isCute={isCute}
             selectedCategory={selectedCategory}
             selectedPledgeId={selectedPledge?.id ?? null}
@@ -578,6 +618,44 @@ export default function MapPageContent() {
             candidate={selectedCandidate}
             onClose={() => setSelectedCandidate(null)}
           />
+        )}
+
+        {/* Proposal popup — shown when a 💬 citizen suggestion pin is tapped */}
+        {selectedProposal && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[min(90vw,380px)]">
+            <div className="bg-white/98 backdrop-blur-sm border border-purple-200 rounded-2xl shadow-xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-start gap-2 px-4 pt-4 pb-3">
+                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-base">💬</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-purple-700 truncate">{selectedProposal.title}</p>
+                  <p className="text-[11px] text-muted mt-0.5">{selectedProposal.authorName} · ♥ {selectedProposal.likeCount}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedProposal(null)}
+                  className="shrink-0 text-muted hover:text-foreground text-lg leading-none mt-0.5"
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </div>
+              {/* Content */}
+              <div className="px-4 pb-3">
+                <p className="text-xs text-foreground line-clamp-3 leading-relaxed">{selectedProposal.content}</p>
+              </div>
+              {/* Footer */}
+              <div className="px-4 pb-4">
+                <a
+                  href="/proposals"
+                  className="block w-full text-center py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+                >
+                  제안 게시판에서 보기 →
+                </a>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Desktop sidebar toggle */}

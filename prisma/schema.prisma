@@ -62,6 +62,9 @@ model Pledge {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  likes         PledgeLike[]
+  comments      PledgeComment[]
+
   @@index([candidateId])
   @@index([visible])
   @@index([pledgeType])
@@ -76,16 +79,20 @@ model District {
 }
 
 model ProposalPost {
-  id          String   @id @default(cuid())
-  content     String   @db.Text
-  authorName  String
-  city        String?
-  candidateId String?
-  ipHash      String
-  status      String   @default("pending")
-  acceptedAt  DateTime?
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  title        String   @default("")
+  content      String   @db.Text
+  authorName   String
+  passwordHash String?
+  city         String?
+  candidateId  String?
+  ipHash       String
+  status       String   @default("pending")
+  latitude     Float?
+  longitude    Float?
+  acceptedAt   DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime @default(now())
 
   likes       ProposalLike[]
 
@@ -115,4 +122,31 @@ model CandidateLike {
 
   @@unique([candidateId, ipHash])
   @@index([candidateId])
+}
+
+model PledgeLike {
+  id        String   @id @default(cuid())
+  pledgeId  String
+  pledge    Pledge   @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@unique([pledgeId, ipHash])
+  @@index([pledgeId])
+}
+
+model PledgeComment {
+  id           String    @id @default(cuid())
+  pledgeId     String
+  pledge       Pledge    @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
+  content      String    @db.Text
+  authorName   String
+  passwordHash String
+  ipHash       String
+  status       String    @default("visible")
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([pledgeId])
+  @@index([status])
 }

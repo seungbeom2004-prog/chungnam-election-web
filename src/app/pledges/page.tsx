@@ -73,12 +73,26 @@ export default async function PledgesPage() {
     candidate: { id: string; name: string; profileImage: string | null } | null;
   };
 
-  const { data: collabsRaw } = pledgeIds.length > 0
-    ? await supabase
-        .from("PledgeCollaboration")
-        .select("pledgeId, candidateId, candidate:Candidate!candidateId(id, name, profileImage)")
-        .in("pledgeId", pledgeIds)
-    : { data: [] };
+  const [{ data: collabsRaw }, { data: likesRaw }] = await Promise.all([
+    pledgeIds.length > 0
+      ? supabase
+          .from("PledgeCollaboration")
+          .select("pledgeId, candidateId, candidate:Candidate!candidateId(id, name, profileImage)")
+          .in("pledgeId", pledgeIds)
+      : Promise.resolve({ data: [] }),
+    pledgeIds.length > 0
+      ? supabase
+          .from("PledgeLike")
+          .select("pledgeId")
+          .in("pledgeId", pledgeIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // Build likeCount map
+  const likeCountMap: Record<string, number> = {};
+  for (const l of ((likesRaw ?? []) as { pledgeId: string }[])) {
+    likeCountMap[l.pledgeId] = (likeCountMap[l.pledgeId] ?? 0) + 1;
+  }
 
   // Build a map: pledgeId → collaborators[]
   const collabsByPledge: Record<string, { id: string; name: string; profileImage: string | null }[]> = {};
@@ -131,6 +145,7 @@ export default async function PledgesPage() {
         candidateDistrict: candidate.district,
         candidateProfileImage: candidate.profileImage,
         collaborators: collabsByPledge[p.id] ?? [],
+        likeCount: likeCountMap[p.id] ?? 0,
       });
     }
   }

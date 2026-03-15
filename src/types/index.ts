@@ -111,6 +111,7 @@ export interface Category {
 
 export interface ProposalPost {
   id: string;
+  title: string;
   content: string;
   authorName: string;
   city?: string | null;
@@ -120,9 +121,29 @@ export interface ProposalPost {
   acceptedAt?: string | null;
   deletedAt?: string | null;
   createdAt: string;
+  latitude?: number | null;
+  longitude?: number | null;
   likeCount?: number;
   hasLiked?: boolean;
   candidate?: { id: string; name: string; district: string } | null;
+}
+
+export interface PledgeLike {
+  id: string;
+  pledgeId: string;
+  ipHash: string;
+  createdAt: string;
+}
+
+export interface PledgeComment {
+  id: string;
+  pledgeId: string;
+  content: string;
+  authorName: string;
+  ipHash: string;
+  status: string;
+  deletedAt?: string | null;
+  createdAt: string;
 }
 
 export interface CandidateLike {

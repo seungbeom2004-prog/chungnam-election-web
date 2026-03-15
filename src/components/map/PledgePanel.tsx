@@ -7,6 +7,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { useMapStore } from "@/store/useMapStore";
 import { Badge } from "@/components/ui";
 import type { PledgeCollaboration } from "@/types";
+import { PledgeLikeButton, PledgeComments } from "@/components/pledges/PledgeInteractions";
 
 /** Extract YouTube video ID from a URL embedded in any text. */
 function extractYouTubeId(text: string): string | null {
@@ -98,7 +99,7 @@ function PledgePanelContent({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"description" | "sns">("description");
+  const [activeTab, setActiveTab] = useState<"description" | "sns" | "comments">("description");
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
   const [collaborators, setCollaborators] = useState<PledgeCollaboration[]>([]);
@@ -187,6 +188,19 @@ function PledgePanelContent({
           {hasMedia && (
             <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" aria-hidden="true" />
           )}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "comments"}
+          aria-controls="tab-comments"
+          onClick={() => setActiveTab("comments")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            activeTab === "comments"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-foreground"
+          }`}
+        >
+          💬 댓글
         </button>
       </div>
 
@@ -365,8 +379,17 @@ function PledgePanelContent({
         </div>
       )}
 
-      {/* Share / QR — always visible at bottom */}
+      {/* ── 댓글 tab ───────────────────────────────────────────────────── */}
+      {activeTab === "comments" && (
+        <PledgeComments pledgeId={pledge.id} />
+      )}
+
+      {/* Like + Share / QR — always visible at bottom */}
       <div className="mt-5 pt-4 border-t border-border">
+        {/* Like button */}
+        <div className="mb-3">
+          <PledgeLikeButton pledgeId={pledge.id} />
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowQR((v) => !v)}

@@ -61,6 +61,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
   const [pledgeTypeFilter, setPledgeTypeFilter] = useState<"all" | "map" | "bylaws">("all");
+  const [sortBy, setSortBy] = useState<"latest" | "popular">("latest");
 
   // Extract unique cities from candidate districts
   const cities = useMemo(() => {
@@ -132,9 +133,9 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
     return { all: tiles.length, map: mapCount, bylaws: bylawCount };
   }, [tiles]);
 
-  // Filter tiles
+  // Filter + sort tiles
   const filtered = useMemo(() => {
-    return tiles.filter((t) => {
+    const result = tiles.filter((t) => {
       // Search
       if (search) {
         const q = search.toLowerCase();
@@ -164,7 +165,12 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
       }
       return true;
     });
-  }, [tiles, search, selectedCandidateId, selectedCategories, selectedCities, pledgeTypeFilter]);
+    // Sort
+    if (sortBy === "popular") {
+      result.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
+    }
+    return result;
+  }, [tiles, search, selectedCandidateId, selectedCategories, selectedCities, pledgeTypeFilter, sortBy]);
 
   const toggleCategory = (name: string) => {
     setSelectedCategories((prev) => {
@@ -187,9 +193,10 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
     setSelectedCategories(new Set());
     setSelectedCities(new Set());
     setPledgeTypeFilter("all");
+    setSortBy("latest");
   };
 
-  const hasFilters = search || selectedCandidateId || selectedCategories.size > 0 || selectedCities.size > 0 || pledgeTypeFilter !== "all";
+  const hasFilters = search || selectedCandidateId || selectedCategories.size > 0 || selectedCities.size > 0 || pledgeTypeFilter !== "all" || sortBy !== "latest";
 
   return (
     <div className="min-h-screen bg-background">
@@ -315,7 +322,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
             </div>
           )}
 
-          {/* Candidate filter */}
+          {/* Candidate filter + sort */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-muted shrink-0">후보자:</span>
             <select
@@ -329,10 +336,32 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
                 <option key={c.id} value={c.id}>{c.name} ({c.district})</option>
               ))}
             </select>
+            {/* Sort */}
+            <div className="flex items-center gap-1 ml-auto">
+              <span className="text-xs font-semibold text-muted shrink-0">정렬:</span>
+              <div className="flex items-center gap-1 bg-background border border-border rounded-full p-0.5">
+                <button
+                  onClick={() => setSortBy("latest")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${
+                    sortBy === "latest" ? "bg-primary text-white" : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  🕐 최신
+                </button>
+                <button
+                  onClick={() => setSortBy("popular")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${
+                    sortBy === "popular" ? "bg-primary text-white" : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  🔥 인기
+                </button>
+              </div>
+            </div>
             {hasFilters && (
               <button
                 onClick={clearAllFilters}
-                className="ml-auto px-2.5 py-1 text-xs text-muted hover:text-red-500 hover:bg-red-50 rounded-lg border border-border transition-colors"
+                className="px-2.5 py-1 text-xs text-muted hover:text-red-500 hover:bg-red-50 rounded-lg border border-border transition-colors"
               >
                 필터 초기화
               </button>
@@ -440,13 +469,19 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
         {tile.description}
       </p>
 
-      {/* Address + budget */}
-      {(tile.address || tile.budget) && (
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
-          {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
-          {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
-        </div>
-      )}
+      {/* Address + budget + like count */}
+      <div className="flex items-center gap-2 mt-2 flex-wrap">
+        {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
+        {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
+        {(tile.likeCount ?? 0) > 0 && (
+          <span className="ml-auto shrink-0 flex items-center gap-0.5 text-[11px] text-red-400 font-medium">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {tile.likeCount}
+          </span>
+        )}
+      </div>
     </Link>
   );
 }
