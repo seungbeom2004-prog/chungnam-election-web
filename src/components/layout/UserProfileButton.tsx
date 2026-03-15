@@ -382,14 +382,13 @@ export default function UserProfileButton() {
             onClick={() => setOpen(false)}
           />
           <div
-            className={`
-              z-50
-              md:absolute md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:shadow-xl
-              md:border md:border-border md:bg-surface md:max-h-[600px]
-              fixed inset-x-0 bottom-0 rounded-t-2xl shadow-2xl bg-surface border-t border-border max-h-[90vh]
-              overflow-hidden
-              flex flex-col
-            `}
+            className="
+              fixed z-[9999]
+              md:top-14 md:right-4 md:bottom-auto md:inset-x-auto md:w-80 md:rounded-xl md:shadow-xl
+              md:border md:border-border md:max-h-[600px]
+              inset-x-0 bottom-0 rounded-t-2xl shadow-2xl border-t border-border max-h-[90vh]
+              bg-surface overflow-hidden flex flex-col
+            "
           >
             {/* Mobile handle */}
             <div className="md:hidden flex justify-center pt-2 pb-1">
