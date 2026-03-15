@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
@@ -98,55 +97,23 @@ export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const [cuteLogoError, setCuteLogoError] = useState(false);
   const t = useUITexts();
   const { isCute, setTheme } = useTheme();
 
   const handleThemeToggle = () => {
     const next = isCute ? "regular" : "cute";
-    if (next === "cute") setCuteLogoError(false);
     setTheme(next);
     router.push(`/${next}`);
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-40 bg-transparent">
       <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center gap-3">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="개혁 충남 홈으로">
-          {isCute ? (
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-pink-100">
-              {cuteLogoError ? (
-                <span className="text-pink-500 font-bold text-sm" aria-hidden="true">개혁</span>
-              ) : (
-                <Image
-                  src="/themes/cute/images/logo-cute.png"
-                  width={32}
-                  height={32}
-                  alt="개혁 충남 로고"
-                  onError={() => setCuteLogoError(true)}
-                />
-              )}
-            </div>
-          ) : (
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
-              <Image
-                src="/images/reform-party-logo.png"
-                width={28}
-                height={28}
-                alt="개혁신당 로고"
-                className="object-contain"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.style.display = "none";
-                  const span = document.createElement("span");
-                  span.textContent = "개혁";
-                  span.className = "text-white font-bold text-sm";
-                  img.parentElement?.appendChild(span);
-                }}
-              />
-            </div>
-          )}
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCute ? "bg-pink-100" : "bg-primary"}`}>
+            <span className={`font-bold text-sm leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
+          </div>
           <span className="hidden sm:block font-semibold text-foreground">{t.logoSubText}</span>
         </Link>
 

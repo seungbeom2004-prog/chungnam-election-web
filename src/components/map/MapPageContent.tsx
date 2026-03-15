@@ -316,13 +316,14 @@ export default function MapPageContent() {
   const [emptyOverlayDismissed, setEmptyOverlayDismissed] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
   const [mobileDistrictOpen, setMobileDistrictOpen] = useState(false);
+  const [mobileCategoryOpen, setMobileCategoryOpen] = useState(false);
+  const [mobileCandidateListOpen, setMobileCandidateListOpen] = useState(false);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
   const mobileDistrictRef = useRef<HTMLDivElement>(null);
@@ -527,7 +528,7 @@ export default function MapPageContent() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex w-screen overflow-hidden" style={{ height: "100dvh" }}>
+    <div className="flex w-screen overflow-hidden md:h-dvh" style={{ height: "calc(100dvh - 3.5rem)" }}>
 
       {/* ══════════════════════════════════════════════
           DESKTOP LEFT RAIL
@@ -846,55 +847,31 @@ export default function MapPageContent() {
         )}
 
         {/* ─── Mobile Top Header (2 rows) ──────────────────────────────────── */}
-        <div className="md:hidden absolute top-0 left-0 right-0 z-20 bg-white/97 backdrop-blur-sm shadow-sm border-b border-border/40">
+        <div className="md:hidden absolute top-0 left-0 right-0 z-20">
           {/* Row 1: Logo + Search input + Theme toggle */}
-          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
-            {/* Logo */}
+          <div className="flex items-center gap-2 px-2 pt-2 pb-1">
+            {/* Logo - "개혁" text icon */}
             <Link href="/" aria-label="개혁 충남 홈" className="shrink-0">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden ${isCute ? "bg-pink-100" : "bg-primary"}`}>
-                {isCute ? (
-                  <Image
-                    src="/themes/cute/images/logo-cute.png"
-                    width={36}
-                    height={36}
-                    alt="개혁 충남"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <Image
-                    src="/images/reform-party-logo.png"
-                    width={28}
-                    height={28}
-                    alt="개혁신당"
-                    className="object-contain"
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      img.style.display = "none";
-                      const span = document.createElement("span");
-                      span.textContent = "개혁";
-                      span.className = "text-white font-bold text-xs";
-                      img.parentElement?.appendChild(span);
-                    }}
-                  />
-                )}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCute ? "bg-pink-100" : "bg-primary"}`}>
+                <span className={`font-bold text-[10px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
               </div>
             </Link>
 
             {/* Search input */}
-            <div className="flex-1 flex items-center gap-2 bg-background/80 rounded-2xl border border-border px-3 py-2 focus-within:border-primary/50 transition-colors">
-              <IconSearch size={14} className="text-muted shrink-0" aria-hidden="true" />
+            <div className="flex-1 flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-xl border border-border/50 px-2.5 py-1.5 focus-within:border-primary/50 transition-colors">
+              <IconSearch size={13} className="text-muted shrink-0" aria-hidden="true" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="후보자, 공약 등 검색"
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
+                placeholder="검색"
+                className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted min-w-0"
                 aria-label="후보자 및 공약 검색"
                 type="search"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-muted hover:text-foreground text-base leading-none transition-colors"
+                  className="text-muted hover:text-foreground text-sm leading-none transition-colors"
                   aria-label="검색어 지우기"
                 >
                   ×
@@ -905,52 +882,152 @@ export default function MapPageContent() {
             {/* Theme toggle */}
             <button
               onClick={handleThemeToggle}
-              className={`shrink-0 w-11 h-11 rounded-2xl border flex items-center justify-center text-base transition-colors ${
+              className={`shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center text-sm transition-colors ${
                 isCute
-                  ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
-                  : "border-border bg-background text-muted hover:text-foreground hover:bg-border/50"
+                  ? "border-pink-300 bg-pink-50/80 text-pink-600"
+                  : "border-border/50 bg-white/80 text-muted hover:text-foreground"
               }`}
               aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
-              title={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
             >
               {isCute ? "🏛️" : "✨"}
             </button>
           </div>
 
-          {/* Row 2: Category filter buttons (scrollable, always visible labels) */}
-          <div
-            className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 pb-2.5"
-            role="toolbar"
-            aria-label="카테고리 필터"
-          >
+          {/* Row 2: Category / City / Candidate buttons */}
+          <div className="flex gap-1.5 px-2 pb-1.5">
+            {/* Category button */}
             <button
-              onClick={() => setSelectedCategory("all")}
-              aria-pressed={selectedCategory === "all"}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
-                selectedCategory === "all"
-                  ? "bg-primary text-white border-primary shadow-sm"
-                  : "bg-white text-foreground border-border hover:border-primary/40"
+              onClick={() => setMobileCategoryOpen(true)}
+              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                selectedCategory !== "all"
+                  ? "bg-primary/90 text-white border-primary shadow-sm"
+                  : "bg-white/85 backdrop-blur-sm text-foreground border-border/50"
               }`}
             >
-              🗺️ 전체
+              <span aria-hidden="true">📂</span>
+              <span>카테고리</span>
+              {selectedCategory !== "all" && <span className="text-[9px] opacity-80">({selectedCategory})</span>}
             </button>
-            {activeCategories.map(({ id, icon }) => (
-              <button
-                key={id}
-                onClick={() => setSelectedCategory(selectedCategory === id ? "all" : id)}
-                aria-pressed={selectedCategory === id}
-                className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
-                  selectedCategory === id
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-white text-foreground border-border hover:border-primary/40"
-                }`}
-              >
-                <span aria-hidden="true">{icon}</span>
-                <span>{id}</span>
-              </button>
-            ))}
+
+            {/* City button */}
+            <button
+              onClick={() => setMobileDistrictOpen(true)}
+              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                selectedDistrict
+                  ? "bg-primary/90 text-white border-primary shadow-sm"
+                  : "bg-white/85 backdrop-blur-sm text-foreground border-border/50"
+              }`}
+            >
+              <IconLocation size={11} />
+              <span>{selectedDistrict ?? "도시"}</span>
+            </button>
+
+            {/* Candidate button */}
+            <button
+              onClick={() => setMobileCandidateListOpen(true)}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/85 backdrop-blur-sm text-foreground border-border/50 transition-colors"
+            >
+              <IconPerson size={11} />
+              <span>후보자 {filteredCandidates.length}</span>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Category Legend Popup */}
+        {mobileCategoryOpen && (
+          <div className="md:hidden fixed inset-0 z-50" onClick={() => setMobileCategoryOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+            >
+              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border">
+                <h2 className="font-bold text-foreground text-base">카테고리</h2>
+                <button onClick={() => setMobileCategoryOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+              </div>
+              <div className="p-4 space-y-2">
+                <button
+                  onClick={() => { setSelectedCategory("all"); setMobileCategoryOpen(false); }}
+                  className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                    selectedCategory === "all" ? "text-primary bg-primary/10" : "text-foreground hover:bg-background/70"
+                  }`}
+                >
+                  <span className="text-lg">🗺️</span>
+                  <span>전체</span>
+                  {selectedCategory === "all" && <span className="ml-auto text-primary text-xs">✓</span>}
+                </button>
+                {activeCategories.map(({ id, icon, count }) => (
+                  <button
+                    key={id}
+                    onClick={() => { setSelectedCategory(selectedCategory === id ? "all" : id); setMobileCategoryOpen(false); }}
+                    className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+                      selectedCategory === id ? "text-primary bg-primary/10 font-medium" : "text-foreground hover:bg-background/70"
+                    }`}
+                  >
+                    <span className="text-lg">{icon}</span>
+                    <span>{id}</span>
+                    <span className="ml-auto text-xs text-muted">{count}개</span>
+                    {selectedCategory === id && <span className="text-primary text-xs">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Candidate List Popup */}
+        {mobileCandidateListOpen && (
+          <div className="md:hidden fixed inset-0 z-50" onClick={() => setMobileCandidateListOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "65dvh", paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 flex items-center justify-between bg-surface px-4 py-3 border-b border-border shrink-0">
+                <h2 className="font-bold text-foreground text-base">
+                  {selectedDistrict ? `${selectedDistrict}의 후보자` : "충남의 후보자"}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">{filteredCandidates.length}명</span>
+                  <button onClick={() => setMobileCandidateListOpen(false)} className="text-muted text-xl leading-none" aria-label="닫기">×</button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto divide-y divide-border/50">
+                {filteredCandidates.length === 0 ? (
+                  <div className="py-10 text-center text-muted text-sm">등록된 후보자가 없습니다</div>
+                ) : filteredCandidates.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { handleCandidateClick(c); setMobileCandidateListOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background/60 transition-colors text-left"
+                  >
+                    <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/50">
+                      {c.profileImage ? (
+                        <Image src={c.profileImage} alt={c.name} fill sizes="40px" className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-primary font-bold text-sm">{c.name[0]}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">{c.name}</p>
+                      {c.electionType && <p className="text-xs text-muted truncate">{c.electionType}</p>}
+                      <p className="text-xs text-primary truncate">{c.district}</p>
+                    </div>
+                    {c.candidateStatus && (
+                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${primaryColor}18`, color: primaryColor }}>
+                        {c.candidateStatus}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile district selector (for menu drawer) */}
         {mobileDistrictOpen && districts.length > 0 && (
@@ -1037,27 +1114,14 @@ export default function MapPageContent() {
           </div>
         )}
 
-        {/* Mobile: candidate sheet open button */}
-        {!isPanelOpen && (
-          <button
-            onClick={() => setSidebarOpen((o) => !o)}
-            className="md:hidden fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2.5 bg-white/97 backdrop-blur-sm border border-border rounded-full shadow-xl text-sm font-semibold text-foreground whitespace-nowrap"
-            style={{ bottom: "calc(3.5rem + 0.75rem + env(safe-area-inset-bottom))" }}
-          >
-            <IconPerson size={16} />
-            후보자 {filteredCandidates.length}명
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transition: "transform 0.2s", transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-              <path d="M18 15l-6-6-6 6" />
-            </svg>
-          </button>
-        )}
+        {/* (Candidate list is now accessible via the header "후보자" button) */}
       </div>
 
       {/* ══════════════════════════════════════════════
-          MOBILE BOTTOM NAV BAR
+          MOBILE BOTTOM NAV BAR (separated from map, not overlaid)
       ══════════════════════════════════════════════ */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/97 backdrop-blur-sm border-t border-border"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="하단 메뉴"
       >
@@ -1070,60 +1134,7 @@ export default function MapPageContent() {
         </div>
       </nav>
 
-      {/* ══════════════════════════════════════════════
-          MOBILE CANDIDATE BOTTOM SHEET
-      ══════════════════════════════════════════════ */}
-      {sidebarOpen && !isPanelOpen && (
-        <div className="md:hidden fixed inset-0 z-40" onClick={() => setSidebarOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="absolute left-0 right-0 bg-surface rounded-t-2xl shadow-2xl flex flex-col"
-            style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))", maxHeight: "65dvh" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-pointer" onClick={() => setSidebarOpen(false)}>
-              <div className="w-10 h-1 bg-border rounded-full" />
-            </div>
-            <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
-              <h2 className="text-base font-bold text-foreground">
-                {selectedDistrict ? `${selectedDistrict}의 후보자` : "충남의 후보자"}
-              </h2>
-              <span className="text-xs text-muted">{filteredCandidates.length}명</span>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-border/50">
-              {filteredCandidates.length === 0 ? (
-                <div className="py-10 text-center text-muted text-sm">등록된 후보자가 없습니다</div>
-              ) : filteredCandidates.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => { handleCandidateClick(c); setSidebarOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background/60 transition-colors text-left"
-                >
-                  <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-primary/10 border border-border/50">
-                    {c.profileImage ? (
-                      <Image src={c.profileImage} alt={c.name} fill sizes="40px" className="object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-primary font-bold text-sm">{c.name[0]}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground text-sm">{c.name}</p>
-                    {c.electionType && <p className="text-xs text-muted truncate">{c.electionType}</p>}
-                    <p className="text-xs text-primary truncate">{c.district}</p>
-                  </div>
-                  {c.candidateStatus && (
-                    <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${primaryColor}18`, color: primaryColor }}>
-                      {c.candidateStatus}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* (Mobile candidate list is now integrated in the header area popups) */}
 
       {/* ══════════════════════════════════════════════
           MOBILE MENU DRAWER (right side)
