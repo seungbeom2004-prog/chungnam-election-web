@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
@@ -297,6 +297,7 @@ export default function UserProfileButton() {
   const [open, setOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const candidateId = (session?.user as { id?: string })?.id;
@@ -342,6 +343,33 @@ export default function UserProfileButton() {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open) {
+      const btn = dropdownRef.current?.querySelector("button") as HTMLButtonElement | null;
+      if (btn && typeof window !== "undefined") {
+        const rect = btn.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const panelW = Math.min(320, vw - 16);
+        const openUpward = rect.top > vh / 2;
+        const openLeft   = rect.left > vw / 2;
+        const style: React.CSSProperties = { width: panelW };
+        if (openUpward) {
+          style.bottom = vh - rect.top + 4;
+        } else {
+          style.top = rect.bottom + 4;
+        }
+        if (openLeft) {
+          style.right = vw - rect.right;
+        } else {
+          style.left = rect.left;
+        }
+        setPanelStyle(style);
+      }
+    }
+    setOpen((v) => !v);
+  };
+
   if (!session) return null;
 
   const name = session.user?.name ?? "?";
@@ -350,7 +378,7 @@ export default function UserProfileButton() {
     <div className="relative shrink-0" ref={dropdownRef}>
       {/* Trigger button */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
         aria-label="사용자 메뉴 열기"
         aria-expanded={open}
         className="relative w-8 h-8 rounded-full bg-primary overflow-hidden flex items-center justify-center border-2 border-transparent hover:border-primary/40 transition-all focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -367,40 +395,28 @@ export default function UserProfileButton() {
         ) : (
           <span className="text-white font-bold text-xs">{name.charAt(0).toUpperCase()}</span>
         )}
-        {/* Unread badge */}
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 border-2 border-surface rounded-full" aria-label={`${unreadCount}개의 읽지 않은 알림`} />
         )}
       </button>
 
-      {/* Desktop dropdown */}
       {open && (
         <>
-          {/* Mobile full-screen overlay */}
-          <div
-            className="md:hidden fixed inset-0 bg-black/50 z-40"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="
-              fixed z-[9999]
-              md:top-14 md:right-4 md:bottom-auto md:inset-x-auto md:w-80 md:rounded-xl md:shadow-xl
-              md:border md:border-border md:max-h-[600px]
-              inset-x-0 bottom-0 rounded-t-2xl shadow-2xl border-t border-border max-h-[90vh]
-              bg-surface overflow-hidden flex flex-col
-            "
-          >
-            {/* Mobile handle */}
-            <div className="md:hidden flex justify-center pt-2 pb-1">
+          {/* Mobile overlay */}
+          <div className="md:hidden fixed inset-0 bg-black/50 z-[9998]" onClick={() => setOpen(false)} />
+          {/* Mobile bottom sheet */}
+          <div className="md:hidden fixed inset-x-0 bottom-0 z-[9999] rounded-t-2xl shadow-2xl border-t border-border max-h-[90vh] bg-surface overflow-hidden flex flex-col">
+            <div className="flex justify-center pt-2 pb-1">
               <div className="w-10 h-1 bg-border rounded-full" />
             </div>
-
-            <PanelContent
-              session={session}
-              candidateId={candidateId}
-              profileImage={profileImage}
-              onClose={() => setOpen(false)}
-            />
+            <PanelContent session={session} candidateId={candidateId} profileImage={profileImage} onClose={() => setOpen(false)} />
+          </div>
+          {/* Desktop positioned panel */}
+          <div
+            className="hidden md:flex fixed z-[9999] flex-col rounded-xl shadow-xl border border-border max-h-[600px] bg-surface overflow-hidden"
+            style={panelStyle}
+          >
+            <PanelContent session={session} candidateId={candidateId} profileImage={profileImage} onClose={() => setOpen(false)} />
           </div>
         </>
       )}

@@ -15,6 +15,7 @@ import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Pledge, BylawGroup } from "@/types";
 import { findDistrictCity } from "@/lib/districts";
+import UserProfileButton from "@/components/layout/UserProfileButton";
 
 const CITY_ZOOM = 6;
 const PANEL_PLEDGES_LIMIT = 6;
@@ -319,6 +320,7 @@ export default function MapPageContent() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(true);
+  const [mapResizeTrigger, setMapResizeTrigger] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
@@ -500,6 +502,11 @@ export default function MapPageContent() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [categoryLegendOpen]);
 
+  // Trigger map resize when sidebar panel opens/closes
+  useEffect(() => {
+    setMapResizeTrigger((n) => n + 1);
+  }, [panelOpen]);
+
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   const handleDistrictSelect = useCallback((district: DistrictCoords) => {
@@ -590,15 +597,7 @@ export default function MapPageContent() {
 
         {/* User / Login */}
         {session ? (
-          <Link href="/dashboard" title="대시보드" className="w-11 h-11 rounded-xl overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/40 transition-all">
-            {session.user?.image ? (
-              <Image src={session.user.image} alt={session.user.name ?? ""} width={44} height={44} className="object-cover w-full h-full" />
-            ) : (
-              <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                <span className="text-primary font-bold text-xs">{(session.user?.name ?? "?")[0]}</span>
-              </div>
-            )}
-          </Link>
+          <UserProfileButton />
         ) : (
           <Link href="/login" title="로그인" className="w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:bg-background hover:text-foreground transition-colors">
             <IconPerson size={19} />
@@ -765,6 +764,7 @@ export default function MapPageContent() {
             isCute={isCute}
             selectedCategory={selectedCategory}
             selectedPledgeId={selectedPledge?.id ?? null}
+            resizeTrigger={mapResizeTrigger}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">
@@ -790,7 +790,7 @@ export default function MapPageContent() {
         )}
 
         {/* ─── Desktop: District + Category overlay (top-left) ─────────────── */}
-        <div className="hidden md:flex absolute top-3 left-3 z-20 flex-col gap-2">
+        <div className="hidden md:flex absolute top-3 left-3 z-20 flex-row items-start gap-2">
           {/* District dropdown */}
           <div ref={districtDropdownRef} className="relative">
             <button
@@ -889,6 +889,12 @@ export default function MapPageContent() {
           >
             ✨ 귀여운 테마
           </button>
+          {session && (
+            <>
+              <div className="w-px h-5 bg-border/50 mx-0.5" />
+              <UserProfileButton />
+            </>
+          )}
         </div>
 
         {/* ─── Mobile Top Header ──────────────────────────────────────────── */}

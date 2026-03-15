@@ -52,6 +52,10 @@ interface CandidateContentProps {
     naverBlog?: string | null;
     articleUrl?: string | null;
     articleTitle?: string | null;
+    phone?: string | null;
+    contactEmail?: string | null;
+    showPhone?: boolean;
+    showContactEmail?: boolean;
   };
 }
 
@@ -82,8 +86,12 @@ function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
 }
 
 export default function CandidateContent({ candidate }: CandidateContentProps) {
-  const [activeView, setActiveView] = useState<"list" | "map" | "proposals" | "sns">("list");
+  const [activeView, setActiveView] = useState<"list" | "map" | "proposals" | "sns" | "contact">("list");
   const hasSns = !!(candidate.youtube || candidate.instagram || candidate.twitter || candidate.facebook || candidate.tiktok || candidate.kakao || candidate.naverBlog);
+  const hasContact = !!(
+    (candidate.showPhone && candidate.phone) ||
+    (candidate.showContactEmail && candidate.contactEmail)
+  );
 
   // Merge own pledges + bylaws + shared pledges (from other authors), sorted by date
   const allPledges = [
@@ -146,6 +154,18 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
             }`}
           >
             SNS 활동
+          </button>
+        )}
+        {hasContact && (
+          <button
+            onClick={() => setActiveView("contact")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeView === "contact"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            연락처
           </button>
         )}
       </div>
@@ -263,6 +283,34 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
         </div>
       ) : activeView === "proposals" ? (
         <ProposalList candidateId={candidate.id} showForm={true} />
+      ) : activeView === "contact" ? (
+        <div className="p-6 bg-surface rounded-xl border border-border max-w-md">
+          <h2 className="text-base font-bold text-foreground mb-4">📬 연락처</h2>
+          <div className="space-y-3">
+            {candidate.showPhone && candidate.phone && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+                <span className="text-xl">📞</span>
+                <div>
+                  <p className="text-xs text-muted mb-0.5">전화번호</p>
+                  <a href={`tel:${candidate.phone}`} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">
+                    {candidate.phone}
+                  </a>
+                </div>
+              </div>
+            )}
+            {candidate.showContactEmail && candidate.contactEmail && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+                <span className="text-xl">✉️</span>
+                <div>
+                  <p className="text-xs text-muted mb-0.5">이메일</p>
+                  <a href={`mailto:${candidate.contactEmail}`} className="text-sm font-semibold text-foreground hover:text-primary transition-colors break-all">
+                    {candidate.contactEmail}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <SnsTab
           youtube={candidate.youtube}

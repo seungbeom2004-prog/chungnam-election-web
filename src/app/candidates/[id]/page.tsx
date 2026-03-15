@@ -34,7 +34,7 @@ export default async function CandidateProfilePage({ params }: Props) {
 
   const { data: candidate } = await supabase
     .from("Candidate")
-    .select("id, name, district, profileImage, slogan, bio, party, caucusStatus, candidateStatus, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog")
+    .select("id, name, district, profileImage, slogan, bio, party, caucusStatus, candidateStatus, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog, phone, contactEmail, showPhone, showContactEmail")
     .eq("id", id)
     .single();
 
@@ -116,6 +116,10 @@ export default async function CandidateProfilePage({ params }: Props) {
     naverBlog: candidate.naverBlog ?? null,
     articleUrl: (candidate as { articleUrl?: string | null }).articleUrl ?? null,
     articleTitle: (candidate as { articleTitle?: string | null }).articleTitle ?? null,
+    phone: (candidate as { phone?: string | null }).phone ?? null,
+    contactEmail: (candidate as { contactEmail?: string | null }).contactEmail ?? null,
+    showPhone: (candidate as { showPhone?: boolean }).showPhone ?? false,
+    showContactEmail: (candidate as { showContactEmail?: boolean }).showContactEmail ?? false,
     pledges: (pledgesRaw ?? []).map((p) => mapPledge(p)),
     bylaws: (bylawsPledgesRaw ?? []).map((p) => mapPledge(p)),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

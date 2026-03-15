@@ -46,6 +46,13 @@ export default function ProfilePage() {
   });
   const [socialSaving, setSocialSaving] = useState(false);
   const [socialMessage, setSocialMessage] = useState("");
+  const [contactForm, setContactForm] = useState({
+    contactEmail: "",
+    showPhone: false,
+    showContactEmail: false,
+  });
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactMessage, setContactMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -115,6 +122,11 @@ export default function ProfilePage() {
           naverBlog: data.naverBlog || "",
           articleUrl: data.articleUrl || "",
           articleTitle: data.articleTitle || "",
+        });
+        setContactForm({
+          contactEmail: data.contactEmail || "",
+          showPhone: data.showPhone ?? false,
+          showContactEmail: data.showContactEmail ?? false,
         });
         setIsNecRegistered(data.isNecRegistered ?? false);
         setNecName(data.name ?? null);
@@ -188,6 +200,27 @@ export default function ProfilePage() {
       setElectionTypeMessage("저장에 실패했습니다.");
     }
     setElectionTypeSaving(false);
+  };
+
+  const handleContactSave = async () => {
+    if (!candidateId) return;
+    setContactSaving(true);
+    setContactMessage("");
+    try {
+      const res = await fetch(`/api/candidates/${candidateId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactEmail: contactForm.contactEmail || null,
+          showPhone: contactForm.showPhone,
+          showContactEmail: contactForm.showContactEmail,
+        }),
+      });
+      setContactMessage(res.ok ? "연락처 설정이 저장되었습니다." : "저장에 실패했습니다.");
+    } catch {
+      setContactMessage("저장에 실패했습니다.");
+    }
+    setContactSaving(false);
   };
 
   const handleSocialSave = async () => {
@@ -662,6 +695,71 @@ export default function ProfilePage() {
               socialMessage.includes("실패") ? "text-red-500 bg-red-50" : "text-green-600 bg-green-50"
             }`}>
               {socialMessage}
+            </p>
+          )}
+        </div>
+      </Card>
+
+      {/* Contact visibility card */}
+      <Card className="mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">📬 연락처 공개 설정</h2>
+          <Button type="button" size="sm" onClick={handleContactSave} disabled={contactSaving}>
+            {contactSaving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {/* Phone */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">📞 전화번호 공개</p>
+              <p className="text-xs text-muted">회원가입 시 등록한 전화번호가 후보자 프로필에 공개됩니다.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contactForm.showPhone}
+                onChange={(e) => setContactForm((f) => ({ ...f, showPhone: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {/* Contact email */}
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-muted mb-1">공개 연락 이메일 (선택)</label>
+              <input
+                type="email"
+                value={contactForm.contactEmail}
+                onChange={(e) => setContactForm((f) => ({ ...f, contactEmail: e.target.value }))}
+                placeholder="공개할 이메일 주소 (로그인 이메일과 다를 수 있습니다)"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">✉️ 이메일 공개</p>
+                <p className="text-xs text-muted">위에 입력한 공개 이메일이 후보자 프로필에 표시됩니다.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={contactForm.showContactEmail}
+                  onChange={(e) => setContactForm((f) => ({ ...f, showContactEmail: e.target.checked }))}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          </div>
+
+          {contactMessage && (
+            <p className={`text-xs px-3 py-2 rounded-lg ${
+              contactMessage.includes("실패") ? "text-red-500 bg-red-50" : "text-green-600 bg-green-50"
+            }`}>
+              {contactMessage}
             </p>
           )}
         </div>

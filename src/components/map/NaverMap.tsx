@@ -31,6 +31,12 @@ interface NaverMapProps {
   selectedCategory?: string;
   /** ID of the currently selected pledge — shows a highlight ring on the map. */
   selectedPledgeId?: string | null;
+  /**
+   * Increment this value whenever the map container's CSS size changes
+   * (e.g. sidebar open/close). NaverMap will fire a resize event on the SDK
+   * and re-render all markers so pins don't disappear in the newly exposed area.
+   */
+  resizeTrigger?: number;
 }
 
 interface PinSettings {
@@ -377,6 +383,7 @@ export default function NaverMap({
   isCute = false,
   selectedCategory = "all",
   selectedPledgeId = null,
+  resizeTrigger = 0,
 }: NaverMapProps) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstance    = useRef<naver.maps.Map | null>(null);
@@ -1062,17 +1069,24 @@ export default function NaverMap({
         // Track previous zoom to detect threshold crossings
         let prevNaverZoom = map.getZoom();
 
-        // zoom_changed: recompute clusters; re-render candidate markers on threshold crossing
+        // Debounced candidate re-render — re-run collision detection on every zoom change
+        let candidateRenderTimer: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRenderCandidates = () => {
+          if (candidateRenderTimer) clearTimeout(candidateRenderTimer);
+          candidateRenderTimer = setTimeout(() => {
+            candidateRenderTimer = null;
+            if (!destroyed && mapInstance.current === map) {
+              addCandidateMarkersRef.current(map);
+            }
+          }, 150);
+        };
+
+        // zoom_changed: recompute clusters + re-render candidate markers (recalculate collision)
         naver.maps.Event.addListener(map, "zoom_changed", () => {
           const curZoom = map.getZoom();
           setZoomLevel(toStoreLevel(curZoom));
           debouncedRenderClusters();
-          // Re-render candidate markers when crossing the compact/full threshold
-          const prevCompact = prevNaverZoom < CANDIDATE_LABEL_ZOOM;
-          const curCompact  = curZoom        < CANDIDATE_LABEL_ZOOM;
-          if (prevCompact !== curCompact && !destroyed) {
-            addCandidateMarkersRef.current(map);
-          }
+          debouncedRenderCandidates();
           prevNaverZoom = curZoom;
         });
 
@@ -1134,6 +1148,23 @@ export default function NaverMap({
     mapInstance.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
     mapInstance.current.setZoom(toNaverZoom(zoomLevel));
   }, [center, zoomLevel]);
+
+  // Trigger map resize when the container's CSS dimensions change (e.g. sidebar open/close).
+  // The 210ms delay matches the CSS transition-[width] duration-200 + 10ms buffer.
+  useEffect(() => {
+    if (resizeTrigger === 0) return; // skip the initial render
+    const timer = setTimeout(() => {
+      try {
+        if (mapInstance.current) {
+          naver.maps.Event.trigger(mapInstance.current, "resize");
+          // Re-render clusters and candidate markers after resize
+          renderClustersRef.current?.(mapInstance.current);
+          addCandidateMarkersRef.current?.(mapInstance.current);
+        }
+      } catch { /* SDK may not be ready */ }
+    }, 210);
+    return () => clearTimeout(timer);
+  }, [resizeTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh candidate markers when data, districts, or theme change
   useEffect(() => {
