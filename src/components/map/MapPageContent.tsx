@@ -237,7 +237,7 @@ function RailItem({
       </span>
     </>
   );
-  if (href) return <Link href={href} className={cls}>{inner}</Link>;
+  if (href) return <Link href={href} className={cls} aria-label={label}>{inner}</Link>;
   return <button onClick={onClick} className={cls} aria-label={label}>{inner}</button>;
 }
 
@@ -557,7 +557,7 @@ export default function MapPageContent() {
           onClick={() => setPanelOpen((o) => !o)}
         />
         <RailItem icon={<IconBulb size={18} />} label="제안" href="/proposals" />
-        <RailItem icon={<IconClipboard size={18} />} label="공약목록" href="/pledges" />
+        <RailItem icon={<IconClipboard size={18} />} label="공약" href="/pledges" />
         <RailItem icon={<IconUsers size={18} />} label="후보자" href="/about" />
 
         {/* Spacer */}
@@ -613,20 +613,24 @@ export default function MapPageContent() {
                 </h1>
                 <p className="text-xs text-muted">후보자 {filteredCandidates.length}명</p>
               </div>
-              {/* 접기: collapse list (keep search/filter visible) */}
+              {/* 접기: collapse list only */}
               <button
                 onClick={() => setListCollapsed((o) => !o)}
-                className="flex items-center gap-1 h-7 px-2 rounded-lg hover:bg-background text-muted hover:text-foreground transition-colors shrink-0 text-[11px] font-medium border border-border/60"
-                aria-label={listCollapsed ? "펼치기" : "접기"}
+                className={`flex items-center gap-1 h-7 px-2.5 rounded-lg transition-colors shrink-0 text-[11px] font-semibold ${
+                  listCollapsed
+                    ? "bg-primary/10 text-primary hover:bg-primary/20"
+                    : "bg-background text-muted hover:text-foreground border border-border/70"
+                }`}
+                aria-label={listCollapsed ? "목록 펼치기" : "목록 접기"}
                 title={listCollapsed ? "목록 펼치기" : "목록 접기"}
               >
                 <svg
-                  width="11"
-                  height="11"
+                  width="10"
+                  height="10"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2.5"
+                  strokeWidth="2.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   style={{ transition: "transform 0.2s", transform: listCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
@@ -635,14 +639,16 @@ export default function MapPageContent() {
                 </svg>
                 {listCollapsed ? "펼치기" : "접기"}
               </button>
-              {/* 닫기: hide panel entirely */}
+              {/* 닫기: hide panel entirely — uses × for clear close affordance */}
               <button
                 onClick={() => setPanelOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-background text-muted hover:text-foreground transition-colors shrink-0 border border-border/60"
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-muted hover:text-red-500 transition-colors shrink-0"
                 aria-label="패널 닫기"
                 title="패널 닫기"
               >
-                <IconChevronLeft size={14} />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -982,7 +988,7 @@ export default function MapPageContent() {
         {!isPanelOpen && (
           <button
             onClick={() => setSidebarOpen((o) => !o)}
-            className="md:hidden fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2.5 bg-white/97 backdrop-blur-sm border border-border rounded-full shadow-xl text-sm font-semibold text-foreground"
+            className="md:hidden fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2.5 bg-white/97 backdrop-blur-sm border border-border rounded-full shadow-xl text-sm font-semibold text-foreground whitespace-nowrap"
             style={{ bottom: "calc(3.5rem + 0.75rem + env(safe-area-inset-bottom))" }}
           >
             <IconPerson size={16} />
