@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { PledgeTile } from "./PledgeTicker";
@@ -390,32 +390,41 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
 }
 
 function PledgeCard({ tile }: { tile: PledgeTile }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(tile.likeCount ?? 0);
+  const [liking, setLiking] = useState(false);
+
   const isShared = tile.collaborators.length > 0;
   const totalParticipants = 1 + tile.collaborators.length;
 
+  const handleLike = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (liking) return;
+    setLiking(true);
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikeCount((prev) => Math.max(0, newLiked ? prev + 1 : prev - 1));
+    try {
+      const res = await fetch(`/api/pledges/${tile.id}/like`, { method: "POST" });
+      if (res.ok) {
+        const json = await res.json();
+        if (typeof json.data?.likeCount === "number") setLikeCount(json.data.likeCount);
+        if (typeof json.data?.hasLiked === "boolean") setLiked(json.data.hasLiked);
+      }
+    } catch { /* ignore */ }
+    setLiking(false);
+  };
+
   return (
-    <Link
-      href={`/?pledge=${tile.id}`}
-      className="block p-4 bg-surface border border-border rounded-xl hover:border-primary/30 hover:shadow-md transition-all group"
-    >
-      {/* Candidate header with stacked avatars */}
-      <div className="flex items-center gap-2.5 mb-3">
-        {/* Stacked avatars: author on top (highest z-index) */}
+    <div className="bg-surface border border-border rounded-xl hover:border-primary/30 hover:shadow-md transition-all overflow-hidden">
+      {/* Candidate header */}
+      <div className="flex items-center gap-2.5 p-4 pb-2">
         <div className="flex -space-x-2 shrink-0">
-          <AvatarBubble
-            image={tile.candidateProfileImage}
-            name={tile.candidateName}
-            size={32}
-            zIndex={totalParticipants}
-          />
+          <AvatarBubble image={tile.candidateProfileImage} name={tile.candidateName} size={32} zIndex={totalParticipants} />
           {tile.collaborators.slice(0, 2).map((c, i) => (
-            <AvatarBubble
-              key={c.id}
-              image={c.profileImage}
-              name={c.name}
-              size={28}
-              zIndex={totalParticipants - 1 - i}
-            />
+            <AvatarBubble key={c.id} image={c.profileImage} name={c.name} size={28} zIndex={totalParticipants - 1 - i} />
           ))}
           {tile.collaborators.length > 2 && (
             <div
@@ -437,56 +446,93 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
             공동
           </span>
         )}
-      </div>
-
-      {/* Badges */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {tile.category && (
-          <span
-            className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{ backgroundColor: tile.category.color + "20", color: tile.category.color }}
-          >
-            {tile.category.emoji && <span>{tile.category.emoji}</span>}
-            {tile.category.name}
-          </span>
-        )}
-        <span className={`text-[11px] px-1.5 py-0.5 rounded-full border font-medium ${
-          tile.pledgeType === "bylaws"
-            ? "border-blue-200 text-blue-600 bg-blue-50"
-            : "border-green-200 text-green-600 bg-green-50"
-        }`}>
-          {tile.pledgeType === "bylaws" ? "조례" : "지역 공약"}
-        </span>
-      </div>
-
-      {/* Title */}
-      <h3 className="font-semibold text-foreground text-sm leading-snug line-clamp-2 mb-1.5 group-hover:text-primary transition-colors break-keep">
-        {tile.title}
-      </h3>
-
-      {/* Description */}
-      <p className="text-xs text-muted line-clamp-2 leading-relaxed">
-        {tile.description}
-      </p>
-
-      {/* Address + budget + like count */}
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
-        {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
-        {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
-        <span className={`ml-auto shrink-0 flex items-center gap-0.5 text-[11px] font-medium ${
-          (tile.likeCount ?? 0) > 0 ? "text-red-400" : "text-muted/60"
-        }`}>
+        {/* Collapse toggle */}
+        <button
+          onClick={(e) => { e.preventDefault(); setCollapsed((v) => !v); }}
+          aria-label={collapsed ? "펼치기" : "접기"}
+          className="shrink-0 w-6 h-6 flex items-center justify-center text-muted hover:text-foreground transition-colors rounded"
+        >
           <svg
-            width="10" height="10" viewBox="0 0 24 24"
-            fill={(tile.likeCount ?? 0) > 0 ? "currentColor" : "none"}
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={2}
+            className={`transition-transform duration-200 ${collapsed ? "" : "rotate-180"}`}
+          >
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Collapsible body */}
+      {collapsed ? (
+        /* Collapsed: title only as link */
+        <Link href={`/?pledge=${tile.id}`} className="block px-4 pb-2 group">
+          <h3 className="font-semibold text-foreground text-sm leading-snug line-clamp-1 group-hover:text-primary transition-colors break-keep">
+            {tile.title}
+          </h3>
+        </Link>
+      ) : (
+        /* Expanded: full card body as link */
+        <Link href={`/?pledge=${tile.id}`} className="block px-4 pb-2 group">
+          {/* Badges */}
+          <div className="flex flex-wrap gap-1 mb-2">
+            {tile.category && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
+                style={{ backgroundColor: tile.category.color + "20", color: tile.category.color }}
+              >
+                {tile.category.emoji && <span>{tile.category.emoji}</span>}
+                {tile.category.name}
+              </span>
+            )}
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-full border font-medium ${
+              tile.pledgeType === "bylaws"
+                ? "border-blue-200 text-blue-600 bg-blue-50"
+                : "border-green-200 text-green-600 bg-green-50"
+            }`}>
+              {tile.pledgeType === "bylaws" ? "조례" : "지역 공약"}
+            </span>
+          </div>
+          {/* Title */}
+          <h3 className="font-semibold text-foreground text-sm leading-snug line-clamp-2 mb-1.5 group-hover:text-primary transition-colors break-keep">
+            {tile.title}
+          </h3>
+          {/* Description */}
+          <p className="text-xs text-muted line-clamp-2 leading-relaxed">
+            {tile.description}
+          </p>
+          {/* Address + budget */}
+          {(tile.budget || tile.address) && (
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {tile.budget && <span className="text-[11px] text-primary font-medium">{tile.budget}</span>}
+              {tile.address && <span className="text-[11px] text-muted truncate">📍 {tile.address}</span>}
+            </div>
+          )}
+        </Link>
+      )}
+
+      {/* Footer: like button (always visible) */}
+      <div className="px-4 pb-3 flex justify-end">
+        <button
+          onClick={handleLike}
+          disabled={liking}
+          aria-label={`좋아요 ${likeCount}개`}
+          className={`flex items-center gap-1 text-[12px] font-medium transition-all rounded-full px-2 py-1 ${
+            liked
+              ? "text-red-500 bg-red-50 hover:bg-red-100"
+              : "text-muted/70 hover:text-red-400 hover:bg-red-50"
+          } disabled:opacity-50`}
+        >
+          <svg
+            width="11" height="11" viewBox="0 0 24 24"
+            fill={liked ? "currentColor" : "none"}
             stroke="currentColor" strokeWidth={2}
             aria-hidden="true"
           >
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
-          {tile.likeCount ?? 0}
-        </span>
+          {likeCount}
+        </button>
       </div>
-    </Link>
+    </div>
   );
 }

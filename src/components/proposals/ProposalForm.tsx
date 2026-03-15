@@ -145,7 +145,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       onSubmit={handleSubmit}
       className="p-5 border border-border rounded-xl bg-surface space-y-3"
     >
-      <h3 className="text-sm font-semibold text-foreground">✍️ 제안 작성</h3>
+      <h2 className="text-sm font-semibold text-foreground">✍️ 제안 작성</h2>
 
       {/* Legal notice */}
       <details className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -216,6 +216,8 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
             minLength={4}
             maxLength={20}
             required
+            aria-required="true"
+            autoComplete="new-password"
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
           />
         </div>
@@ -281,10 +283,12 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         )}
       </div>
 
-      {/* reCAPTCHA */}
+      {/* reCAPTCHA — scale down on very small screens to prevent overflow */}
       {siteKey && (
-        <div className="flex justify-center">
-          <ReCAPTCHA ref={recaptchaRef} sitekey={siteKey} />
+        <div className="flex justify-center overflow-hidden">
+          <div className="scale-[0.82] origin-left sm:scale-100 sm:origin-center">
+            <ReCAPTCHA ref={recaptchaRef} sitekey={siteKey} />
+          </div>
         </div>
       )}
 

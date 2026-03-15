@@ -94,14 +94,16 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
               </select>
             </div>
 
-            <div className={`flex items-end ${hasFilter ? "" : "invisible pointer-events-none"}`}>
-              <button
-                onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }}
-                className="px-3 py-2 text-sm text-muted hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
-              >
-                초기화
-              </button>
-            </div>
+            {hasFilter && (
+              <div className="flex items-end">
+                <button
+                  onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }}
+                  className="px-3 py-2 text-sm text-muted hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
+                >
+                  초기화
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Proposal list + form */}

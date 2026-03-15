@@ -92,7 +92,9 @@ export default function ProposalRanking({ refreshKey }: Props) {
         <p className="text-[11px] text-muted text-center">
           마음에 드는 제안에 좋아요를 눌러주세요!
         </p>
-        <p className="text-[11px] text-muted text-center">상위 {proposals.length}개 제안</p>
+        {proposals.length > 0 && (
+          <p className="text-[11px] text-muted text-center">상위 {proposals.length}개 제안</p>
+        )}
       </div>
     </div>
   );

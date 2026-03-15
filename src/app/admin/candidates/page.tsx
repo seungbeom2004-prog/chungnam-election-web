@@ -314,7 +314,7 @@ export default function AdminCandidatesPage() {
       {/* Candidates list */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <Card padding="lg">

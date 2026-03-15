@@ -38,6 +38,7 @@ interface Props {
 export default function ProposalList({ candidateId, city, showForm, onRankingRefresh }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
@@ -91,6 +92,8 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
   };
 
   const loadMore = () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
     const params = new URLSearchParams();
@@ -106,7 +109,8 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
         setProposals((prev) => [...prev, ...items]);
         setHasMore(items.length === PAGE_SIZE);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
   };
 
   const handleLike = async (proposal: ProposalPost) => {
@@ -204,10 +208,11 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
         </div>
       ) : proposals.length === 0 ? (
         <div className="py-12 text-center">
-          <p className="text-sm text-muted">아직 제안이 없습니다.</p>
-          {showForm && (
-            <p className="text-xs text-muted mt-1">첫 번째 제안을 남겨보세요!</p>
-          )}
+          <div className="text-4xl mb-3">💡</div>
+          <p className="text-base font-semibold text-foreground mb-1">아직 제안이 없습니다</p>
+          <p className="text-sm text-muted">
+            {showForm ? "첫 번째 공약 제안을 남겨보세요!" : "아직 등록된 제안이 없습니다."}
+          </p>
         </div>
       ) : (
         <>
@@ -325,9 +330,13 @@ export default function ProposalList({ candidateId, city, showForm, onRankingRef
             <div className="text-center">
               <button
                 onClick={loadMore}
-                className="px-4 py-2 text-sm font-semibold text-primary border border-primary rounded-lg hover:text-foreground hover:bg-background transition-colors"
+                disabled={loadingMore}
+                className="px-4 py-2 text-sm font-semibold text-primary border border-primary rounded-lg hover:text-foreground hover:bg-background transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
               >
-                더보기
+                {loadingMore && (
+                  <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                )}
+                {loadingMore ? "불러오는 중..." : "더보기"}
               </button>
             </div>
           )}

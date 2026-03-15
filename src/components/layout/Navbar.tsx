@@ -188,7 +188,7 @@ export default function Navbar() {
         <ElectionDDay />
 
         {/* Font size controls — hidden on smallest phones to prevent overflow */}
-        <div className="hidden sm:block shrink-0">
+        <div className="shrink-0">
           <FontSizeControl />
         </div>
 

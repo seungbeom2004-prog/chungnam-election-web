@@ -758,14 +758,16 @@ export default function NaverMap({
       });
 
       // ── Pass 2: pixel-space collision detection → per-candidate compact ────
-      // Full-mode label bbox offsets from anchor (non-cute: anchor 55,35; cute: anchor 60,38)
-      // Non-cute full:  left=-55  right=+119  top=-35  bottom=+29  (174×64 px)
-      // Cute full:      left=-60  right=+114  top=-38  bottom=+26  (~174×64 px)
-      // Compact circle radius ≈ 32 (non-cute) / 34 (cute)
+      // Full-mode label bbox offsets from the geo anchor point.
+      // Non-cute: container width=110px, anchor (55,35), circle 64×64px + label below
+      //   → x: -55 to +55,  y: -35 to +90
+      // Cute: container width=120px, anchor (60,38), circle 68×68px + label below
+      //   → x: -60 to +60,  y: -38 to +90
       const fullBox = isCute
-        ? { l: -60, r: 114, t: -38, b: 26 }
-        : { l: -55, r: 119, t: -35, b: 29 };
-      const compactR = isCute ? 34 : 32;
+        ? { l: -60, r: 60, t: -38, b: 90 }
+        : { l: -55, r: 55, t: -35, b: 90 };
+      // Compact mode: symmetric ±half square (avoids asymmetric anchor issues)
+      const compactHalf = isCute ? 26 : 24;
 
       const compactById: Record<string, boolean> = {};
       const pixelPos: Record<string, { x: number; y: number }> = {};
@@ -804,21 +806,12 @@ export default function NaverMap({
           const cT = pos.y + fullBox.t;
           const cB = pos.y + fullBox.b;
 
-          if (otherCompact) {
-            // Other is compact circle — rect vs circle test
-            const closestX = Math.max(cL, Math.min(op.x, cR));
-            const closestY = Math.max(cT, Math.min(op.y, cB));
-            const dx = closestX - op.x;
-            const dy = closestY - op.y;
-            if (dx * dx + dy * dy < compactR * compactR) { collision = true; break; }
-          } else {
-            // Other is full label bbox — AABB overlap test
-            const oL = op.x + fullBox.l;
-            const oR = op.x + fullBox.r;
-            const oT = op.y + fullBox.t;
-            const oB = op.y + fullBox.b;
-            if (cL < oR && cR > oL && cT < oB && cB > oT) { collision = true; break; }
-          }
+          // Use AABB overlap for both full and compact modes
+          const oL = otherCompact ? op.x - compactHalf : op.x + fullBox.l;
+          const oR = otherCompact ? op.x + compactHalf : op.x + fullBox.r;
+          const oT = otherCompact ? op.y - compactHalf : op.y + fullBox.t;
+          const oB = otherCompact ? op.y + compactHalf : op.y + fullBox.b;
+          if (cL < oR && cR > oL && cT < oB && cB > oT) { collision = true; break; }
         }
 
         compactById[c.id] = collision;
