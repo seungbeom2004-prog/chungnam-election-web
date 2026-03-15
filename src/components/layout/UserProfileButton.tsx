@@ -385,12 +385,11 @@ export default function UserProfileButton() {
             className={`
               z-50
               md:absolute md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:shadow-xl
-              md:border md:border-border md:bg-surface
-              fixed md:static inset-x-0 bottom-0 rounded-t-2xl shadow-2xl bg-surface border-t border-border
+              md:border md:border-border md:bg-surface md:max-h-[600px]
+              fixed inset-x-0 bottom-0 rounded-t-2xl shadow-2xl bg-surface border-t border-border max-h-[90vh]
               overflow-hidden
               flex flex-col
             `}
-            style={{ maxHeight: "min(90vh, 600px)" }}
           >
             {/* Mobile handle */}
             <div className="md:hidden flex justify-center pt-2 pb-1">
