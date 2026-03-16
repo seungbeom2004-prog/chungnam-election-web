@@ -623,7 +623,7 @@ export default function MapPageContent() {
         {/* Toggle button on the right border — always visible */}
         <button
           onClick={() => setPanelOpen((o) => !o)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-40 w-5 h-14 bg-white border-y border-r border-border/70 rounded-r-xl shadow-md flex items-center justify-center text-muted hover:text-primary hover:bg-gray-50 transition-colors"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-20 w-5 h-14 bg-white border-y border-r border-border/70 rounded-r-xl shadow-md flex items-center justify-center text-muted hover:text-primary hover:bg-gray-50 transition-colors"
           aria-label={panelOpen ? "패널 닫기" : "패널 열기"}
           title={panelOpen ? "패널 닫기" : "패널 열기"}
         >
