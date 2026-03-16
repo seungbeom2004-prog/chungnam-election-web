@@ -18,6 +18,7 @@ interface NaverMapInstance {
   destroy(): void;
   setCenter(latlng: NaverLatLng): void;
   setZoom(z: number): void;
+  getZoom(): number;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverMarker { setMap(m: NaverMapInstance | null): void; setPosition(p: NaverLatLng): void; }
@@ -77,8 +78,8 @@ export default function PinPickerMap({
       const map = new naver.maps.Map(container, {
         center: new naver.maps.LatLng(pinLat, pinLng),
         zoom: 14,
-        zoomControl: true,
-        zoomControlOptions: { position: 3 }, // TOP_RIGHT
+        zoomControl: false,
+        scaleControl: false,
       });
       mapInstance.current = map;
 
@@ -148,6 +149,27 @@ export default function PinPickerMap({
         className="w-full h-full rounded-lg overflow-hidden border border-border"
         style={{ display: "block" }}
       />
+      {/* Custom zoom controls */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+        <button
+          type="button"
+          onClick={() => mapInstance.current?.setZoom((mapInstance.current.getZoom() ?? 14) + 1)}
+          className="w-8 h-8 bg-white border border-border rounded-lg shadow-sm flex items-center justify-center text-foreground hover:bg-gray-50 transition-colors font-semibold text-sm leading-none"
+          aria-label="확대"
+          title="확대"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => mapInstance.current?.setZoom((mapInstance.current.getZoom() ?? 14) - 1)}
+          className="w-8 h-8 bg-white border border-border rounded-lg shadow-sm flex items-center justify-center text-foreground hover:bg-gray-50 transition-colors font-semibold text-sm leading-none"
+          aria-label="축소"
+          title="축소"
+        >
+          −
+        </button>
+      </div>
       <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs text-muted px-2 py-1 rounded shadow-sm pointer-events-none">
         지도를 클릭하여 핀 위치 설정
       </div>

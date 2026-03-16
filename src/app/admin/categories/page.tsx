@@ -11,6 +11,14 @@ const COLOR_PRESETS = [
   "#10B981", "#14B8A6", "#F97316", "#06B6D4",
 ];
 
+const IconGrip = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <line x1="9" y1="6" x2="15" y2="6"/>
+    <line x1="9" y1="12" x2="15" y2="12"/>
+    <line x1="9" y1="18" x2="15" y2="18"/>
+  </svg>
+);
+
 interface AdminCategory {
   id: string;
   name: string;
@@ -40,6 +48,12 @@ export default function AdminCategoriesPage() {
   const [published, setPublished] = useState(false);
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const iconFileRef = useRef<HTMLInputElement>(null);
+
+  // Drag-and-drop state
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [sortSaving, setSortSaving] = useState(false);
+  const [sortSaved, setSortSaved] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -156,6 +170,11 @@ export default function AdminCategoriesPage() {
     return orig && orig.visible !== c.visible;
   });
 
+  const hasSortChanges = categories.some((c, i) => {
+    const orig = original.find((o) => o.id === c.id);
+    return orig && orig.sortOrder !== i;
+  });
+
   const handlePublish = async () => {
     setPublishSaving(true);
     setPublished(false);
@@ -181,6 +200,60 @@ export default function AdminCategoriesPage() {
     setPublishSaving(false);
   };
 
+  const handleSaveSort = async () => {
+    setSortSaving(true);
+    setSortSaved(false);
+    try {
+      await Promise.all(
+        categories.map((c, i) =>
+          fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categoryId: c.id, sortOrder: i }),
+          })
+        )
+      );
+      const updated = categories.map((c, i) => ({ ...c, sortOrder: i }));
+      setCategories(updated);
+      setOriginal(updated);
+      setSortSaved(true);
+    } catch {
+      alert("순서 저장에 실패했습니다.");
+    }
+    setSortSaving(false);
+  };
+
+  // Drag-and-drop handlers
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === dropIndex) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const newCategories = [...categories];
+    const [removed] = newCategories.splice(dragIndex, 1);
+    newCategories.splice(dropIndex, 0, removed);
+    setCategories(newCategories);
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setSortSaved(false);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -189,6 +262,16 @@ export default function AdminCategoriesPage() {
           <Button size="sm" variant="ghost" onClick={openCreate}>
             + 추가
           </Button>
+          {hasSortChanges && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleSaveSort}
+              disabled={sortSaving}
+            >
+              {sortSaving ? "저장 중..." : "순서 저장"}
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={handlePublish}
@@ -205,8 +288,14 @@ export default function AdminCategoriesPage() {
         </div>
       )}
 
+      {sortSaved && (
+        <div className="mb-4 px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg">
+          순서가 저장되었습니다.
+        </div>
+      )}
+
       <p className="text-sm text-muted mb-4">
-        공약의 분류 카테고리를 관리합니다. 이모지와 색상은 지도 핀에 표시됩니다.
+        공약의 분류 카테고리를 관리합니다. 이모지와 색상은 지도 핀에 표시됩니다. ≡ 아이콘을 드래그하여 순서를 변경할 수 있습니다.
       </p>
 
       {loading ? (
@@ -222,11 +311,27 @@ export default function AdminCategoriesPage() {
       ) : (
         <Card padding="none">
           <div className="divide-y divide-border">
-            {categories.map((cat) => (
+            {categories.map((cat, index) => (
               <div
                 key={cat.id}
-                className="flex items-center justify-between px-4 py-3"
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                  dragIndex === index ? "opacity-40" : "opacity-100"
+                } ${
+                  dragOverIndex === index && dragIndex !== index
+                    ? "bg-primary/5 border-t-2 border-t-primary"
+                    : ""
+                }`}
               >
+                {/* Drag handle */}
+                <div className="mr-2 text-muted cursor-grab active:cursor-grabbing shrink-0">
+                  <IconGrip />
+                </div>
+
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {/* Emoji chip — always shown */}
                   <div
@@ -252,7 +357,7 @@ export default function AdminCategoriesPage() {
                         {cat.name}
                       </span>
                       <span className="text-xs text-muted">
-                        순서: {cat.sortOrder}
+                        #{index + 1}
                       </span>
                     </div>
                     {cat.description && (

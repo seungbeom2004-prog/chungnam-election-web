@@ -160,6 +160,15 @@ export default function PledgeList({
               >
                 수정
               </button>
+              {pledge.latitude != null && pledge.longitude != null && (
+                <button
+                  onClick={() => onEdit(pledge)}
+                  className="px-2.5 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-primary-light rounded transition-colors"
+                  title="지도에서 위치 변경"
+                >
+                  📍 위치
+                </button>
+              )}
               <button
                 onClick={() => onToggleVisibility(pledge)}
                 className="px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:bg-background rounded transition-colors"

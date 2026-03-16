@@ -1293,8 +1293,8 @@ export default function MapPageContent() {
                 <span className="text-sm font-medium text-foreground">{isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}</span>
               </button>
 
-              {/* Login/Logout */}
-              {session ? (
+              {/* Logout (only shown when logged in — login link is in header) */}
+              {session && (
                 <button
                   onClick={() => { signOut(); setMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-background transition-colors text-left"
@@ -1302,15 +1302,6 @@ export default function MapPageContent() {
                   <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-sm shrink-0">🚪</span>
                   <span className="text-sm font-medium text-muted">로그아웃</span>
                 </button>
-              ) : (
-                <Link
-                  href="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-background transition-colors"
-                >
-                  <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-sm shrink-0">👤</span>
-                  <span className="text-sm font-medium text-foreground">로그인 / 회원가입</span>
-                </Link>
               )}
             </div>
           </div>

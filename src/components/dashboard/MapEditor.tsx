@@ -55,10 +55,8 @@ export default function MapEditor({
     const map = new naver.maps.Map(mapRef.current, {
       center: new naver.maps.LatLng(center.lat, center.lng),
       zoom: 12,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: naver.maps.Position.TOP_RIGHT,
-      },
+      zoomControl: false,
+      scaleControl: false,
     });
 
     mapInstance.current = map;
@@ -114,6 +112,27 @@ export default function MapEditor({
   return (
     <>
       <div ref={mapRef} className="w-full h-full" />
+      {/* Custom zoom controls */}
+      <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
+        <button
+          type="button"
+          onClick={() => mapInstance.current?.setZoom((mapInstance.current.getZoom() ?? 12) + 1)}
+          className="w-9 h-9 bg-white border border-border rounded-lg shadow-sm flex items-center justify-center text-foreground hover:bg-gray-50 transition-colors font-semibold text-base leading-none"
+          aria-label="확대"
+          title="확대"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => mapInstance.current?.setZoom((mapInstance.current.getZoom() ?? 12) - 1)}
+          className="w-9 h-9 bg-white border border-border rounded-lg shadow-sm flex items-center justify-center text-foreground hover:bg-gray-50 transition-colors font-semibold text-base leading-none"
+          aria-label="축소"
+          title="축소"
+        >
+          −
+        </button>
+      </div>
       {/* Instruction overlay */}
       <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
         <div className="bg-surface/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-border inline-block">

@@ -102,7 +102,8 @@ export default function PledgeForm({
         </h3>
         <button
           onClick={onClose}
-          className="text-muted hover:text-foreground transition-colors"
+          className="w-11 h-11 flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-background transition-colors"
+          aria-label="닫기"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path

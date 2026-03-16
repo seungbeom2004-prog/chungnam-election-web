@@ -39,15 +39,12 @@ export default function CuteMascot() {
 
   return (
     <div
-      className="fixed right-4 z-50 pointer-events-none select-none"
-      style={{
-        maxWidth: 260,
-        bottom: "calc(3.5rem + 1rem + env(safe-area-inset-bottom))",
-      }}
+      className="fixed right-4 z-50 pointer-events-none select-none bottom-20 md:bottom-6"
+      style={{ maxWidth: 260 }}
     >
       {/* Speech bubble — dismissible */}
       {bubbleVisible && (
-        <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 mb-2 shadow-lg border-2 border-pink-200 relative">
+        <div className="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl px-3 py-2 md:px-4 md:py-3 mb-2 shadow-lg border-2 border-pink-200 relative">
           <button
             onClick={dismissBubble}
             className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-pink-100 text-pink-500 flex items-center justify-content-center text-xs hover:bg-pink-200 transition-colors"
@@ -55,7 +52,7 @@ export default function CuteMascot() {
           >
             ✕
           </button>
-          <p className="text-sm font-semibold text-purple-700 leading-snug">
+          <p className="text-xs md:text-sm font-semibold text-purple-700 leading-snug">
             아이콘들을 눌러서
             <br />
             공약들을 확인해봐! 💕
@@ -85,7 +82,7 @@ export default function CuteMascot() {
             width={120}
             height={160}
             alt="마스코트"
-            className="drop-shadow-lg hover:scale-105 transition-transform cursor-pointer"
+            className="w-20 h-auto md:w-28 md:h-auto drop-shadow-lg hover:scale-105 transition-transform cursor-pointer"
             onError={(e) => {
               // Fallback: show a large emoji if image not available
               const el = e.target as HTMLImageElement;
