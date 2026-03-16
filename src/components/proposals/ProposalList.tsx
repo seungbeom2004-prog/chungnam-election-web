@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import type { ProposalPost } from "@/types";
 import ProposalForm from "./ProposalForm";
+
+const PledgeProposalSection = dynamic(() => import("./PledgeProposalSection"), { ssr: false });
 
 const PAGE_SIZE = 10;
 
@@ -34,9 +37,11 @@ interface Props {
   postType?: string;
   showForm?: boolean;
   onRankingRefresh?: () => void;
+  isCandidate?: boolean;
+  candidateName?: string;
 }
 
-export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh }: Props) {
+export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh, isCandidate, candidateName }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -331,6 +336,16 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                         </div>
                       )}
                     </div>
+
+                    {/* 민원에 대한 공약 제안 섹션 */}
+                    {proposal.postType === "민원" && (
+                      <PledgeProposalSection
+                        minwonId={proposal.id}
+                        minwonTitle={proposal.title || proposal.content.slice(0, 30)}
+                        isCandidate={isCandidate}
+                        candidateName={candidateName}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

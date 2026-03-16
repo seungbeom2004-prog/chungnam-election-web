@@ -321,7 +321,7 @@ export default function PledgesPage() {
               ? "조례"
               : tab === "others"
               ? "다른 출마자 공약"
-              : "받은 제안"}
+              : "받은 민원 / 제안"}
           </button>
         ))}
       </div>
@@ -416,7 +416,10 @@ export default function PledgesPage() {
 
       {/* Tab: Received Proposals */}
       {activeTab === "proposals" && candidateId && (
-        <ProposalsTab candidateId={candidateId} />
+        <ProposalsTab
+          candidateId={candidateId}
+          candidateName={(session?.user as { name?: string })?.name ?? undefined}
+        />
       )}
 
       {/* Collaboration Modal */}

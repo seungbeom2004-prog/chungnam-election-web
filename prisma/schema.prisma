@@ -67,12 +67,71 @@ model Pledge {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  likes         PledgeLike[]
-  comments      PledgeComment[]
+  likes            PledgeLike[]
+  comments         PledgeComment[]
+  linkedMinwons    PledgeToMinwon[]
+  linkedProposals  PledgeToProposal[]
 
   @@index([candidateId])
   @@index([visible])
   @@index([pledgeType])
+}
+
+/// 공약 제안 (middle layer between 민원 and 정식 공약)
+/// authorType: "visitor" | "candidate"
+model PledgeProposal {
+  id           String   @id @default(cuid())
+  title        String
+  content      String   @db.Text
+  authorName   String
+  authorType   String   @default("visitor") // "visitor" | "candidate"
+  candidateId  String?  // set when authorType == "candidate"
+  ipHash       String?  // set when authorType == "visitor"
+  passwordHash String?  // visitor password for self-deletion
+  status       String   @default("pending") // "pending" | "accepted" | "deleted"
+  createdAt    DateTime @default(now())
+
+  minwonLinks  PledgeProposalMinwon[]
+  pledgeLinks  PledgeToProposal[]
+
+  @@index([candidateId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// 공약 제안 ↔ 민원 (다대다, 재사용 가능)
+model PledgeProposalMinwon {
+  id               String         @id @default(cuid())
+  pledgeProposalId String
+  pledgeProposal   PledgeProposal @relation(fields: [pledgeProposalId], references: [id], onDelete: Cascade)
+  minwonId         String         // ProposalPost.id where postType = "민원"
+  createdAt        DateTime       @default(now())
+
+  @@unique([pledgeProposalId, minwonId])
+  @@index([minwonId])
+}
+
+/// 정식 공약 ↔ 민원 (일대일 — 민원 1개는 공약 1개에만 연결 가능)
+model PledgeToMinwon {
+  id        String   @id @default(cuid())
+  pledgeId  String
+  pledge    Pledge   @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
+  minwonId  String   @unique  // 민원 1개 → 공약 최대 1개
+  createdAt DateTime @default(now())
+
+  @@index([pledgeId])
+}
+
+/// 정식 공약 ↔ 공약 제안 (일대일 — 공약 제안 1개는 공약 1개에만 연결 가능)
+model PledgeToProposal {
+  id               String         @id @default(cuid())
+  pledgeId         String
+  pledge           Pledge         @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
+  pledgeProposalId String         @unique  // 공약 제안 1개 → 공약 최대 1개
+  pledgeProposal   PledgeProposal @relation(fields: [pledgeProposalId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@index([pledgeId])
 }
 
 model District {

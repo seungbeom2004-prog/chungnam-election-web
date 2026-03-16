@@ -318,7 +318,9 @@ export default function MapPageContent() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [candidatesLoaded, setCandidatesLoaded] = useState(false);
-  const [emptyOverlayDismissed, setEmptyOverlayDismissed] = useState(false);
+  const [emptyOverlayDismissed, setEmptyOverlayDismissed] = useState(() => {
+    try { return typeof window !== "undefined" && !!localStorage.getItem("no-candidate-overlay-dismissed"); } catch { return false; }
+  });
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateForMap | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(true);
@@ -1142,7 +1144,7 @@ export default function MapPageContent() {
               <a href="/signup" className="inline-block px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors">
                 후보자로 등록하기 →
               </a>
-              <button onClick={() => setEmptyOverlayDismissed(true)} className="block w-full mt-2 text-xs text-muted hover:text-foreground transition-colors">
+              <button onClick={() => { setEmptyOverlayDismissed(true); try { localStorage.setItem("no-candidate-overlay-dismissed", "1"); } catch {} }} className="block w-full mt-2 text-xs text-muted hover:text-foreground transition-colors">
                 닫기
               </button>
             </div>
