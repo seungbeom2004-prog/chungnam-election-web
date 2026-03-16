@@ -102,15 +102,19 @@ export async function GET(request: NextRequest) {
 
     // Check rate limit (once per day)
     const lastSyncKey = `${NEC_SYNC_KEY}-${candidateId}`;
-    const { data: metaRow } = await supabaseAdmin
-      .from("CandidateMeta")
-      .select("value")
-      .eq("candidateId", candidateId)
-      .eq("key", "necSyncDate")
-      .maybeSingle()
-      .catch(() => ({ data: null }));
+    let lastSync: string | undefined;
+    try {
+      const { data: metaRow } = await supabaseAdmin
+        .from("CandidateMeta")
+        .select("value")
+        .eq("candidateId", candidateId)
+        .eq("key", "necSyncDate")
+        .maybeSingle();
+      lastSync = metaRow?.value as string | undefined;
+    } catch {
+      // CandidateMeta table may not exist yet
+    }
 
-    const lastSync = metaRow?.value as string | undefined;
     const today = new Date().toISOString().split("T")[0];
     const alreadySyncedToday = lastSync === today;
 
@@ -193,16 +197,19 @@ export async function POST(request: NextRequest) {
     // Check rate limit unless forced
     if (!force) {
       const today = new Date().toISOString().split("T")[0];
-      const { data: metaRow } = await supabaseAdmin
-        .from("CandidateMeta")
-        .select("value")
-        .eq("candidateId", candidateId)
-        .eq("key", "necSyncDate")
-        .maybeSingle()
-        .catch(() => ({ data: null }));
+      try {
+        const { data: metaRow } = await supabaseAdmin
+          .from("CandidateMeta")
+          .select("value")
+          .eq("candidateId", candidateId)
+          .eq("key", "necSyncDate")
+          .maybeSingle();
 
-      if (metaRow?.value === today) {
-        return apiError("오늘은 이미 새로고침했습니다. 하루에 한 번만 가능합니다.", 429);
+        if (metaRow?.value === today) {
+          return apiError("오늘은 이미 새로고침했습니다. 하루에 한 번만 가능합니다.", 429);
+        }
+      } catch {
+        // CandidateMeta table may not exist yet — allow sync
       }
     }
 
@@ -226,13 +233,16 @@ export async function POST(request: NextRequest) {
 
     // Save sync date
     const today = new Date().toISOString().split("T")[0];
-    await supabaseAdmin
-      .from("CandidateMeta")
-      .upsert(
-        { candidateId, key: "necSyncDate", value: today },
-        { onConflict: "candidateId,key" }
-      )
-      .catch(() => {});
+    try {
+      await supabaseAdmin
+        .from("CandidateMeta")
+        .upsert(
+          { candidateId, key: "necSyncDate", value: today },
+          { onConflict: "candidateId,key" }
+        );
+    } catch {
+      // CandidateMeta table may not exist yet — ignore
+    }
 
     return apiSuccess({
       message: "선관위 데이터가 프로필에 반영되었습니다.",
