@@ -106,7 +106,7 @@ export default function DashboardSidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-60 bg-surface border-r border-border h-[calc(100vh-3.5rem)]">
+      <aside className="hidden md:flex flex-col w-60 bg-surface border-r border-border h-screen">
         {/* Candidate Info */}
         <div className="p-4 border-b border-border">
           <p className="font-semibold text-foreground truncate">
@@ -125,8 +125,10 @@ export default function DashboardSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                title={item.label}
+                aria-label={item.label}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                  relative group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                   transition-colors mb-0.5
                   ${
                     isActive
@@ -137,6 +139,10 @@ export default function DashboardSidebar() {
               >
                 {item.icon}
                 {item.label}
+                {/* Tooltip (visible on hover even when sidebar is collapsed in future) */}
+                <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap transition-opacity z-50 hidden">
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -147,6 +153,7 @@ export default function DashboardSidebar() {
           {/* Visitor View */}
           <Link
             href="/"
+            title="방문자 화면으로 이동"
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-foreground hover:bg-background transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -170,6 +177,7 @@ export default function DashboardSidebar() {
           {/* Logout */}
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
+            title="로그아웃"
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

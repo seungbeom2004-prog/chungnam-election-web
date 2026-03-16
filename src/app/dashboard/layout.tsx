@@ -33,8 +33,10 @@ export default function DashboardLayout({
 
   return (
     <ThemeProvider initialTheme="regular">
-      {/* h + overflow-hidden: sidebars stay fixed; content area scrolls independently */}
-      <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+      {/* On mobile: offset top by 3rem (mobile sticky header h-12).
+          On desktop: the Navbar is a fixed left rail (w-20), no top bar.
+          pl-20 offsets the main content past the fixed left rail. */}
+      <div className="flex h-[calc(100vh-3rem)] md:h-screen md:pl-20 overflow-hidden">
         <DashboardSidebar />
         <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto min-w-0">
           {children}
