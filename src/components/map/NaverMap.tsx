@@ -734,7 +734,7 @@ export default function NaverMap({
       });
       const zIndexByCandidate: Record<string, number> = {};
       sortedByJoin.forEach((c, i) => {
-        zIndexByCandidate[c.id] = 100 + (sortedByJoin.length - i);
+        zIndexByCandidate[c.id] = 500 + (sortedByJoin.length - i); // 후보자 마커는 항상 공약 핀(z:50) 위에 표시
       });
 
       // ── Pass 1: compute lat/lng for every candidate ────────────────────────
