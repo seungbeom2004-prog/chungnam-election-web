@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
 import ProposalList from "@/components/proposals/ProposalList";
 import ProposalForm from "@/components/proposals/ProposalForm";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -44,6 +45,9 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [postTypeFilter, setPostTypeFilter] = useState<"all" | "제안" | "민원">("all");
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const { isCute } = useTheme();
+  const { data: session } = useSession();
+  const isCandidate = (session?.user as { role?: string })?.role === "candidate";
+  const candidateName = (session?.user as { name?: string })?.name ?? undefined;
 
   // Fetch posts with location for the map
   useEffect(() => {
@@ -196,6 +200,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           postType={postTypeFilter === "all" ? undefined : postTypeFilter}
           showForm={false}
           onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
+          isCandidate={isCandidate}
+          candidateName={candidateName}
         />
       </div>
     </div>

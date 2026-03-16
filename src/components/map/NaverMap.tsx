@@ -14,6 +14,7 @@ export interface ProposalMapItem {
   latitude: number;
   longitude: number;
   likeCount: number;
+  postType?: string;
 }
 
 interface NaverMapProps {
@@ -341,22 +342,24 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
   );
 }
 
-/** Citizen proposal pin — purple speech bubble with like count. */
-function buildProposalMarkerHTML(authorName: string, likeCount: number, isCute: boolean): string {
-  const color = isCute ? "#A855F7" : "#7C3AED";
+/** Citizen proposal/민원 pin — colored circle with like count badge. */
+function buildProposalMarkerHTML(authorName: string, likeCount: number, _isCute: boolean, postType?: string): string {
+  const isMinwon = postType === "민원";
+  const color = isMinwon ? "#FF5A00" : "#3B82F6";
+  const shadowColor = isMinwon ? "rgba(255,90,0,0.45)" : "rgba(59,130,246,0.45)";
   const truncated = authorName.length > 6 ? authorName.slice(0, 6) + "…" : authorName;
   const likeStr = likeCount > 0 ? ` ♥${likeCount}` : "";
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
-    `<div style="position:relative;width:40px;height:40px;background:${color};border-radius:10px;` +
+    `<div style="position:relative;width:36px;height:36px;background:${color};border-radius:50%;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `box-shadow:0 2px 8px rgba(124,58,237,0.45);">` +
-    `<span style="font-size:20px;line-height:1;">💬</span>` +
+    `box-shadow:0 2px 8px ${shadowColor};">` +
+    `<span style="font-size:14px;line-height:1;color:white;font-weight:700;">${isMinwon ? "📢" : "💡"}</span>` +
     (likeCount > 0
-      ? `<div style="position:absolute;top:-8px;right:-8px;background:#EF4444;color:white;` +
-        `font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;` +
+      ? `<div style="position:absolute;top:-7px;right:-7px;background:#EF4444;color:white;` +
+        `font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;` +
         `border:2px solid white;display:flex;align-items:center;justify-content:center;` +
         `padding:0 3px;">♥${likeCount}</div>`
       : "") +
@@ -905,7 +908,7 @@ export default function NaverMap({
       const onClick = onProposalClickRef.current;
       if (!items || items.length === 0) return;
       for (const proposal of items) {
-        const markerHtml = buildProposalMarkerHTML(proposal.authorName, proposal.likeCount ?? 0, isCute);
+        const markerHtml = buildProposalMarkerHTML(proposal.authorName, proposal.likeCount ?? 0, isCute, proposal.postType);
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(proposal.latitude, proposal.longitude),
