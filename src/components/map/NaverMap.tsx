@@ -1044,8 +1044,8 @@ export default function NaverMap({
         const map = new naver.maps.Map(container, {
           center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
           zoom:   toNaverZoom(initialZoom),
-          zoomControl: !isMobile,
-          zoomControlOptions: { position: naver.maps.Position.RIGHT_BOTTOM },
+          zoomControl:  false, // 커스텀 +/- 버튼 사용
+          scaleControl: false, // 축척 바 제거
         });
 
         mapInstance.current = map;
@@ -1224,11 +1224,54 @@ export default function NaverMap({
     } catch { /* SDK not ready */ }
   }, [selectedPledgeId, pledges, isCute]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Custom zoom button handlers ───────────────────────────────────────────
+  const handleZoomIn = useCallback(() => {
+    if (!mapInstance.current) return;
+    try { mapInstance.current.setZoom(Math.min(mapInstance.current.getZoom() + 1, 21)); } catch { /* ignore */ }
+  }, []);
+  const handleZoomOut = useCallback(() => {
+    if (!mapInstance.current) return;
+    try { mapInstance.current.setZoom(Math.max(mapInstance.current.getZoom() - 1, 1)); } catch { /* ignore */ }
+  }, []);
+
+  // Shared button style
+  const btnBase: React.CSSProperties = {
+    width: "36px", height: "36px",
+    background: "#fff",
+    border: `1.5px solid ${isCute ? "#FFB6D5" : "#e0e0e0"}`,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", userSelect: "none",
+    fontSize: "20px", fontWeight: 700, lineHeight: 1,
+    color: isCute ? CUTE_COLOR : BRAND_COLOR,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+    transition: "background 0.15s",
+  };
+
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full"
-      style={{ width: "100%", height: "100%", display: "block" }}
-    />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div
+        ref={mapRef}
+        className="w-full h-full"
+        style={{ width: "100%", height: "100%", display: "block" }}
+      />
+      {/* ── Custom +/- zoom buttons ── */}
+      <div style={{ position: "absolute", right: "14px", bottom: "32px", display: "flex", flexDirection: "column", zIndex: 20, borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.18)" }}>
+        <button
+          onClick={handleZoomIn}
+          aria-label="확대"
+          style={{ ...btnBase, borderRadius: "8px 8px 0 0", borderBottom: "none" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isCute ? "#FFF0F6" : "#FFF5F0"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; }}
+        >+</button>
+        <div style={{ height: "1px", background: isCute ? "#FFB6D5" : "#e0e0e0" }} />
+        <button
+          onClick={handleZoomOut}
+          aria-label="축소"
+          style={{ ...btnBase, borderRadius: "0 0 8px 8px", borderTop: "none" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isCute ? "#FFF0F6" : "#FFF5F0"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; }}
+        >−</button>
+      </div>
+    </div>
   );
 }
