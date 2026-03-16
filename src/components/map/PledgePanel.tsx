@@ -275,6 +275,36 @@ function PledgePanelContent({
             </button>
           )}
 
+          {/* Related news article — sourced from candidate's profile */}
+          {pledge.candidate && (pledge.candidate as { articleUrl?: string | null }).articleUrl && (
+            <div>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">📰 관련 기사</p>
+              <a
+                href={(pledge.candidate as { articleUrl?: string | null }).articleUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 p-3 border border-border rounded-xl bg-background hover:shadow-sm transition-shadow group"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-slate-100 text-slate-600">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 4h16v4H4zM4 10h10M4 14h10M4 18h6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
+                    {(pledge.candidate as { articleTitle?: string | null }).articleTitle || "기사 읽기"}
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5 truncate">
+                    {(pledge.candidate as { articleUrl?: string | null }).articleUrl}
+                  </p>
+                </div>
+                <svg className="shrink-0 text-muted mt-0.5" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            </div>
+          )}
+
           {/* Collaborators list */}
           {collabLoading ? (
             <div className="flex justify-center py-2">
