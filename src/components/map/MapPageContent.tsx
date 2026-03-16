@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import NaverMap from "@/components/map/NaverMap";
 import type { ProposalMapItem } from "@/components/map/NaverMap";
@@ -207,8 +207,8 @@ function FontSizeCompact() {
   };
   return (
     <div className="flex flex-col gap-0.5 items-center" title="글씨 크기">
-      <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-8 h-7 flex items-center justify-center text-[10px] font-bold text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 크게">A+</button>
-      <button onClick={() => apply(scale - 0.1)} disabled={scale <= 0.8} className="w-8 h-7 flex items-center justify-center text-[10px] font-medium text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글씨 작게">A-</button>
+      <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-11 h-11 flex items-center justify-center text-[10px] font-bold text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글자 크기 키우기" title="글자 크기 키우기">A+</button>
+      <button onClick={() => apply(scale - 0.1)} disabled={scale <= 0.8} className="w-11 h-11 flex items-center justify-center text-[10px] font-medium text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글자 크기 줄이기" title="글자 크기 줄이기">A-</button>
     </div>
   );
 }
@@ -343,6 +343,10 @@ export default function MapPageContent() {
   const { isCute, setTheme } = useTheme();
   const { data: session } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Determine active theme from URL pathname (avoids async isCute hydration race)
+  const isOnCutePath = pathname === "/cute";
 
   // Prefetch key routes for instant navigation
   useEffect(() => {
@@ -350,7 +354,7 @@ export default function MapPageContent() {
     routes.forEach((r) => router.prefetch(r));
   }, [router]);
 
-  const primaryColor = isCute ? "#FF6B9D" : "#FF5A00";
+  const primaryColor = isCute ? "#FF6B9D" : "#D14800";
 
   // Filtered candidates
   const filteredCandidates = candidates.filter((c) => {
@@ -625,7 +629,7 @@ export default function MapPageContent() {
         {/* Toggle button on the right border — always visible */}
         <button
           onClick={() => setPanelOpen((o) => !o)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-20 w-5 h-14 bg-white border-y border-r border-border/70 rounded-r-xl shadow-md flex items-center justify-center text-muted hover:text-primary hover:bg-gray-50 transition-colors"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-20 w-11 h-14 bg-white border-y border-r border-border/70 rounded-r-xl shadow-md flex items-center justify-center text-muted hover:text-primary hover:bg-gray-50 transition-colors"
           aria-label={panelOpen ? "패널 닫기" : "패널 열기"}
           title={panelOpen ? "패널 닫기" : "패널 열기"}
         >
@@ -638,7 +642,7 @@ export default function MapPageContent() {
             <>
               {/* Panel Header */}
               <div className="px-4 pt-5 pb-3 shrink-0 border-b border-border/40">
-                <h1 className="text-[15px] font-bold text-foreground truncate">
+                <h1 className="text-xl font-bold text-foreground truncate">
                   {selectedDistrict ? `${selectedDistrict}의 공약` : "충남의 공약"}
                 </h1>
                 <p className="text-xs text-muted mt-0.5">후보자 {filteredCandidates.length}명</p>
@@ -672,7 +676,15 @@ export default function MapPageContent() {
                 </div>
 
                 {panelPledges.length === 0 ? (
-                  <p className="px-4 py-4 text-xs text-muted text-center">공약이 없습니다</p>
+                  searchQuery.trim() ? (
+                    <div className="text-center py-8 text-muted px-4">
+                      <p className="text-2xl mb-2">🔍</p>
+                      <p className="font-medium text-sm">검색 결과가 없어요</p>
+                      <p className="text-xs mt-1">다른 키워드로 검색해보세요</p>
+                    </div>
+                  ) : (
+                    <p className="px-4 py-4 text-xs text-muted text-center">공약이 없습니다</p>
+                  )
                 ) : (
                   <div className="divide-y divide-border/40">
                     {panelPledges.map((p) => (
@@ -882,18 +894,18 @@ export default function MapPageContent() {
           <button
             onClick={() => { if (isCute) handleThemeToggle(); }}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              !isCute ? "bg-primary text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
+              !isOnCutePath ? "bg-primary text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
             }`}
-            aria-pressed={!isCute}
+            aria-pressed={!isOnCutePath}
           >
             🏛️ 일반 테마
           </button>
           <button
             onClick={() => { if (!isCute) handleThemeToggle(); }}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              isCute ? "bg-pink-500 text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
+              isOnCutePath ? "bg-pink-500 text-white shadow-sm" : "text-muted hover:text-foreground hover:bg-gray-100/80"
             }`}
-            aria-pressed={isCute}
+            aria-pressed={isOnCutePath}
           >
             ✨ 귀여운 테마
           </button>

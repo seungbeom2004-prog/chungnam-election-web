@@ -149,7 +149,7 @@ function PledgePanelContent({
       <button
         onClick={onClose}
         aria-label="닫기"
-        className="absolute top-4 right-4 text-muted hover:text-foreground transition-colors"
+        className="absolute top-2 right-2 w-11 h-11 flex items-center justify-center text-muted hover:text-foreground hover:bg-background rounded-xl transition-colors"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -157,7 +157,7 @@ function PledgePanelContent({
       </button>
 
       {/* Title — always visible */}
-      <h3 className="text-lg font-bold text-foreground pr-8 mb-2">{pledge.title}</h3>
+      <h2 className="text-lg font-bold text-foreground pr-8 mb-2">{pledge.title}</h2>
 
       {/* Like button directly below title */}
       <div className="mb-3">

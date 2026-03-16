@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-primary: #FF5A00;
-  --color-primary-hover: #E65100;
+  --color-primary: #D14800;
+  --color-primary-hover: #B83E00;
   --color-primary-light: #FFF3E0;
   --color-secondary: #1A1A2E;
   --color-secondary-light: #16213E;
