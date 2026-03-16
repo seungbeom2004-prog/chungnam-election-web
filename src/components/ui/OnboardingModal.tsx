@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 const ONBOARDING_KEY = "onboarding-done-v1";
 
@@ -30,8 +31,11 @@ interface OnboardingModalProps {
 export default function OnboardingModal({ forceShow }: OnboardingModalProps) {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Never show on the cute theme route — isCute hydrates async so guard here too
+    if (pathname === "/cute") return;
     if (forceShow) {
       setVisible(true);
       return;
@@ -43,7 +47,7 @@ export default function OnboardingModal({ forceShow }: OnboardingModalProps) {
     } catch {
       // private browsing
     }
-  }, [forceShow]);
+  }, [forceShow, pathname]);
 
   const dismiss = () => {
     setVisible(false);
