@@ -91,6 +91,22 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: "/dashboard/nec-sync",
+    label: "선관위 연동",
+    shortLabel: "선관위",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M4 4h12v2H4zM4 9h12v2H4zM4 14h8v2H4z"
+          fill="currentColor"
+          opacity="0.8"
+        />
+        <circle cx="16" cy="15" r="3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M15 15l.8.8 1.5-1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ];
 
 export default function DashboardSidebar() {
