@@ -59,10 +59,14 @@ export default function PledgePanel() {
             className="fixed inset-0 z-20 bg-black/20"
             onClick={() => setIsPanelOpen(false)}
           />
-          {/* Mobile Bottom Sheet */}
+          {/* Mobile Bottom Sheet — sits above the 56px bottom nav bar */}
           <div
-            className="fixed bottom-0 left-0 right-0 z-30 bg-surface rounded-t-2xl shadow-xl border-t border-border max-h-[70vh] overflow-y-auto"
-            style={{ animation: "slideUp 300ms ease-out" }}
+            className="fixed left-0 right-0 z-30 bg-surface rounded-t-2xl shadow-xl border-t border-border overflow-y-auto"
+            style={{
+              bottom: "calc(56px + env(safe-area-inset-bottom, 0px))",
+              maxHeight: "calc(70vh - 56px - env(safe-area-inset-bottom, 0px))",
+              animation: "slideUp 300ms ease-out",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-1 bg-border rounded-full mx-auto mt-3" />
