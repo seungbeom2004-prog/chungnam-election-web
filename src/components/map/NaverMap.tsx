@@ -239,18 +239,19 @@ function buildCuteCandidateMarkerHTML(candidate: CandidateForMap, compact = fals
     : "";
 
   if (compact) {
+    // 귀여운 테마: 캐릭터(원형)는 항상 full 크기로 표시, 말풍선만 숨김
     return (
-      `<div style="text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
+      `<div style="width:120px;text-align:center;cursor:pointer;user-select:none;pointer-events:auto;` +
       `will-change:transform,opacity;transform:translateZ(0);backface-visibility:hidden;` +
       `animation:markerFadeIn 0.2s ease-out both;">` +
       `<div style="position:relative;display:inline-block;">` +
-      `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;overflow:hidden;` +
-      `border:3px solid ${CUTE_COLOR};background:linear-gradient(135deg,${CUTE_COLOR},#FFB6D5);` +
-      `box-shadow:0 3px 10px rgba(255,107,157,0.4);">` +
-      `<span style="font-size:18px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>` +
+      `<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;overflow:hidden;` +
+      `border:4px solid ${CUTE_COLOR};background:linear-gradient(135deg,${CUTE_COLOR},#FFB6D5);` +
+      `box-shadow:0 4px 16px rgba(255,107,157,0.4);">` +
+      `<span style="font-size:22px;font-weight:800;color:white;${cuteFont}">${escapeHtml(candidate.name.charAt(0))}</span>` +
       bgLayer +
       `</div>` +
-      `<div style="position:absolute;top:-2px;right:-2px;font-size:12px;">⭐</div>` +
+      `<div style="position:absolute;top:-2px;right:-2px;font-size:14px;">⭐</div>` +
       confirmedBadge +
       `</div>` +
       `</div>`
@@ -846,9 +847,9 @@ export default function NaverMap({
           position: new naver.maps.LatLng(lat, lng),
           icon: {
             content: markerHtml,
-            anchor: compact
-              ? new naver.maps.Point(isCute ? 34 : 32, isCute ? 34 : 32)
-              : new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35),
+            anchor: (compact && !isCute)
+              ? new naver.maps.Point(32, 32)   // non-cute compact: small square, center anchor
+              : new naver.maps.Point(isCute ? 60 : 55, isCute ? 38 : 35), // cute: always full anchor (캐릭터 항상 표시)
           },
           zIndex: zIndexByCandidate[candidate.id] ?? 100,
         });
