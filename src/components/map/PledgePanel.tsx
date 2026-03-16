@@ -425,12 +425,8 @@ function PledgePanelContent({
         </div>
       )}
 
-      {/* Like + Share / QR — always visible at bottom */}
+      {/* Share / QR — always visible at bottom */}
       <div className="mt-5 pt-4 border-t border-border">
-        {/* Like button */}
-        <div className="mb-3">
-          <PledgeLikeButton pledgeId={pledge.id} />
-        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowQR((v) => !v)}
