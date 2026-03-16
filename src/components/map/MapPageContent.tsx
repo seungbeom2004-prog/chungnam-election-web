@@ -16,6 +16,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import type { Pledge, BylawGroup } from "@/types";
 import { findDistrictCity } from "@/lib/districts";
 import UserProfileButton from "@/components/layout/UserProfileButton";
+import OnboardingModal from "@/components/ui/OnboardingModal";
+import PledgePinTooltip from "@/components/ui/PledgePinTooltip";
 
 const CITY_ZOOM = 6;
 const PANEL_PLEDGES_LIMIT = 6;
@@ -1302,6 +1304,12 @@ export default function MapPageContent() {
           </div>
         </div>
       )}
+
+      {/* ─── First-visit onboarding (regular theme only) ─────────────────────── */}
+      {!isCute && <OnboardingModal />}
+
+      {/* ─── Pledge pin hint tooltip (first visit) ─────────────────────────── */}
+      <PledgePinTooltip />
     </div>
   );
 }

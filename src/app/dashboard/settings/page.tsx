@@ -19,6 +19,83 @@ interface ElectionOption {
 const CANDIDATE_STATUSES = ["출마예정자", "예비후보자", "후보자"] as const;
 const CAUCUS_STATUSES = ["공천 미확정", "공천 확정"] as const;
 
+// ─── Web Push Notification Card ──────────────────────────────────────────────
+
+function PushNotificationCard() {
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [requesting, setRequesting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPermission("unsupported");
+    } else {
+      setPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleRequest = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    setRequesting(true);
+    try {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+    } catch {
+      // ignore
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <h2 className="text-base font-semibold text-foreground mb-1">웹 푸시 알림</h2>
+      <p className="text-sm text-muted mb-4">
+        공약에 댓글이 달리거나 관리자 알림이 있을 때 알림을 받을 수 있습니다.
+      </p>
+      {permission === "unsupported" && (
+        <div className="flex items-center gap-2 text-sm text-muted bg-background rounded-lg px-3 py-2">
+          <span>⚠️</span>
+          <span>이 브라우저는 웹 푸시 알림을 지원하지 않습니다.</span>
+        </div>
+      )}
+      {permission === "granted" && (
+        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">
+          <span>✓</span>
+          <span>알림이 허용되어 있습니다.</span>
+        </div>
+      )}
+      {permission === "denied" && (
+        <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+          <span>⚠️</span>
+          <span>알림이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해 주세요.</span>
+        </div>
+      )}
+      {permission === "default" && (
+        <button
+          onClick={handleRequest}
+          disabled={requesting}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {requesting ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              요청 중...
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              알림 허용
+            </>
+          )}
+        </button>
+      )}
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const candidateId = (session?.user as { id?: string })?.id;
@@ -393,6 +470,9 @@ export default function SettingsPage() {
           </Button>
         </form>
       </Card>
+
+      {/* Web Push Notifications */}
+      <PushNotificationCard />
 
       {/* Account deletion danger zone */}
       <Card className="mt-6 border-red-200 bg-red-50/30">
