@@ -777,14 +777,14 @@ export default function MapPageContent() {
       {/* ══════════════════════════════════════════════
           MAP AREA
       ══════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
 
         {/* ─── Mobile Top Header (normal flow, not overlapping map) ─────────── */}
         <div className="md:hidden shrink-0 bg-surface/95 backdrop-blur-sm border-b border-border/20 z-20">
           {/* Row 1: Integrated search + theme button */}
           <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1.5">
             {/* Search input with integrated logo */}
-            <div className={`flex-1 flex items-center gap-2.5 bg-white/92 backdrop-blur-sm rounded-2xl border border-border/30 px-3 py-2.5 shadow-sm focus-within:border-primary/50 transition-colors`}>
+            <div className={`flex-1 min-w-0 flex items-center gap-2.5 bg-white/92 backdrop-blur-sm rounded-2xl border border-border/30 px-3 py-2.5 shadow-sm focus-within:border-primary/50 transition-colors`}>
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCute ? "bg-pink-100" : "bg-primary"}`}>
                 <span className={`font-bold text-[9px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
               </div>
