@@ -557,7 +557,7 @@ export default function MapPageContent() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex w-screen overflow-hidden h-dvh">
+    <div className="flex flex-col md:flex-row w-screen overflow-hidden h-dvh">
 
       {/* ══════════════════════════════════════════════
           DESKTOP LEFT RAIL (wider: 80px)
@@ -767,7 +767,89 @@ export default function MapPageContent() {
       {/* ══════════════════════════════════════════════
           MAP AREA
       ══════════════════════════════════════════════ */}
-      <div className="flex-1 relative min-w-0 h-full">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+        {/* ─── Mobile Top Header (normal flow, not overlapping map) ─────────── */}
+        <div className="md:hidden shrink-0 bg-surface/95 backdrop-blur-sm border-b border-border/20 z-20">
+          {/* Row 1: Integrated search + theme button */}
+          <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1.5">
+            {/* Search input with integrated logo */}
+            <div className={`flex-1 flex items-center gap-2.5 bg-white/92 backdrop-blur-sm rounded-2xl border border-border/30 px-3 py-2.5 shadow-sm focus-within:border-primary/50 transition-colors`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCute ? "bg-pink-100" : "bg-primary"}`}>
+                <span className={`font-bold text-[9px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
+              </div>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="후보자, 공약 검색"
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
+                aria-label="후보자 및 공약 검색"
+                type="search"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-muted hover:text-foreground text-sm leading-none transition-colors"
+                  aria-label="검색어 지우기"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {/* Theme toggle - compact */}
+            <button
+              onClick={handleThemeToggle}
+              className={`shrink-0 w-11 h-11 rounded-2xl flex flex-col items-center justify-center gap-0.5 border-2 text-base transition-all shadow-md ${
+                isCute
+                  ? "border-pink-400 bg-pink-500 text-white"
+                  : "border-orange-600/70 bg-primary text-white"
+              }`}
+              aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
+            >
+              <span className="text-base leading-none">{isCute ? "🏛️" : "✨"}</span>
+              <span className="text-[7px] font-bold leading-none">{isCute ? "일반" : "귀여운"}</span>
+            </button>
+          </div>
+
+          {/* Row 2: Category / City / Candidate buttons */}
+          <div className="flex gap-2 px-3 pb-2.5 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setMobileCategoryOpen(true)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
+                selectedCategory !== "all"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
+              }`}
+            >
+              <span>📂</span>
+              <span>카테고리{selectedCategory !== "all" ? ` (${selectedCategory})` : ""}</span>
+            </button>
+
+            <button
+              onClick={() => setMobileDistrictOpen(true)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
+                selectedDistrict
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
+              }`}
+            >
+              <IconLocation size={12} />
+              <span>{selectedDistrict ?? "지역"}</span>
+            </button>
+
+            <button
+              onClick={() => setMobileCandidateListOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-white/90 backdrop-blur-sm text-foreground border-border/50 shadow-sm transition-colors"
+            >
+              <IconPerson size={12} />
+              <span className="whitespace-nowrap">후보자 {filteredCandidates.length}명</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Map canvas wrapper — flex-1 fills remaining height */}
+        <div className="flex-1 relative min-w-0 overflow-hidden min-h-0">
 
         {/* Map rendering */}
         {mapReady && !mapError ? (
@@ -915,85 +997,6 @@ export default function MapPageContent() {
               <UserProfileButton />
             </>
           )}
-        </div>
-
-        {/* ─── Mobile Top Header ──────────────────────────────────────────── */}
-        <div className="md:hidden absolute top-0 left-0 right-0 z-20">
-          {/* Row 1: Integrated search + theme button */}
-          <div className="flex items-center gap-2.5 px-3 pt-3 pb-1.5">
-            {/* Search input with integrated logo */}
-            <div className="flex-1 flex items-center gap-2.5 bg-white/92 backdrop-blur-sm rounded-2xl border border-border/30 px-3 py-2.5 shadow-sm focus-within:border-primary/50 transition-colors">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCute ? "bg-pink-100" : "bg-primary"}`}>
-                <span className={`font-bold text-[9px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
-              </div>
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="후보자, 공약 검색"
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted min-w-0"
-                aria-label="후보자 및 공약 검색"
-                type="search"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="text-muted hover:text-foreground text-sm leading-none transition-colors"
-                  aria-label="검색어 지우기"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-
-            {/* Theme toggle - big, colored */}
-            <button
-              onClick={handleThemeToggle}
-              className={`shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 border-2 text-base transition-all shadow-md ${
-                isCute
-                  ? "border-pink-400 bg-pink-500 text-white"
-                  : "border-orange-600/70 bg-primary text-white"
-              }`}
-              aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
-            >
-              <span className="text-lg leading-none">{isCute ? "🏛️" : "✨"}</span>
-              <span className="text-[8px] font-bold leading-none">{isCute ? "일반" : "귀여운"}</span>
-            </button>
-          </div>
-
-          {/* Row 2: Category / City / Candidate buttons */}
-          <div className="flex gap-2 px-3 pb-2 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setMobileCategoryOpen(true)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
-                selectedCategory !== "all"
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
-              }`}
-            >
-              <span>📂</span>
-              <span>카테고리{selectedCategory !== "all" ? ` (${selectedCategory})` : ""}</span>
-            </button>
-
-            <button
-              onClick={() => setMobileDistrictOpen(true)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors shadow-sm ${
-                selectedDistrict
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
-              }`}
-            >
-              <IconLocation size={12} />
-              <span>{selectedDistrict ?? "지역"}</span>
-            </button>
-
-            <button
-              onClick={() => setMobileCandidateListOpen(true)}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-white/90 backdrop-blur-sm text-foreground border-border/50 shadow-sm transition-colors"
-            >
-              <IconPerson size={12} />
-              <span className="whitespace-nowrap">후보자 {filteredCandidates.length}명</span>
-            </button>
-          </div>
         </div>
 
         {/* ─── Mobile Category Legend Popup ──────────────────────────────── */}
@@ -1179,7 +1182,8 @@ export default function MapPageContent() {
             </div>
           </div>
         )}
-      </div>
+        </div>{/* end map canvas wrapper */}
+      </div>{/* end map area */}
 
       {/* ══════════════════════════════════════════════
           MOBILE BOTTOM NAV BAR

@@ -39,7 +39,7 @@ export default function CuteMascot() {
 
   return (
     <div
-      className="fixed right-4 z-50 pointer-events-none select-none bottom-20 md:bottom-6"
+      className="fixed right-4 z-10 pointer-events-none select-none bottom-20 md:bottom-6"
       style={{ maxWidth: 260 }}
     >
       {/* Speech bubble — dismissible */}

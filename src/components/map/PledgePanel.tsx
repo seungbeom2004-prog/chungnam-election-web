@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
@@ -12,6 +12,7 @@ import { PledgeLikeButton, PledgeComments } from "@/components/pledges/PledgeInt
 /** Extract YouTube video ID from a URL embedded in any text. */
 function extractYouTubeId(text: string): string | null {
   const patterns = [
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
     /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
     /youtu\.be\/([a-zA-Z0-9_-]{11})/,
     /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
@@ -35,6 +36,15 @@ function detectMediaType(url: string): MediaType {
 
 export default function PledgePanel() {
   const { selectedPledge, isPanelOpen, setIsPanelOpen } = useMapStore();
+  // Default false (SSR-safe: desktop layout on first paint, corrected after hydration)
+  const [isMobile, setIsMobile] = useState(false);
+
+  useLayoutEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   if (!isPanelOpen || !selectedPledge) return null;
 
@@ -42,40 +52,46 @@ export default function PledgePanel() {
 
   return (
     <>
-      {/* Mobile: semi-transparent backdrop — tap to close */}
-      <div
-        className="md:hidden fixed inset-0 z-20 bg-black/20"
-        onClick={() => setIsPanelOpen(false)}
-      />
-      {/* Mobile Bottom Sheet — stops click propagation so backdrop doesn't fire */}
-      <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface rounded-t-2xl shadow-xl border-t border-border max-h-[70vh] overflow-y-auto"
-        style={{ animation: "slideUp 300ms ease-out" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="w-12 h-1 bg-border rounded-full mx-auto mt-3" />
-        <PledgePanelContent
-          pledge={pledge}
-          onClose={() => setIsPanelOpen(false)}
-        />
-      </div>
-
-      {/* Desktop: transparent backdrop */}
-      <div
-        className="hidden md:block fixed inset-0 z-20"
-        onClick={() => setIsPanelOpen(false)}
-      />
-      {/* Desktop Sidebar */}
-      <div
-        className="hidden md:block fixed top-0 left-20 z-30 w-96 h-screen bg-surface border-r border-border shadow-xl overflow-y-auto"
-        style={{ animation: "slideRight 300ms ease-out" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <PledgePanelContent
-          pledge={pledge}
-          onClose={() => setIsPanelOpen(false)}
-        />
-      </div>
+      {isMobile ? (
+        <>
+          {/* Mobile: semi-transparent backdrop — tap to close */}
+          <div
+            className="fixed inset-0 z-20 bg-black/20"
+            onClick={() => setIsPanelOpen(false)}
+          />
+          {/* Mobile Bottom Sheet */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-30 bg-surface rounded-t-2xl shadow-xl border-t border-border max-h-[70vh] overflow-y-auto"
+            style={{ animation: "slideUp 300ms ease-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1 bg-border rounded-full mx-auto mt-3" />
+            <PledgePanelContent
+              pledge={pledge}
+              onClose={() => setIsPanelOpen(false)}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Desktop: transparent backdrop */}
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => setIsPanelOpen(false)}
+          />
+          {/* Desktop Sidebar */}
+          <div
+            className="fixed top-0 left-20 z-30 w-96 h-screen bg-surface border-r border-border shadow-xl overflow-y-auto"
+            style={{ animation: "slideRight 300ms ease-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PledgePanelContent
+              pledge={pledge}
+              onClose={() => setIsPanelOpen(false)}
+            />
+          </div>
+        </>
+      )}
 
       <style jsx>{`
         @keyframes slideUp {

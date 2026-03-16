@@ -4,13 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
-const NEC_API_KEY =
-  process.env.NEC_API_KEY ||
-  "40c8fb3f3f39e2d88885f91bbfc25aaa397229a6b344944116d973f594ffbd92";
+const NEC_API_KEY = process.env.NEC_API_KEY ?? "";
 const NEC_BASE_URL = "http://apis.data.go.kr/9760000";
 const LOCAL_ELECTION_SGID = "20260603";
 
-const NEC_SYNC_KEY = "nec-sync-last";
 
 interface NecCandidateItem {
   sdName: string;
@@ -33,43 +30,20 @@ interface NecCandidateItem {
 }
 
 /**
- * Fetch candidate list from NEC CandidateService
- * Uses PreCandidateInfoService for preliminary candidates (예비후보자)
+ * Fetch all preliminary candidates from NEC for 충청남도.
+ * Returns up to 300 items (pre-candidate registrations).
  */
-async function fetchNecCandidatesByName(
-  candidateName: string,
-  district: string
-): Promise<NecCandidateItem[]> {
-  // Try PreCandidateInfoService first (예비후보자)
-  const preUrl = `${NEC_BASE_URL}/PreCandidateInfoService/getPreCandidateInfo?sgId=${LOCAL_ELECTION_SGID}&sdName=충청남도&pageNo=1&numOfRows=200&resultType=json&serviceKey=${NEC_API_KEY}`;
-
-  let allItems: NecCandidateItem[] = [];
-
+async function fetchAllNecCandidates(sdName = "충청남도"): Promise<NecCandidateItem[]> {
+  const preUrl = `${NEC_BASE_URL}/PreCandidateInfoService/getPreCandidateInfo?sgId=${LOCAL_ELECTION_SGID}&sdName=${encodeURIComponent(sdName)}&pageNo=1&numOfRows=300&resultType=json&serviceKey=${NEC_API_KEY}`;
   try {
     const res = await fetch(preUrl, { cache: "no-store" });
     const json = await res.json();
     const items = json?.response?.body?.items?.item;
-    if (items) {
-      allItems = Array.isArray(items) ? items : [items];
-    }
+    if (!items) return [];
+    return Array.isArray(items) ? items : [items];
   } catch {
-    // ignore
+    return [];
   }
-
-  // Filter by name or district
-  const nameLower = candidateName.trim().toLowerCase();
-  const districtLower = district.trim().toLowerCase();
-
-  const filtered = allItems.filter((item) => {
-    const matchName = item.candidateName?.toLowerCase().includes(nameLower);
-    const matchDistrict =
-      item.wiwName?.toLowerCase().includes(districtLower) ||
-      item.electName?.toLowerCase().includes(districtLower) ||
-      districtLower.includes(item.wiwName?.toLowerCase() ?? "");
-    return matchName || matchDistrict;
-  });
-
-  return filtered.length > 0 ? filtered : allItems.slice(0, 5);
 }
 
 /**
@@ -78,7 +52,14 @@ async function fetchNecCandidatesByName(
  * Returns election name, district details, and registration status.
  */
 export async function GET(request: NextRequest) {
+  // Suppress unused param warning — request is required by Next.js route signature
+  void request;
+
   try {
+    if (!NEC_API_KEY) {
+      return apiError("NEC_API_KEY 환경 변수가 설정되지 않았습니다", 500);
+    }
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return apiError("로그인이 필요합니다", 401);
@@ -101,7 +82,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Check rate limit (once per day)
-    const lastSyncKey = `${NEC_SYNC_KEY}-${candidateId}`;
     let lastSync: string | undefined;
     try {
       const { data: metaRow } = await supabaseAdmin
@@ -118,18 +98,24 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split("T")[0];
     const alreadySyncedToday = lastSync === today;
 
-    // Fetch from NEC API
-    const necItems = await fetchNecCandidatesByName(
-      candidate.name,
-      candidate.district
-    );
+    // Fetch all 충청남도 candidates from NEC API
+    const allItems = await fetchAllNecCandidates("충청남도");
 
-    // Find best match
-    const bestMatch = necItems.find(
-      (item) =>
-        item.candidateName?.includes(candidate.name) ||
-        candidate.name.includes(item.candidateName ?? "")
-    ) ?? necItems[0];
+    // Name matches: items where NEC name includes or is included by our candidate name
+    const nameLower = candidate.name.trim().toLowerCase();
+    const nameMatches = allItems.filter((item) => {
+      const necName = (item.candidateName ?? "").toLowerCase();
+      return necName.includes(nameLower) || nameLower.includes(necName);
+    });
+
+    const toMatchItem = (item: NecCandidateItem) => ({
+      candidateName: item.candidateName,
+      wiwName: item.wiwName,
+      electName: item.electName,
+      status: item.status,
+      party: item.party,
+      sdName: item.sdName,
+    });
 
     return apiSuccess({
       candidate: {
@@ -140,28 +126,10 @@ export async function GET(request: NextRequest) {
         caucusStatus: candidate.caucusStatus,
         electionName: (candidate.election as { name?: string } | null)?.name ?? null,
       },
-      necData: bestMatch
-        ? {
-            electionName: bestMatch.electName,
-            district: `${bestMatch.wiwName} ${bestMatch.electName}`.trim(),
-            wiwName: bestMatch.wiwName,
-            electName: bestMatch.electName,
-            status: bestMatch.status,
-            party: bestMatch.party,
-            regDate: bestMatch.regDate,
-            candidateName: bestMatch.candidateName,
-          }
-        : null,
-      allMatches: necItems.slice(0, 3).map((item) => ({
-        candidateName: item.candidateName,
-        wiwName: item.wiwName,
-        electName: item.electName,
-        status: item.status,
-        party: item.party,
-      })),
+      nameMatches: nameMatches.map(toMatchItem),
+      allCandidates: allItems.slice(0, 20).map(toMatchItem),
       alreadySyncedToday,
       lastSyncDate: lastSync ?? null,
-      void: lastSyncKey,
     });
   } catch (error) {
     console.error("[GET /api/nec-candidate]", error);
