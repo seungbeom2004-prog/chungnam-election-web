@@ -69,11 +69,16 @@ export async function GET(request: NextRequest) {
       return apiError("공약 목록을 불러올 수 없습니다", 500);
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: pledges ?? [],
       pagination: paginationMeta(count ?? 0, page, limit),
     });
+    // Cache public pledge list for 60 seconds; own pledges are never cached
+    if (!isOwnPledges) {
+      response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    }
+    return response;
   } catch (error) {
     console.error("[GET /api/pledges]", error);
     return apiError("공약 목록을 불러올 수 없습니다", 500);

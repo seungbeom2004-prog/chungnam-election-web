@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-const ONBOARDING_KEY = "onboarding-done-v1";
+const ONBOARDING_KEY = "onboarding-done-v2";
 
-const STEPS = [
+const STEPS: { icon: string; title: string; description: string; disclaimer?: string }[] = [
   {
-    icon: "🗺️",
-    title: "충남 공약 지도에 오신 것을 환영합니다!",
-    description: "2026 전국동시지방선거를 앞두고 충청남도 후보자들의 공약을 지도로 한눈에 확인할 수 있습니다.",
+    icon: "🔍",
+    title: "공약을 투명하게 확인하세요",
+    description: "후보자가 우리 동네에 무슨 공약을 내걸었는지 지도 위에서 직접 확인하고 비교할 수 있습니다. 지역을 바꾸면 다른 선거구 공약도 볼 수 있어요.",
+    disclaimer: "이 플랫폼은 개혁신당 충남도당 공식 사이트가 아닌, 유권자 투명성을 위한 독립 운영 서비스입니다.",
   },
   {
     icon: "📍",
@@ -17,9 +18,9 @@ const STEPS = [
     description: "지도에서 공약 핀을 클릭하면 상세 내용, 예산, 관련 SNS, 댓글을 확인할 수 있습니다.",
   },
   {
-    icon: "👤",
-    title: "후보자를 직접 만나보세요",
-    description: "후보자 아이콘을 클릭하면 프로필, 공약 목록, 소셜 미디어를 확인할 수 있습니다. 공약에 좋아요와 댓글도 남겨보세요!",
+    icon: "✍️",
+    title: "의견을 남기고 공약을 제안하세요",
+    description: "민원이나 지역 문제를 제출하면 후보자가 공약에 반영할 수 있습니다. 좋아요와 댓글로 지지하는 공약을 알려주세요!",
   },
 ];
 
@@ -34,7 +35,7 @@ export default function OnboardingModal({ forceShow }: OnboardingModalProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Never show on the cute theme route — isCute hydrates async so guard here too
+    // Never show on the cute theme route
     if (pathname === "/cute") return;
     if (forceShow) {
       setVisible(true);
@@ -116,6 +117,11 @@ export default function OnboardingModal({ forceShow }: OnboardingModalProps) {
             <p className="text-sm text-muted leading-relaxed">
               {current?.description}
             </p>
+            {current?.disclaimer && (
+              <p className="mt-3 text-[11px] text-gray-400 leading-relaxed">
+                * {current.disclaimer}
+              </p>
+            )}
           </div>
 
           {/* Actions */}

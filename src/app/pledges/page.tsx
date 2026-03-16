@@ -7,7 +7,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "공약 목록 | 개혁 충남",
-  description: "충남 지역 개혁신당 후보자들의 공약을 확인하세요.",
+  description: "2026 충남 지방선거 개혁신당 후보자들의 공약을 지역·분류별로 한눈에 확인하세요.",
+  openGraph: {
+    title: "공약 목록 | 개혁 충남",
+    description: "2026 충남 지방선거 개혁신당 후보자들의 공약을 지역·분류별로 한눈에 확인하세요.",
+  },
 };
 
 interface CandidateInfo {

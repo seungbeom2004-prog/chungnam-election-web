@@ -170,6 +170,45 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: "/admin/analytics",
+    label: "방문자 통계",
+    shortLabel: "통계",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M3 17V9M8 17V5M13 17V11M18 17V7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/backup",
+    label: "백업/복구",
+    shortLabel: "백업",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M4 7a3 3 0 016 0 3 3 0 016 0v1a4 4 0 01-4 4H8a4 4 0 01-4-4V7z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M10 12v5M7 15l3 3 3-3"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function AdminSidebar() {

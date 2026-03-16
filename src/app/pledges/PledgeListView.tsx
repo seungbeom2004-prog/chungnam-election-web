@@ -83,7 +83,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
         const q = search.toLowerCase();
         if (!t.title.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q) && !t.candidateName.toLowerCase().includes(q)) return false;
       }
-      if (selectedCandidateId && t.candidateId !== selectedCandidateId) return false;
+      if (selectedCandidateId && t.candidateId !== selectedCandidateId && !t.collaborators.some((c) => c.id === selectedCandidateId)) return false;
       if (selectedCategories.size > 0) {
         if (!t.category || !selectedCategories.has(t.category.name)) return false;
       }
@@ -109,7 +109,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
         const q = search.toLowerCase();
         if (!t.title.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q) && !t.candidateName.toLowerCase().includes(q)) return false;
       }
-      if (selectedCandidateId && t.candidateId !== selectedCandidateId) return false;
+      if (selectedCandidateId && t.candidateId !== selectedCandidateId && !t.collaborators.some((c) => c.id === selectedCandidateId)) return false;
       if (selectedCities.size > 0) {
         const match = t.candidateDistrict.match(/^[가-힣]+(?:시|군)/);
         const city = match ? match[0] : "";
@@ -145,8 +145,8 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
           !t.candidateName.toLowerCase().includes(q)
         ) return false;
       }
-      // Candidate
-      if (selectedCandidateId && t.candidateId !== selectedCandidateId) return false;
+      // Candidate: include pledges where candidate is author OR collaborator
+      if (selectedCandidateId && t.candidateId !== selectedCandidateId && !t.collaborators.some((c) => c.id === selectedCandidateId)) return false;
       // Category
       if (selectedCategories.size > 0) {
         if (!t.category || !selectedCategories.has(t.category.name)) return false;

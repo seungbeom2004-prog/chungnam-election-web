@@ -314,6 +314,35 @@ function DrawerItem({
   return <button onClick={onClick} className={cls}>{inner}</button>;
 }
 
+// ─── Province label helper ────────────────────────────────────────────────────
+
+const PROVINCE_PATTERNS: [RegExp, string][] = [
+  [/^서울/, "서울"],
+  [/^부산/, "부산"],
+  [/^대구/, "대구"],
+  [/^인천/, "인천"],
+  [/^광주/, "광주"],
+  [/^대전/, "대전"],
+  [/^울산/, "울산"],
+  [/^세종/, "세종"],
+  [/^경기/, "경기"],
+  [/^강원/, "강원"],
+  [/^충북|충청북/, "충북"],
+  [/^전북|전라북/, "전북"],
+  [/^전남|전라남/, "전남"],
+  [/^경북|경상북/, "경북"],
+  [/^경남|경상남/, "경남"],
+  [/^제주/, "제주"],
+];
+
+function extractProvinceLabel(district: string): string {
+  for (const [pattern, name] of PROVINCE_PATTERNS) {
+    if (pattern.test(district)) return name;
+  }
+  const firstWord = district.split(/[\s,]/)[0] ?? district;
+  return firstWord.replace(/(시|도|구|군)$/, "");
+}
+
 // ─── Main Page Content ────────────────────────────────────────────────────────
 
 export default function MapPageContent() {
@@ -340,6 +369,11 @@ export default function MapPageContent() {
   const [mobileDistrictOpen, setMobileDistrictOpen] = useState(false);
   const [mobileCategoryOpen, setMobileCategoryOpen] = useState(false);
   const [mobileCandidateListOpen, setMobileCandidateListOpen] = useState(false);
+  const [otherProvincesOpen, setOtherProvincesOpen] = useState(false);
+  const [otherProvinceCandidates, setOtherProvinceCandidates] = useState<Array<{
+    id: string; name: string; district: string; province: string;
+  }>>([]);
+  const [otherProvincesLoading, setOtherProvincesLoading] = useState(false);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
   const categoryLegendRef = useRef<HTMLDivElement>(null);
@@ -390,10 +424,14 @@ export default function MapPageContent() {
   // Filtered pledges for panel list (limited)
   const panelPledges = pledges
     .filter((p) => selectedCategory === "all" || p.category?.name === selectedCategory)
-    .filter((p) => !selectedDistrict || (p.candidate?.district ?? "").startsWith(selectedDistrict))
+    .filter((p) => !selectedDistrict || (p.candidate?.district ?? "").startsWith(selectedDistrict) || (p.collaborators ?? []).some((c) => (c.candidate?.district ?? "").startsWith(selectedDistrict)))
     .filter((p) => {
       const q = searchQuery.trim().toLowerCase();
-      return !q || p.title.toLowerCase().includes(q) || (p.candidate?.name ?? "").toLowerCase().includes(q);
+      if (!q) return true;
+      if (p.title.toLowerCase().includes(q)) return true;
+      if ((p.candidate?.name ?? "").toLowerCase().includes(q)) return true;
+      if ((p.collaborators ?? []).some((c) => (c.candidate?.name ?? "").toLowerCase().includes(q))) return true;
+      return false;
     })
     .slice(0, PANEL_PLEDGES_LIMIT);
 
@@ -558,6 +596,26 @@ export default function MapPageContent() {
     setCenter(proposal.latitude, proposal.longitude);
   }, [setCenter]);
 
+  const handleOpenOtherProvinces = useCallback(() => {
+    setOtherProvincesOpen(true);
+    if (otherProvinceCandidates.length > 0) return;
+    setOtherProvincesLoading(true);
+    fetch("/api/candidates?limit=500&eligible=true&province=other")
+      .then((r) => r.json())
+      .then((json) => {
+        const data: Array<{ id: string; name: string; district: string }> = json.data ?? [];
+        const enriched = data.map((c) => ({
+          id: c.id,
+          name: c.name,
+          district: c.district,
+          province: extractProvinceLabel(c.district),
+        }));
+        setOtherProvinceCandidates(enriched);
+      })
+      .catch(console.error)
+      .finally(() => setOtherProvincesLoading(false));
+  }, [otherProvinceCandidates.length]);
+
   const handleThemeToggle = useCallback(() => {
     const next = isCute ? "regular" : "cute";
     setTheme(next);
@@ -697,19 +755,30 @@ export default function MapPageContent() {
                   )
                 ) : (
                   <div className="divide-y divide-border/40">
-                    {panelPledges.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => handlePledgeClick(p)}
-                        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-background/70 transition-colors text-left"
-                      >
-                        <span className="text-base shrink-0 mt-0.5 leading-none">{p.category?.emoji || "📌"}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{p.title}</p>
-                          <p className="text-[11px] text-muted mt-0.5">{p.candidate?.name}</p>
-                        </div>
-                      </button>
-                    ))}
+                    {panelPledges.map((p) => {
+                      const collabs = (p.collaborators ?? []).filter((c) => c.candidate);
+                      const isShared = collabs.length > 0;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => handlePledgeClick(p)}
+                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-background/70 transition-colors text-left"
+                        >
+                          <span className="text-base shrink-0 mt-0.5 leading-none">{p.category?.emoji || "📌"}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{p.title}</p>
+                            <p className="text-[11px] text-muted mt-0.5">
+                              {p.candidate?.name}
+                              {isShared && (
+                                <span className="ml-1 text-primary font-medium">
+                                  외 {collabs.length}명 공동
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -935,6 +1004,14 @@ export default function MapPageContent() {
                     {d.name}
                   </button>
                 ))}
+                <div className="px-3 py-2 border-t border-border/40">
+                  <button
+                    onClick={() => { setDistrictDropdownOpen(false); handleOpenOtherProvinces(); }}
+                    className="text-xs text-muted border border-border rounded-lg px-2 py-1 hover:border-primary/40 hover:text-primary transition-colors w-full text-center"
+                  >
+                    타 시·도 보기
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1140,6 +1217,88 @@ export default function MapPageContent() {
                   {d.name}
                 </button>
               ))}
+              <div className="px-5 py-4">
+                <button
+                  onClick={() => { setMobileDistrictOpen(false); handleOpenOtherProvinces(); }}
+                  className="text-xs text-muted border border-border rounded-lg px-3 py-2 hover:border-primary/40 hover:text-primary transition-colors w-full text-center"
+                >
+                  타 시·도 보기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Other Provinces Modal ──────────────────────────────────────── */}
+        {otherProvincesOpen && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setOtherProvincesOpen(false)}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+            <div
+              className="relative w-full md:max-w-lg bg-surface rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              style={{ maxHeight: "80dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                <div>
+                  <h2 className="font-bold text-foreground text-lg">전국 다른 지역 후보자</h2>
+                  <p className="text-xs text-muted mt-0.5">충남 외 지역 등록 후보자</p>
+                </div>
+                <button
+                  onClick={() => setOtherProvincesOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-background text-muted text-xl leading-none"
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </div>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto">
+                {otherProvincesLoading ? (
+                  <div className="py-14 flex flex-col items-center text-muted">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                    <p className="text-sm">불러오는 중...</p>
+                  </div>
+                ) : otherProvinceCandidates.length === 0 ? (
+                  <div className="py-14 text-center text-muted">
+                    <p className="text-3xl mb-3">🗺️</p>
+                    <p className="text-sm font-medium">등록된 타 지역 후보자가 없습니다</p>
+                  </div>
+                ) : (() => {
+                  // Group by province
+                  const groups: Record<string, typeof otherProvinceCandidates> = {};
+                  for (const c of otherProvinceCandidates) {
+                    if (!groups[c.province]) groups[c.province] = [];
+                    groups[c.province]!.push(c);
+                  }
+                  return Object.entries(groups).map(([province, list]) => (
+                    <div key={province}>
+                      <div className="px-5 pt-4 pb-1 sticky top-0 bg-surface/95 backdrop-blur-sm z-10">
+                        <span className="text-[10px] font-bold text-muted uppercase tracking-widest">{province}</span>
+                      </div>
+                      {list.map((c) => (
+                        <Link
+                          key={c.id}
+                          href={`/candidates/${c.id}`}
+                          onClick={() => setOtherProvincesOpen(false)}
+                          className="flex items-start gap-3 px-5 py-3 hover:bg-background/60 transition-colors border-b border-border/20 last:border-b-0"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-border/50 mt-0.5">
+                            <span className="text-primary font-bold text-xs">{c.name[0]}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground leading-tight">{c.name}</p>
+                            <p className="text-xs text-muted truncate mt-0.5">{c.district}</p>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted shrink-0 mt-1">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </Link>
+                      ))}
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
           </div>
         )}

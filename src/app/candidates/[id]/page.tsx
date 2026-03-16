@@ -1,9 +1,13 @@
 import { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import CandidateHero from "@/components/candidate/CandidateHero";
 import CandidateContent from "@/components/candidate/CandidateContent";
+
+// Revalidate candidate profiles every 60 seconds (ISR) for fresh data without full SSR cost
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -69,9 +73,10 @@ export default async function CandidateProfilePage({ params }: Props) {
     : { data: [] };
 
   // Fetch shared pledges: pledges written by OTHER candidates where this candidate is a co-proposer
+  // Use supabaseAdmin to bypass RLS restrictions on PledgeCollaboration table
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: collabsRaw } = isPledgeEligible
-    ? await supabase
+    ? await supabaseAdmin
         .from("PledgeCollaboration")
         .select("pledgeId, pledge:Pledge!pledgeId(id, title, description, budget, imageUrl, latitude, longitude, address, pledgeType, visible, createdAt, category:Category!categoryId(id, name, emoji, color, iconImage), author:Candidate!candidateId(id, name, district, profileImage))")
         .eq("candidateId", id)
@@ -126,8 +131,23 @@ export default async function CandidateProfilePage({ params }: Props) {
     sharedPledges: sharedPledgesRaw.map((p: any) => mapPledge(p, p.author)),
   };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: candidate.name,
+    description: candidate.slogan ?? undefined,
+    image: candidate.profileImage ?? undefined,
+    affiliation: { "@type": "Organization", name: candidate.party ?? "개혁신당" },
+    address: { "@type": "PostalAddress", addressRegion: candidate.district },
+    url: `https://www.reform-chungnam.kr/candidates/${candidate.id}`,
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="sticky top-14 z-10 bg-white/80 backdrop-blur-sm">
         <Link href="/" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-4 py-2">
           ← 지도로 돌아가기

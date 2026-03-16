@@ -15,11 +15,13 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 export const metadata: Metadata = {
   title: "개혁 충남 | 우리 동네 공약 지도",
   description:
-    "충남 후보자들의 공약을 지도에서 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보세요.",
+    "2026 충남 지방선거 개혁신당 후보자들의 공약을 지도에서 투명하게 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보고 공약을 제안하세요.",
+  keywords: ["개혁신당", "충남", "공약", "지방선거", "2026", "충청남도", "후보자", "공약지도"],
   openGraph: {
     title: "개혁 충남 | 우리 동네 공약 지도",
-    description: "충남 후보자들의 공약을 지도에서 확인하세요.",
+    description: "2026 충남 지방선거 후보자들의 공약을 지도에서 투명하게 확인하세요.",
     type: "website",
+    locale: "ko_KR",
     images: [
       {
         url: "/og-image.png",
@@ -28,6 +30,9 @@ export const metadata: Metadata = {
         alt: "개혁 충남 | 우리 동네 공약 지도",
       },
     ],
+  },
+  alternates: {
+    canonical: "https://www.reform-chungnam.kr",
   },
 };
 
