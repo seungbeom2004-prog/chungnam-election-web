@@ -208,20 +208,6 @@ export default function Navbar() {
           <span className={`font-bold text-xs leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
         </Link>
 
-        {/* User profile at top of rail (desktop) */}
-        {session ? (
-          <UserProfileButton />
-        ) : (
-          <Link
-            href="/login"
-            title="로그인"
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:bg-background hover:text-foreground transition-colors"
-            aria-label="로그인"
-          >
-            <IconPerson />
-          </Link>
-        )}
-
         {/* Nav items */}
         <RailNavItem href="/" icon={<IconMapPin />} label="공약지도" active={isMap} />
         <RailNavItem href="/proposals" icon={<IconBulb />} label="민원/제안" active={isProposals} />
@@ -247,6 +233,20 @@ export default function Navbar() {
         >
           {isCute ? "🏛️" : "✨"}
         </button>
+
+        {/* User profile at bottom of rail (consistent with map page) */}
+        {session ? (
+          <UserProfileButton />
+        ) : (
+          <Link
+            href="/login"
+            title="로그인"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:bg-background hover:text-foreground transition-colors"
+            aria-label="로그인"
+          >
+            <IconPerson />
+          </Link>
+        )}
 
       </aside>
 
