@@ -91,7 +91,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             {isCute && <span className="mr-2">🌼</span>}민원 & 제안
           </h1>
           <p className="text-sm text-muted leading-relaxed">
-            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요. 지도에서 위치를 지정할 수 있습니다.
+            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요. 지도에서 위치를 지정할 수 있습니다.{" "}
+            <span className="text-primary font-semibold">로그인 없이도 글을 쓸 수 있어요.</span>
           </p>
         </div>
         <button

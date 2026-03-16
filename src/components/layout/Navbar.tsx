@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 import UserProfileButton from "@/components/layout/UserProfileButton";
 
@@ -177,7 +176,6 @@ export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const t = useUITexts();
   const { isCute, setTheme } = useTheme();
 
   // Prefetch main routes on mount for instant navigation
@@ -256,73 +254,6 @@ export default function Navbar() {
 
       </aside>
 
-      {/* ── Mobile: Compact Top Bar ──────────────────────────────────────── */}
-      <header className="md:hidden sticky top-0 z-40 bg-surface/97 backdrop-blur-sm border-b border-border">
-        <div className="px-4 h-12 flex items-center gap-2">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="개혁 충남 홈으로">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isCute ? "bg-pink-100" : "bg-primary"}`}>
-              <span className={`font-bold text-[10px] leading-none ${isCute ? "text-pink-600" : "text-white"}`}>개혁</span>
-            </div>
-            <span className="font-semibold text-sm text-foreground hidden sm:block">{t.logoSubText}</span>
-          </Link>
-
-          {/* Nav links */}
-          <nav className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar" aria-label="주요 메뉴">
-            {[
-              { href: "/", label: t.navMapLink, active: isMap },
-              { href: "/proposals", label: "민원 & 제안", active: isProposals },
-              { href: "/pledges", label: "공약 목록", active: isPledges },
-              { href: "/about", label: "후보자 소개", active: isAbout },
-            ].map(({ href, label, active }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`shrink-0 text-xs font-medium transition-colors px-1.5 py-0.5 rounded ${
-                  active ? "text-primary" : "text-muted hover:text-foreground"
-                }`}
-                aria-current={active ? "page" : undefined}
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* D-Day */}
-          <ElectionDDay />
-
-          {/* Font size */}
-          <div className="shrink-0 hidden sm:block">
-            <FontSizeControl />
-          </div>
-
-          {/* Theme toggle */}
-          <button
-            onClick={handleThemeToggle}
-            className={`shrink-0 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
-              isCute
-                ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
-                : "border-border bg-background text-muted hover:text-foreground hover:bg-border/50"
-            }`}
-            aria-label={isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}
-          >
-            <span className="hidden sm:inline">{isCute ? "🏛️ 일반" : "✨ 귀여운"}</span>
-            <span className="sm:hidden">{isCute ? "🏛️" : "✨"}</span>
-          </button>
-
-          {/* User */}
-          {session ? (
-            <UserProfileButton />
-          ) : (
-            <Link
-              href="/login"
-              className="shrink-0 px-3 py-1.5 text-xs font-medium text-foreground border border-border rounded-lg hover:bg-background transition-colors"
-            >
-              {t.navLoginButton}
-            </Link>
-          )}
-        </div>
-      </header>
     </>
   );
 }

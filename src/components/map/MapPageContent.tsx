@@ -191,7 +191,7 @@ function DDayBadge({ compact = false }: { compact?: boolean }) {
 
 // ─── Font Size Control (compact) ─────────────────────────────────────────────
 
-function FontSizeCompact() {
+function FontSizeCompact({ horizontal = false }: { horizontal?: boolean }) {
   const [scale, setScale] = useState(1.0);
   useEffect(() => {
     const saved = parseFloat(localStorage.getItem("fontScale") ?? "1");
@@ -205,6 +205,14 @@ function FontSizeCompact() {
     localStorage.setItem("fontScale", String(c));
     document.documentElement.style.fontSize = `${c * 16}px`;
   };
+  if (horizontal) {
+    return (
+      <div className="flex gap-1" title="글씨 크기">
+        <button onClick={() => apply(scale - 0.1)} disabled={scale <= 0.8} className="w-10 h-9 flex items-center justify-center text-xs font-bold text-muted hover:bg-background rounded-lg disabled:opacity-30 transition-colors border border-border" aria-label="글자 크기 줄이기">A-</button>
+        <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-10 h-9 flex items-center justify-center text-xs font-semibold text-muted hover:bg-background rounded-lg disabled:opacity-30 transition-colors border border-border" aria-label="글자 크기 키우기">A+</button>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-0.5 items-center" title="글씨 크기">
       <button onClick={() => apply(scale + 0.1)} disabled={scale >= 1.3} className="w-11 h-11 flex items-center justify-center text-[10px] font-bold text-muted hover:bg-background rounded-md disabled:opacity-30 transition-colors" aria-label="글자 크기 키우기" title="글자 크기 키우기">A+</button>
@@ -261,7 +269,7 @@ function BottomNavItem({
   onClick?: () => void;
   href?: string;
 }) {
-  const cls = `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+  const cls = `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors active:opacity-60 ${
     active ? "text-primary" : "text-muted hover:text-foreground"
   }`;
   const inner = (
@@ -270,8 +278,8 @@ function BottomNavItem({
       <span className="text-[10px] font-medium leading-none">{label}</span>
     </>
   );
-  if (href) return <Link href={href} className={cls}>{inner}</Link>;
-  return <button onClick={onClick} className={cls}>{inner}</button>;
+  if (href) return <Link href={href} className={cls} style={{ touchAction: "manipulation" }}>{inner}</Link>;
+  return <button onClick={onClick} className={cls} style={{ touchAction: "manipulation" }}>{inner}</button>;
 }
 
 // ─── Menu Drawer Item ─────────────────────────────────────────────────────────
@@ -1185,6 +1193,13 @@ export default function MapPageContent() {
           </div>
         )}
         </div>{/* end map canvas wrapper */}
+
+        {/* Mobile: 하단 nav 리본이 지도 위에 겹치지 않도록 공간 확보 */}
+        <div
+          className="md:hidden shrink-0"
+          style={{ height: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+          aria-hidden="true"
+        />
       </div>{/* end map area */}
 
       {/* ══════════════════════════════════════════════
@@ -1274,11 +1289,11 @@ export default function MapPageContent() {
 
             {/* Footer */}
             <div className="p-3 border-t border-border space-y-0.5">
-              {/* Font size */}
+              {/* Font size (A- A+ 나란히) */}
               <div className="flex items-center gap-3 px-3 py-2.5">
                 <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🔤</span>
                 <span className="text-sm font-medium text-foreground flex-1">글씨 크기</span>
-                <FontSizeCompact />
+                <FontSizeCompact horizontal />
               </div>
 
               {/* Election D-Day */}
