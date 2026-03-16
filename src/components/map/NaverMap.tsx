@@ -765,16 +765,16 @@ export default function NaverMap({
       });
 
       // ── Pass 2: pixel-space collision detection → per-candidate compact ────
-      // Full-mode label bbox offsets from the geo anchor point.
-      // Non-cute: container width=110px, anchor (55,35), circle 64×64px + label below
-      //   → x: -55 to +55,  y: -35 to +90
-      // Cute: container width=120px, anchor (60,38), circle 68×68px + label below
-      //   → x: -60 to +60,  y: -38 to +90
+      // Full-mode label bbox offsets from the geo anchor point (with padding).
+      // Non-cute: container width=110px, anchor (55,35), circle 64×64px + label below.
+      //   Actual bottom ≈ photo(64) + gap(4) + namebox(~75) − anchor_y(35) ≈ 108px
+      //   Add 20px horizontal padding and extra vertical buffer → generous box.
+      // Cute: container width=120px, anchor (60,38), circle 68×68px + label below.
       const fullBox = isCute
-        ? { l: -60, r: 60, t: -38, b: 90 }
-        : { l: -55, r: 55, t: -35, b: 90 };
+        ? { l: -70, r: 70, t: -42, b: 115 }
+        : { l: -65, r: 65, t: -38, b: 115 };
       // Compact mode: symmetric ±half square (avoids asymmetric anchor issues)
-      const compactHalf = isCute ? 26 : 24;
+      const compactHalf = isCute ? 30 : 28;
 
       const compactById: Record<string, boolean> = {};
       const pixelPos: Record<string, { x: number; y: number }> = {};
@@ -796,7 +796,8 @@ export default function NaverMap({
       for (const c of sortedByJoin) {
         if (baseCompact) { compactById[c.id] = true; continue; }
         const pos = pixelPos[c.id];
-        if (!pos) { compactById[c.id] = false; continue; }
+        // If projection unavailable for this candidate, default compact (safe: no overlap)
+        if (!pos) { compactById[c.id] = true; continue; }
 
         let collision = false;
         // Check against every higher-priority candidate that was already processed
@@ -805,23 +806,31 @@ export default function NaverMap({
           const op = pixelPos[other.id];
           if (!op) continue;
 
-          const otherCompact = compactById[other.id] ?? false;
-
+          // Always treat other as full-mode for collision check (worst-case overlap test)
           // Current candidate's full label bbox in screen space
           const cL = pos.x + fullBox.l;
           const cR = pos.x + fullBox.r;
           const cT = pos.y + fullBox.t;
           const cB = pos.y + fullBox.b;
 
-          // Use AABB overlap for both full and compact modes
-          const oL = otherCompact ? op.x - compactHalf : op.x + fullBox.l;
-          const oR = otherCompact ? op.x + compactHalf : op.x + fullBox.r;
-          const oT = otherCompact ? op.y - compactHalf : op.y + fullBox.t;
-          const oB = otherCompact ? op.y + compactHalf : op.y + fullBox.b;
+          const oL = op.x + fullBox.l;
+          const oR = op.x + fullBox.r;
+          const oT = op.y + fullBox.t;
+          const oB = op.y + fullBox.b;
           if (cL < oR && cR > oL && cT < oB && cB > oT) { collision = true; break; }
         }
 
         compactById[c.id] = collision;
+      }
+
+      // ── Global sync: if ANY candidate needs compact mode, ALL go compact ──────
+      // This ensures visual consistency — labels either all show or all hide together.
+      // (Prevents the confusing state where one candidate shows a label but a nearby
+      //  one shows only the compact icon.)
+      if (Object.values(compactById).some(Boolean)) {
+        for (const { candidate } of positions) {
+          compactById[candidate.id] = true;
+        }
       }
 
       // ── Pass 3: create markers ─────────────────────────────────────────────
