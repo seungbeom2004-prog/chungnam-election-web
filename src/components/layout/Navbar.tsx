@@ -180,6 +180,12 @@ export default function Navbar() {
   const t = useUITexts();
   const { isCute, setTheme } = useTheme();
 
+  // Prefetch main routes on mount for instant navigation
+  useEffect(() => {
+    const routes = ["/", "/regular", "/cute", "/proposals", "/pledges", "/about"];
+    routes.forEach((r) => router.prefetch(r));
+  }, [router]);
+
   const handleThemeToggle = () => {
     const next = isCute ? "regular" : "cute";
     setTheme(next);

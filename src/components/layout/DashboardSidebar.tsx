@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { signOut, useSession } from "next-auth/react";
 
 const navItems = [
@@ -95,6 +96,12 @@ const navItems = [
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  // Prefetch dashboard routes for instant navigation
+  const router = useRouter();
+  useEffect(() => {
+    navItems.forEach((item) => router.prefetch(item.href));
+    router.prefetch("/");
+  }, [router]);
 
   return (
     <>

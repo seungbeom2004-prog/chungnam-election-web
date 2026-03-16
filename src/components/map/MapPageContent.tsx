@@ -342,6 +342,12 @@ export default function MapPageContent() {
   const { data: session } = useSession();
   const router = useRouter();
 
+  // Prefetch key routes for instant navigation
+  useEffect(() => {
+    const routes = ["/regular", "/cute", "/proposals", "/pledges", "/about", "/login"];
+    routes.forEach((r) => router.prefetch(r));
+  }, [router]);
+
   const primaryColor = isCute ? "#FF6B9D" : "#FF5A00";
 
   // Filtered candidates
