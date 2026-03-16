@@ -33,6 +33,10 @@ export default function CuteMascot() {
     }
   };
 
+  const showBubble = () => {
+    setBubbleVisible(true);
+  };
+
   return (
     <div
       className="fixed right-4 z-50 pointer-events-none select-none"
@@ -68,24 +72,31 @@ export default function CuteMascot() {
         </div>
       )}
 
-      {/* Mascot image — always visible, cannot be hidden */}
+      {/* Mascot image — always visible, click to re-show bubble */}
       <div className="pointer-events-auto flex justify-end">
-        <Image
-          src="/themes/cute/images/mascot.png"
-          width={120}
-          height={160}
-          alt="마스코트"
-          className="drop-shadow-lg"
-          onError={(e) => {
-            // Fallback: show a large emoji if image not available
-            const el = e.target as HTMLImageElement;
-            el.style.display = "none";
-            const fallback = document.createElement("span");
-            fallback.textContent = "🐯";
-            fallback.style.fontSize = "80px";
-            el.parentElement?.appendChild(fallback);
-          }}
-        />
+        <button
+          onClick={showBubble}
+          className="focus:outline-none"
+          aria-label="말풍선 보기"
+          title="클릭해서 말풍선 보기"
+        >
+          <Image
+            src="/themes/cute/images/mascot.png"
+            width={120}
+            height={160}
+            alt="마스코트"
+            className="drop-shadow-lg hover:scale-105 transition-transform cursor-pointer"
+            onError={(e) => {
+              // Fallback: show a large emoji if image not available
+              const el = e.target as HTMLImageElement;
+              el.style.display = "none";
+              const fallback = document.createElement("span");
+              fallback.textContent = "🐯";
+              fallback.style.fontSize = "80px";
+              el.parentElement?.appendChild(fallback);
+            }}
+          />
+        </button>
       </div>
     </div>
   );
