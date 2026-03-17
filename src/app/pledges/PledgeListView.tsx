@@ -538,15 +538,19 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
         </Link>
       )}
 
-      {/* Footer: like button + CTA */}
-      <div className="px-4 pb-3 flex items-center justify-between gap-2">
+      {/* CTA row */}
+      <div className="px-4 pb-2">
         <Link
           href="/proposals"
-          className="text-[11px] text-muted hover:text-primary transition-colors font-medium truncate"
+          className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-primary/25 text-primary text-[11px] font-semibold hover:bg-primary hover:text-white transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          💡 민원·공약 제안하기 →
+          💡 민원 / 공약 제안하러 가기
         </Link>
+      </div>
+
+      {/* Footer: like button */}
+      <div className="px-4 pb-3 flex items-center justify-end">
         <button
           onClick={handleLike}
           disabled={liking}

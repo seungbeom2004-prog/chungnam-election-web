@@ -263,6 +263,15 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
                           </svg>
                         </Link>
                       )}
+
+                      {/* CTA inside each pledge box */}
+                      <Link
+                        href="/proposals"
+                        className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-primary/25 text-primary text-[11px] font-semibold hover:bg-primary hover:text-white transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        💡 민원 / 공약 제안하러 가기
+                      </Link>
                     </div>
                   </div>
                 </div>

@@ -346,6 +346,7 @@ function extractProvinceLabel(district: string): string {
 // ─── Main Page Content ────────────────────────────────────────────────────────
 
 export default function MapPageContent() {
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [bylawGroups, setBylawGroups] = useState<BylawGroup[]>([]);
   const [proposals, setProposals] = useState<ProposalMapItem[]>([]);
@@ -397,6 +398,14 @@ export default function MapPageContent() {
     const routes = ["/regular", "/cute", "/proposals", "/pledges", "/about", "/login"];
     routes.forEach((r) => router.prefetch(r));
   }, [router]);
+
+  // Fetch today's visitor count for drawer welcome message
+  useEffect(() => {
+    fetch("/api/visitor-count")
+      .then((r) => r.json())
+      .then((j) => setVisitorCount(j.count ?? null))
+      .catch(() => {});
+  }, []);
 
   const primaryColor = isCute ? "#FF6B9D" : "#D14800";
 
@@ -849,6 +858,15 @@ export default function MapPageContent() {
                 </div>
 
                 <div className="h-4" />
+              </div>
+
+              {/* Panel copyright footer */}
+              <div className="shrink-0 border-t border-border/30 px-4 py-3 bg-surface">
+                <p className="text-[9px] text-muted/50 leading-relaxed">
+                  © 2026. 개혁신당 제9회 전국동시지방선거<br />
+                  천안시의원 천안시다선거구 후보 손승범<br />
+                  모든 권리 보유
+                </p>
               </div>
             </>
           )}
@@ -1378,7 +1396,7 @@ export default function MapPageContent() {
       ══════════════════════════════════════════════ */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "none" }}
         aria-label="하단 메뉴"
       >
         <div className="flex items-center h-14">
@@ -1400,34 +1418,31 @@ export default function MapPageContent() {
             className="absolute top-0 right-0 bottom-0 w-72 bg-surface shadow-2xl flex flex-col"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            {/* User profile */}
+            {/* Visitor welcome */}
             <div className="flex items-center gap-3 px-5 py-5 border-b border-border" style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
-              {session ? (
-                <>
-                  <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center border border-border/50">
-                    {session.user?.image ? (
-                      <Image src={session.user.image} alt={session.user.name ?? ""} width={44} height={44} className="object-cover" />
-                    ) : (
-                      <span className="text-primary font-bold text-sm">{(session.user?.name ?? "?")[0]}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate text-sm">{session.user?.name}</p>
-                    <p className="text-xs text-muted truncate">{session.user?.email}</p>
-                  </div>
-                </>
-              ) : (
-                <Link href="/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 flex-1">
-                  <div className="w-11 h-11 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
-                    <IconPerson size={20} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground text-sm">로그인</p>
-                    <p className="text-xs text-muted">계정으로 로그인하세요</p>
-                  </div>
-                </Link>
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xl">🏘️</div>
+              <div className="flex-1 min-w-0">
+                {visitorCount !== null ? (
+                  <p className="font-bold text-foreground text-sm leading-snug">
+                    오늘 변화를 만들어갈{" "}
+                    <span className="text-primary">{visitorCount.toLocaleString()}번째</span>{" "}
+                    방문입니다
+                  </p>
+                ) : (
+                  <p className="font-bold text-foreground text-sm">우리 동네 변화 플랫폼</p>
+                )}
+                <p className="text-xs text-muted mt-0.5">함께 우리 동네를 바꿔나가요 ✊</p>
+              </div>
+              {session && (
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center border border-border/50">
+                  {session.user?.image ? (
+                    <Image src={session.user.image} alt={session.user.name ?? ""} width={32} height={32} className="object-cover" />
+                  ) : (
+                    <span className="text-primary font-bold text-xs">{(session.user?.name ?? "?")[0]}</span>
+                  )}
+                </div>
               )}
-              <button onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-background text-muted text-lg transition-colors ml-auto">
+              <button onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-background text-muted text-lg transition-colors">
                 <span aria-hidden="true">×</span>
               </button>
             </div>

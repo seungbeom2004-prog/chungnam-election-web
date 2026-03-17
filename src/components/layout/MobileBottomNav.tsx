@@ -190,6 +190,14 @@ export default function MobileBottomNav() {
   const { isCute, setTheme } = useTheme();
   const dday = useDDay();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/visitor-count")
+      .then((r) => r.json())
+      .then((j) => setVisitorCount(j.count ?? null))
+      .catch(() => {});
+  }, []);
 
   const handleThemeToggle = () => {
     const next = isCute ? "regular" : "cute";
@@ -209,7 +217,7 @@ export default function MobileBottomNav() {
     <>
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/97 backdrop-blur-sm border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "none" }}
         aria-label="하단 메뉴"
       >
         <div className="flex items-center h-14">
@@ -242,39 +250,34 @@ export default function MobileBottomNav() {
             className="absolute top-0 right-0 bottom-0 w-72 bg-surface shadow-2xl flex flex-col"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            {/* User profile */}
+            {/* Visitor welcome message */}
             <div
               className="flex items-center gap-3 px-5 py-5 border-b border-border"
               style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
             >
-              {session ? (
-                <>
-                  <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center border border-border/50">
-                    {session.user?.image ? (
-                      <Image src={session.user.image} alt={session.user.name ?? ""} width={44} height={44} className="object-cover" />
-                    ) : (
-                      <span className="text-primary font-bold text-sm">{(session.user?.name ?? "?")[0]}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate text-sm">{session.user?.name}</p>
-                    <p className="text-xs text-muted truncate">{session.user?.email}</p>
-                  </div>
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  onClick={() => setDrawerOpen(false)}
-                  className="flex items-center gap-3 flex-1"
-                >
-                  <div className="w-11 h-11 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
-                    <IconPerson />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground text-sm">로그인</p>
-                    <p className="text-xs text-muted">계정으로 로그인하세요</p>
-                  </div>
-                </Link>
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xl">
+                🏘️
+              </div>
+              <div className="flex-1 min-w-0">
+                {visitorCount !== null ? (
+                  <p className="font-bold text-foreground text-sm leading-snug">
+                    오늘 변화를 만들어갈{" "}
+                    <span className="text-primary">{visitorCount.toLocaleString()}번째</span>{" "}
+                    방문입니다
+                  </p>
+                ) : (
+                  <p className="font-bold text-foreground text-sm">우리 동네 변화 플랫폼</p>
+                )}
+                <p className="text-xs text-muted mt-0.5">함께 우리 동네를 바꿔나가요 ✊</p>
+              </div>
+              {session && (
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center border border-border/50">
+                  {session.user?.image ? (
+                    <Image src={session.user.image} alt={session.user.name ?? ""} width={32} height={32} className="object-cover" />
+                  ) : (
+                    <span className="text-primary font-bold text-xs">{(session.user?.name ?? "?")[0]}</span>
+                  )}
+                </div>
               )}
               <button
                 onClick={() => setDrawerOpen(false)}
