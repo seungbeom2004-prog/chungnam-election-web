@@ -78,9 +78,9 @@ export default function RootLayout({
             <MainContentWrapper>
               <main id="main-content" tabIndex={-1}>
                 {children}
-                <MobileContentSpacer />
               </main>
               <FooterConditional />
+              <MobileContentSpacer />
             </MainContentWrapper>
             <MobileBottomNavConditional />
           </ThemeProvider>

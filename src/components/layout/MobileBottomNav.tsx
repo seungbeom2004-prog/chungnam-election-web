@@ -351,6 +351,18 @@ export default function MobileBottomNav() {
                   <span className="text-sm font-medium text-muted">로그아웃</span>
                 </button>
               )}
+
+              {/* Candidate login link (small, for non-logged-in users) */}
+              {!session && (
+                <Link
+                  href="/login"
+                  onClick={() => setDrawerOpen(false)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs text-muted/60 hover:text-muted transition-colors"
+                >
+                  <IconPerson />
+                  <span>후보자 로그인</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
