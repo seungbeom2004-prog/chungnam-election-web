@@ -439,10 +439,10 @@ export default function MapPageContent() {
     fetch("/api/proposals?limit=200&hasLocation=true")
       .then((r) => r.json())
       .then((json) => {
-        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number }> = json.data ?? json ?? [];
+        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string }> = json.data ?? json ?? [];
         const items: ProposalMapItem[] = data
           .filter((p) => p.latitude != null && p.longitude != null)
-          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0 }));
+          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType }));
         setProposals(items);
       })
       .catch(console.error);
