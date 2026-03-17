@@ -14,14 +14,13 @@
   --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-html {
-  overflow-x: hidden;
-}
-
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  /* overflow-x: hidden은 body에만 설정 — html에도 함께 설정하면
+     Android Chrome(Chromium)에서 scroll container가 html로 이동해 body scroll이 깨짐.
+     iOS Safari는 OS 레벨 스크롤을 사용하므로 영향 없음. */
   overflow-x: hidden;
   /* iOS Safari: 하단 빈칸 overscroll 방지 */
   overscroll-behavior: none;
