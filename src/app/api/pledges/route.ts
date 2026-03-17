@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createPledgeSchema, paginationSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError, paginationMeta } from "@/lib/api-utils";
@@ -28,8 +27,9 @@ export async function GET(request: NextRequest) {
     const sessionUserId = (session?.user as { id?: string })?.id;
     const isOwnPledges = !!candidateId && sessionUserId === candidateId;
 
-    // Use admin client for own pledges (shows all including hidden); anon for public
-    const client = isOwnPledges ? supabaseAdmin : supabase;
+    // Always use admin client so PledgeCollaboration nested join bypasses RLS.
+    // Visibility is enforced explicitly via .eq("visible", true) for public requests.
+    const client = supabaseAdmin;
 
     let query = client
       .from("Pledge")

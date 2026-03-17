@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import PledgeListView from "./PledgeListView";
 import type { PledgeTile } from "./PledgeTicker";
 
@@ -79,7 +80,7 @@ export default async function PledgesPage() {
 
   const [{ data: collabsRaw }, { data: likesRaw }] = await Promise.all([
     pledgeIds.length > 0
-      ? supabase
+      ? supabaseAdmin
           .from("PledgeCollaboration")
           .select("pledgeId, candidateId, candidate:Candidate!candidateId(id, name, profileImage)")
           .in("pledgeId", pledgeIds)

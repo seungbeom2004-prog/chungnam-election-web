@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
 // GET /api/pledges/[id]/collaborators — List collaborators for a pledge
@@ -12,7 +13,8 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS on PledgeCollaboration (public read)
+    const { data, error } = await supabaseAdmin
       .from("PledgeCollaboration")
       .select("id, candidateId, createdAt, candidate:Candidate!candidateId(id, name, district, profileImage)")
       .eq("pledgeId", id);
