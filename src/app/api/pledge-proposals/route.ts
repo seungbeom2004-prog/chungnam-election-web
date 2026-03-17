@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
       const ids = (links ?? []).map((l) => l.pledgeProposalId);
       if (ids.length === 0) {
-        return apiSuccess({ data: [], total: 0, limit, offset });
+        return NextResponse.json({ success: true, data: [], total: 0, limit, offset });
       }
       query = query.in("id", ids);
     }
@@ -67,13 +67,13 @@ export async function GET(request: NextRequest) {
     if (error) {
       // Table not yet created
       if (error.code === "42P01" || error.code === "PGRST200") {
-        return apiSuccess({ data: [], total: 0, limit, offset });
+        return NextResponse.json({ success: true, data: [], total: 0, limit, offset });
       }
       console.error("[GET /api/pledge-proposals] error:", error);
       return apiError("공약 제안 목록을 불러올 수 없습니다", 500);
     }
 
-    return apiSuccess({ data: data ?? [], total: count ?? 0, limit, offset });
+    return NextResponse.json({ success: true, data: data ?? [], total: count ?? 0, limit, offset });
   } catch (err) {
     console.error("[GET /api/pledge-proposals]", err);
     return apiError("공약 제안 목록을 불러올 수 없습니다", 500);
