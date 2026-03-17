@@ -160,6 +160,17 @@ export default function MobileMenuDrawer({ open, onClose, extraNavItems }: Mobil
       .catch(() => {});
   }, [open]);
 
+  // Body scroll lock — Android Chrome에서 drawer 내부 스크롤이 body로 전파되는 것을 방지.
+  // iOS Safari는 OS 레벨 스크롤을 사용하므로 overflow: hidden 자체가 큰 영향 없음.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const ddayLabel =
     dday === null ? null
     : dday > 0 ? `D-${dday}`
