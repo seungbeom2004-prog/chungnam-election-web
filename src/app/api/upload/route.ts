@@ -1,6 +1,4 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -35,12 +33,6 @@ function detectImageMimeFromBuffer(buf: Buffer): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    // Require authentication — only logged-in candidates may upload
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return apiError("로그인이 필요합니다", 401);
-    }
-
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 

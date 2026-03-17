@@ -301,7 +301,7 @@ export default function SignupPage() {
     }
 
     const recaptchaToken = recaptchaRef.current?.getValue();
-    if (!recaptchaToken) {
+    if (!recaptchaToken && process.env.NEXT_PUBLIC_DISABLE_CAPTCHA !== "true") {
       setError("보안 문자를 완료해주세요.");
       return;
     }
