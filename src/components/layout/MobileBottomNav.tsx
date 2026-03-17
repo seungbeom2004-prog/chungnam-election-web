@@ -217,7 +217,7 @@ export default function MobileBottomNav() {
     <>
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/97 backdrop-blur-sm border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "none" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="하단 메뉴"
       >
         <div className="flex items-center h-14">
