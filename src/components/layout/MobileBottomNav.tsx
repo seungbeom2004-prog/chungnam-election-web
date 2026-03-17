@@ -304,6 +304,18 @@ export default function MobileBottomNav() {
 
             {/* Footer: font size, D-Day, theme, logout */}
             <div className="p-3 border-t border-border space-y-0.5">
+              {/* Candidate login link (small, for non-logged-in users) */}
+              {!session && (
+                <Link
+                  href="/login"
+                  onClick={() => setDrawerOpen(false)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs text-muted/60 hover:text-muted transition-colors"
+                >
+                  <IconPerson />
+                  <span>후보자 로그인</span>
+                </Link>
+              )}
+
               {/* Font size (A- A+ side by side) */}
               <FontSizeRow />
 
@@ -352,17 +364,6 @@ export default function MobileBottomNav() {
                 </button>
               )}
 
-              {/* Candidate login link (small, for non-logged-in users) */}
-              {!session && (
-                <Link
-                  href="/login"
-                  onClick={() => setDrawerOpen(false)}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs text-muted/60 hover:text-muted transition-colors"
-                >
-                  <IconPerson />
-                  <span>후보자 로그인</span>
-                </Link>
-              )}
             </div>
           </div>
         </div>
