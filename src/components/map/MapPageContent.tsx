@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import NaverMap from "@/components/map/NaverMap";
 import type { ProposalMapItem } from "@/components/map/NaverMap";
 import PledgePanel from "@/components/map/PledgePanel";
@@ -18,6 +18,7 @@ import { findDistrictCity } from "@/lib/districts";
 import UserProfileButton from "@/components/layout/UserProfileButton";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import PledgePinTooltip from "@/components/ui/PledgePinTooltip";
+import MobileMenuDrawer, { DrawerItem } from "@/components/layout/MobileMenuDrawer";
 
 const CITY_ZOOM = 6;
 const PANEL_PLEDGES_LIMIT = 6;
@@ -282,38 +283,6 @@ function BottomNavItem({
   return <button onClick={onClick} className={cls} style={{ touchAction: "manipulation" }}>{inner}</button>;
 }
 
-// ─── Menu Drawer Item ─────────────────────────────────────────────────────────
-
-function DrawerItem({
-  icon,
-  label,
-  href,
-  onClick,
-  external = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  external?: boolean;
-}) {
-  const cls = "flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-background transition-colors text-left w-full";
-  const inner = (
-    <>
-      <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center shrink-0 text-foreground">{icon}</span>
-      <span className="text-sm font-medium text-foreground flex-1">{label}</span>
-      {external && (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
-        </svg>
-      )}
-    </>
-  );
-  if (href && !onClick) return <Link href={href} className={cls} target={external ? "_blank" : undefined}>{inner}</Link>;
-  if (href && onClick) return <Link href={href} onClick={onClick} className={cls}>{inner}</Link>;
-  return <button onClick={onClick} className={cls}>{inner}</button>;
-}
-
 // ─── Province label helper ────────────────────────────────────────────────────
 
 const PROVINCE_PATTERNS: [RegExp, string][] = [
@@ -346,7 +315,6 @@ function extractProvinceLabel(district: string): string {
 // ─── Main Page Content ────────────────────────────────────────────────────────
 
 export default function MapPageContent() {
-  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [bylawGroups, setBylawGroups] = useState<BylawGroup[]>([]);
   const [proposals, setProposals] = useState<ProposalMapItem[]>([]);
@@ -398,14 +366,6 @@ export default function MapPageContent() {
     const routes = ["/regular", "/cute", "/proposals", "/pledges", "/about", "/login"];
     routes.forEach((r) => router.prefetch(r));
   }, [router]);
-
-  // Fetch today's visitor count for drawer welcome message
-  useEffect(() => {
-    fetch("/api/visitor-count")
-      .then((r) => r.json())
-      .then((j) => setVisitorCount(j.count ?? null))
-      .catch(() => {});
-  }, []);
 
   const primaryColor = isCute ? "#FF6B9D" : "#D14800";
 
@@ -1396,7 +1356,7 @@ export default function MapPageContent() {
       ══════════════════════════════════════════════ */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "none" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="하단 메뉴"
       >
         <div className="flex items-center h-14">
@@ -1409,111 +1369,24 @@ export default function MapPageContent() {
       </nav>
 
       {/* ══════════════════════════════════════════════
-          MOBILE MENU DRAWER (right side)
+          MOBILE MENU DRAWER (shared component)
       ══════════════════════════════════════════════ */}
-      {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setMenuOpen(false)} />
-          <div
-            className="absolute top-0 right-0 bottom-0 w-72 bg-surface shadow-2xl flex flex-col"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-          >
-            {/* Visitor welcome */}
-            <div className="flex items-center gap-3 px-5 py-5 border-b border-border" style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xl">🏘️</div>
-              <div className="flex-1 min-w-0">
-                {visitorCount !== null ? (
-                  <p className="font-bold text-foreground text-sm leading-snug">
-                    오늘 변화를 만들어갈{" "}
-                    <span className="text-primary">{visitorCount.toLocaleString()}번째</span>{" "}
-                    방문입니다
-                  </p>
-                ) : (
-                  <p className="font-bold text-foreground text-sm">우리 동네 변화 플랫폼</p>
-                )}
-                <p className="text-xs text-muted mt-0.5">함께 우리 동네를 바꿔나가요 ✊</p>
-              </div>
-              {session && (
-                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-primary/10 flex items-center justify-center border border-border/50">
-                  {session.user?.image ? (
-                    <Image src={session.user.image} alt={session.user.name ?? ""} width={32} height={32} className="object-cover" />
-                  ) : (
-                    <span className="text-primary font-bold text-xs">{(session.user?.name ?? "?")[0]}</span>
-                  )}
-                </div>
-              )}
-              <button onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-background text-muted text-lg transition-colors">
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-
-            {/* Nav links */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-0.5">
-              <DrawerItem icon={<IconMapPin size={18} />} label="공약지도" href="/" onClick={() => setMenuOpen(false)} />
-              <DrawerItem icon={<IconBulb size={18} />} label="민원 & 제안" href="/proposals" onClick={() => setMenuOpen(false)} />
-              <DrawerItem icon={<IconClipboard size={18} />} label="공약 목록" href="/pledges" onClick={() => setMenuOpen(false)} />
-              <DrawerItem icon={<IconUsers size={18} />} label="후보자 소개" href="/about" onClick={() => setMenuOpen(false)} />
-              {session && (
-                <>
-                  <div className="my-2 h-px bg-border" />
-                  <DrawerItem icon={<IconDashboard size={18} />} label="대시보드" href="/dashboard" onClick={() => setMenuOpen(false)} />
-                </>
-              )}
-
-              {/* District selector */}
-              {districts.length > 0 && (
-                <>
-                  <div className="my-2 h-px bg-border" />
-                  <DrawerItem
-                    icon={<IconLocation size={18} />}
-                    label={selectedDistrict ? `지역: ${selectedDistrict}` : "지역 선택 (전체)"}
-                    onClick={() => { setMenuOpen(false); setMobileDistrictOpen(true); }}
-                  />
-                </>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-3 border-t border-border space-y-0.5">
-              {/* Font size (A- A+ 나란히) */}
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🔤</span>
-                <span className="text-sm font-medium text-foreground flex-1">글씨 크기</span>
-                <FontSizeCompact horizontal />
-              </div>
-
-              {/* Election D-Day */}
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0" aria-hidden="true">🗳️</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">2026 지방선거</p>
-                </div>
-                <DDayBadge />
-              </div>
-
-              {/* Theme toggle */}
-              <button
-                onClick={() => { handleThemeToggle(); setMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-background transition-colors text-left"
-              >
-                <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-base shrink-0">{isCute ? "🏛️" : "✨"}</span>
-                <span className="text-sm font-medium text-foreground">{isCute ? "일반 모드로 전환" : "귀여운 모드로 전환"}</span>
-              </button>
-
-              {/* Logout (only shown when logged in — login link is in header) */}
-              {session && (
-                <button
-                  onClick={() => { signOut(); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-background transition-colors text-left"
-                >
-                  <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-sm shrink-0">🚪</span>
-                  <span className="text-sm font-medium text-muted">로그아웃</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        extraNavItems={
+          districts.length > 0 ? (
+            <>
+              <div className="my-2 h-px bg-border" />
+              <DrawerItem
+                icon={<IconLocation size={18} />}
+                label={selectedDistrict ? `지역: ${selectedDistrict}` : "지역 선택 (전체)"}
+                onClick={() => { setMenuOpen(false); setMobileDistrictOpen(true); }}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       {/* ─── First-visit onboarding (regular theme only) ─────────────────────── */}
       {!isCute && <OnboardingModal />}
