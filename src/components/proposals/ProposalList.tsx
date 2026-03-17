@@ -244,24 +244,23 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                   <div className="flex-1 min-w-0">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         {proposal.postType && (
                           <span
-                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-                            style={{ backgroundColor: proposal.postType === "민원" ? "#FF5A00" : "#3B82F6" }}
-                          >
-                            {proposal.postType === "민원" ? "📢 민원" : "💡 제안"}
-                          </span>
+                            className="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
+                            style={{ backgroundColor: proposal.postType === "민원" ? "#EF4444" : "#FACC15" }}
+                            title={proposal.postType}
+                          />
                         )}
-                        <span className="text-sm font-semibold text-foreground">
-                          {proposal.authorName}
+                        <span className="text-sm font-semibold text-foreground truncate">
+                          {proposal.title || proposal.content.slice(0, 30)}
                         </span>
-                        <time className="text-xs text-muted" dateTime={proposal.createdAt}>
+                        <time className="text-xs text-muted shrink-0" dateTime={proposal.createdAt}>
                           {relativeTime(proposal.createdAt)}
                         </time>
                         {proposal.latitude && proposal.longitude && (
-                          <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                            📍 위치 있음
+                          <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                            📍
                           </span>
                         )}
                       </div>
@@ -273,13 +272,6 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                         )}
                       </div>
                     </div>
-
-                    {/* Title */}
-                    {proposal.title && (
-                      <h4 className="text-sm font-bold text-foreground mb-1 leading-snug">
-                        {proposal.title}
-                      </h4>
-                    )}
 
                     {/* Content */}
                     <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap line-clamp-5">
