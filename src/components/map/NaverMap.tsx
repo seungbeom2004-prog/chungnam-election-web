@@ -345,8 +345,9 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
 /** Citizen proposal/민원 pin — colored circle with like count badge. */
 function buildProposalMarkerHTML(authorName: string, likeCount: number, _isCute: boolean, postType?: string): string {
   const isMinwon = postType === "민원";
-  const color = isMinwon ? "#FF5A00" : "#3B82F6";
-  const shadowColor = isMinwon ? "rgba(255,90,0,0.45)" : "rgba(59,130,246,0.45)";
+  const color = isMinwon ? "#EF4444" : "#FACC15";
+  const textColor = isMinwon ? "white" : "#111";
+  const shadowColor = isMinwon ? "rgba(239,68,68,0.45)" : "rgba(250,204,21,0.55)";
   const truncated = authorName.length > 6 ? authorName.slice(0, 6) + "…" : authorName;
   const likeStr = likeCount > 0 ? ` ♥${likeCount}` : "";
   return (
@@ -364,7 +365,7 @@ function buildProposalMarkerHTML(authorName: string, likeCount: number, _isCute:
         `padding:0 3px;">♥${likeCount}</div>`
       : "") +
     `</div>` +
-    `<div style="margin-top:3px;background:${color};color:white;font-size:9px;font-weight:700;` +
+    `<div style="margin-top:3px;background:${color};color:${textColor};font-size:9px;font-weight:700;` +
     `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);">` +
     `${escapeHtml(truncated)}${likeStr}</div>` +
     `</div>`

@@ -824,7 +824,7 @@ export default function MapPageContent() {
               <div className="shrink-0 border-t border-border/30 px-4 py-3 bg-surface">
                 <p className="text-[9px] text-muted/50 leading-relaxed">
                   © 2026. 개혁신당 제9회 전국동시지방선거<br />
-                  천안시의원 천안시다선거구 후보 손승범<br />
+                  천안시 다선거구 천안시의원 후보 손승범<br />
                   모든 권리 보유
                 </p>
               </div>
