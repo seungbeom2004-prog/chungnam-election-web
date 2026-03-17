@@ -836,6 +836,18 @@ export default function MapPageContent() {
                   </div>
                 )}
 
+                {/* CTA — 민원/제안 유도 */}
+                <div className="mx-3 mb-3 mt-2 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-3">
+                  <p className="text-[11px] font-bold text-foreground mb-0.5">혹시 집 앞 문제가 있나요?</p>
+                  <p className="text-[10px] text-muted mb-2 leading-relaxed">민원 제보 또는 공약 제안을 직접 해보세요.</p>
+                  <Link
+                    href="/proposals"
+                    className="flex items-center justify-center gap-1.5 w-full py-2 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    ✍️ 민원 / 공약 제안하기
+                  </Link>
+                </div>
+
                 <div className="h-4" />
               </div>
             </>

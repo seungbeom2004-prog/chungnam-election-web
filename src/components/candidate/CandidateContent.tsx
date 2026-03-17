@@ -269,6 +269,20 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               ))}
             </div>
           )}
+
+          {/* CTA — 공약을 다 본 사람에게 민원/제안 유도 */}
+          <div className="mt-6 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-foreground text-sm mb-0.5">혹시 당신의 집 앞 문제는 없나요?</p>
+              <p className="text-xs text-muted">민원을 제보하거나, {candidate.name} 후보에게 직접 공약을 제안해보세요.</p>
+            </div>
+            <Link
+              href="/proposals"
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+            >
+              💡 민원 / 공약 제안하러 가기
+            </Link>
+          </div>
         </div>
       ) : activeView === "map" ? (
         <div className="h-[500px] rounded-xl overflow-hidden border border-border">

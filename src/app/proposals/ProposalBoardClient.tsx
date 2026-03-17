@@ -91,7 +91,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             {isCute && <span className="mr-2">🌼</span>}민원 & 제안
           </h1>
           <p className="text-sm text-muted leading-relaxed">
-            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요. 지도에서 위치를 지정할 수 있습니다.{" "}
+            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요.{" "}
             <span className="text-primary font-semibold">로그인 없이도 글을 쓸 수 있어요.</span>
           </p>
         </div>
@@ -205,6 +205,15 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           candidateName={candidateName}
         />
       </div>
+
+      {/* Fixed floating write button — bottom-left */}
+      <button
+        onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        className="fixed left-4 bottom-20 md:bottom-6 z-40 flex items-center gap-2 px-4 py-3 bg-primary text-white text-sm font-bold rounded-2xl shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
+        aria-label="민원·제안 글 작성하기"
+      >
+        ✍️ <span>글 작성하기</span>
+      </button>
     </div>
   );
 }
