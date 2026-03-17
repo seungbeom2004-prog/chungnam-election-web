@@ -10,6 +10,7 @@ import {
 } from "@/components/layout/NavbarConditional";
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
+import PageTracker from "@/components/layout/PageTracker";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
@@ -70,6 +71,7 @@ export default function RootLayout({
               본문으로 건너뛰기
             </a>
             <DisclaimerModal />
+            <PageTracker />
             {/* Desktop left rail (fixed) on non-map pages */}
             <NavbarConditional />
             {/* Main content area — offset by 80px on desktop for non-map pages */}
