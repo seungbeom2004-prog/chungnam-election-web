@@ -312,7 +312,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         disabled={submitting}
         className="w-full px-4 py-2.5 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
       >
-        {submitting ? "제출 중..." : `🚀 ${postType} 제출하기`}
+        {submitting ? "제출 중..." : `🚀 ${postType === "민원" ? "불편 제보" : "공약 제안"} 제출하기`}
       </button>
     </form>
   );

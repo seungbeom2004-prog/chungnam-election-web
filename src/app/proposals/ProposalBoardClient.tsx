@@ -44,10 +44,24 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [postTypeFilter, setPostTypeFilter] = useState<"all" | "제안" | "민원">("all");
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
+  const [minwonCount, setMinwonCount] = useState<number | null>(null);
+  const [proposalCount, setProposalCount] = useState<number | null>(null);
   const { isCute } = useTheme();
   const { data: session } = useSession();
   const isCandidate = (session?.user as { role?: string })?.role === "candidate";
   const candidateName = (session?.user as { name?: string })?.name ?? undefined;
+
+  // Fetch counts for minwon / proposal
+  useEffect(() => {
+    fetch("/api/proposals?limit=1&postType=민원")
+      .then((r) => r.json())
+      .then((json) => { if (typeof json.total === "number") setMinwonCount(json.total); })
+      .catch(() => {});
+    fetch("/api/proposals?limit=1&postType=제안")
+      .then((r) => r.json())
+      .then((json) => { if (typeof json.total === "number") setProposalCount(json.total); })
+      .catch(() => {});
+  }, [rankingRefreshKey]);
 
   // Fetch posts with location for the map
   useEffect(() => {
@@ -94,6 +108,15 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             우리 동네 불편을 제보하거나 후보자에게 공약을 제안하세요.{" "}
             <span className="text-primary font-semibold">로그인 없이도 글을 쓸 수 있어요.</span>
           </p>
+          {(minwonCount !== null || proposalCount !== null) && (
+            <p className="text-xs text-muted mt-1">
+              지금까지{" "}
+              <span className="text-red-500 font-semibold">{minwonCount ?? 0}개의 불편 제보</span>
+              와{" "}
+              <span className="text-yellow-600 font-semibold">{proposalCount ?? 0}개의 공약 제안</span>
+              이 쌓였습니다.
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
