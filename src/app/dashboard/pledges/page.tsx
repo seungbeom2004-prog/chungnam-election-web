@@ -321,7 +321,7 @@ export default function PledgesPage() {
               ? "조례"
               : tab === "others"
               ? "다른 출마자 공약"
-              : "받은 민원 / 제안"}
+              : "받은 불편 제보 & 공약 제안"}
           </button>
         ))}
       </div>

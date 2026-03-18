@@ -233,7 +233,7 @@ export default function MobileMenuDrawer({ open, onClose, extraNavItems }: Mobil
         {/* Nav links — overscroll-contain prevents page scroll leaking while scrolling inside drawer */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-0.5">
           <DrawerItem icon={<IconMapPin />} label="공약지도" href="/" onClick={onClose} />
-          <DrawerItem icon={<IconBulb />} label="민원 & 제안" href="/proposals" onClick={onClose} />
+          <DrawerItem icon={<IconBulb />} label="불편 제보 & 공약 제안" href="/proposals" onClick={onClose} />
           <DrawerItem icon={<IconClipboard />} label="공약 목록" href="/pledges" onClick={onClose} />
           <DrawerItem icon={<IconUsers />} label="후보자 소개" href="/about" onClick={onClose} />
           {session && (

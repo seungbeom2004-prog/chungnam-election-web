@@ -3,8 +3,8 @@ import { supabase } from "@/lib/supabase";
 import ProposalBoardClient from "./ProposalBoardClient";
 
 export const metadata: Metadata = {
-  title: "민원 & 제안 | 개혁 충남",
-  description: "우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요.",
+  title: "불편 제보 & 공약 제안 | 개혁 충남",
+  description: "우리 동네 불편을 제보하거나 후보자에게 공약을 제안하세요.",
 };
 
 export default async function ProposalsPage() {

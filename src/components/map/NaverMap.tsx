@@ -15,6 +15,7 @@ export interface ProposalMapItem {
   longitude: number;
   likeCount: number;
   postType?: string;
+  createdAt?: string;
 }
 
 interface NaverMapProps {

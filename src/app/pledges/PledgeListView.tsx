@@ -227,7 +227,7 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
             href="/proposals"
             className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
           >
-            민원 / 공약 제안하러 가기 →
+            불편 제보 / 공약 제안하러 가기 →
           </Link>
         </div>
 
@@ -403,13 +403,13 @@ export default function PledgeListView({ tiles, totalCandidates, totalPledges, c
         <div className="mt-10 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <p className="font-bold text-foreground text-base mb-1">혹시 당신의 집 앞 문제는 없나요?</p>
-            <p className="text-sm text-muted">우리 동네 민원을 제보하거나, 후보자에게 직접 공약을 제안해보세요. 로그인 없이도 가능합니다.</p>
+            <p className="text-sm text-muted">우리 동네 불편을 제보하거나, 후보자에게 직접 공약을 제안해보세요. 로그인 없이도 가능합니다.</p>
           </div>
           <Link
             href="/proposals"
             className="shrink-0 flex items-center gap-2 px-5 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
           >
-            ✍️ 민원 / 공약 제안하러 가기
+            ✍️ 불편 제보 / 공약 제안하러 가기
           </Link>
         </div>
       </div>
@@ -545,7 +545,7 @@ function PledgeCard({ tile }: { tile: PledgeTile }) {
           className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-primary/25 text-primary text-[11px] font-semibold hover:bg-primary hover:text-white transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          💡 민원 / 공약 제안하러 가기
+          💡 불편 제보 / 공약 제안하러 가기
         </Link>
       </div>
 

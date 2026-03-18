@@ -214,7 +214,7 @@ export default function Navbar() {
 
         {/* Nav items */}
         <RailNavItem href="/" icon={<IconMapPin />} label="공약지도" active={isMap} />
-        <RailNavItem href="/proposals" icon={<IconBulb />} label="민원/제안" active={isProposals} />
+        <RailNavItem href="/proposals" icon={<IconBulb />} label="제보/제안" active={isProposals} />
         <RailNavItem href="/pledges" icon={<IconClipboard />} label="공약" active={isPledges} />
         <RailNavItem href="/about" icon={<IconUsers />} label="후보자" active={isAbout} />
 

@@ -110,7 +110,7 @@ function PledgeProposalForm({
 
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">📝 공약 제안 작성</span>
-        <span className="text-xs text-purple-600 truncate">민원: {minwonTitle}</span>
+        <span className="text-xs text-purple-600 truncate">불편 제보: {minwonTitle}</span>
       </div>
 
       {!isCandidate && (
@@ -145,7 +145,7 @@ function PledgeProposalForm({
         </label>
         <textarea value={content} onChange={(e) => setContent(e.target.value)}
           maxLength={MAX_CONTENT} required rows={4}
-          placeholder="민원에 대해 어떤 공약이 필요한지 구체적으로 제안해주세요..."
+          placeholder="불편 제보에 대해 어떤 공약이 필요한지 구체적으로 제안해주세요..."
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none" />
       </div>
 

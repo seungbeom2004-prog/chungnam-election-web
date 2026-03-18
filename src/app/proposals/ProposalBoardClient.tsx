@@ -88,10 +88,10 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-1">
-            {isCute && <span className="mr-2">🌼</span>}민원 & 제안
+            {isCute && <span className="mr-2">🌼</span>}불편 제보 & 공약 제안
           </h1>
           <p className="text-sm text-muted leading-relaxed">
-            우리 동네 민원을 제보하거나 후보자에게 공약을 제안하세요.{" "}
+            우리 동네 불편을 제보하거나 후보자에게 공약을 제안하세요.{" "}
             <span className="text-primary font-semibold">로그인 없이도 글을 쓸 수 있어요.</span>
           </p>
         </div>
@@ -123,12 +123,12 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         <div className="flex items-center gap-4 px-4 py-2 bg-white/95 border-b border-border text-xs font-medium">
           <span className="font-semibold text-foreground">📍 지도</span>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#3B82F6" }} />
-            <span className="text-muted">제안</span>
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#FACC15" }} />
+            <span className="text-muted">공약 제안</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#FF5A00" }} />
-            <span className="text-muted">민원</span>
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#EF4444" }} />
+            <span className="text-muted">불편 제보</span>
           </div>
           <span className="text-muted ml-auto">{mapPosts.length}개 게시물</span>
         </div>
@@ -155,11 +155,11 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
                 onClick={() => setPostTypeFilter(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   postTypeFilter === t
-                    ? t === "민원" ? "bg-orange-500 text-white" : t === "제안" ? "bg-blue-500 text-white" : "bg-primary text-white"
+                    ? t === "민원" ? "bg-red-500 text-white" : t === "제안" ? "bg-yellow-400 text-gray-900" : "bg-primary text-white"
                     : "text-muted hover:text-foreground"
                 }`}
               >
-                {t === "all" ? "전체" : t === "제안" ? "💡 제안" : "📢 민원"}
+                {t === "all" ? "전체" : t === "제안" ? "💡 공약 제안" : "📢 불편 제보"}
               </button>
             ))}
           </div>
@@ -210,7 +210,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
       <button
         onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
         className="fixed left-4 bottom-20 md:bottom-6 z-40 flex items-center gap-2 px-4 py-3 bg-primary text-white text-sm font-bold rounded-2xl shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
-        aria-label="민원·제안 글 작성하기"
+        aria-label="불편 제보·공약 제안 글 작성하기"
       >
         ✍️ <span>글 작성하기</span>
       </button>

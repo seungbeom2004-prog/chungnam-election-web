@@ -148,12 +148,12 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       onSubmit={handleSubmit}
       className="p-5 border border-border rounded-xl bg-surface space-y-3"
     >
-      <h2 className="text-sm font-semibold text-foreground">✍️ 민원 / 제안 작성</h2>
+      <h2 className="text-sm font-semibold text-foreground">✍️ 불편 제보 / 공약 제안 작성</h2>
 
       {/* Post type selector */}
       <div className="flex gap-2">
-        <button type="button" onClick={() => setPostType("제안")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "제안" ? "bg-blue-500 text-white border-blue-500" : "bg-background text-muted border-border"}`}>💡 제안</button>
-        <button type="button" onClick={() => setPostType("민원")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "민원" ? "bg-orange-500 text-white border-orange-500" : "bg-background text-muted border-border"}`}>📢 민원</button>
+        <button type="button" onClick={() => setPostType("제안")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "제안" ? "bg-yellow-400 text-gray-900 border-yellow-400" : "bg-background text-muted border-border"}`}>💡 공약 제안</button>
+        <button type="button" onClick={() => setPostType("민원")} className={`flex-1 py-2 text-sm font-bold rounded-lg border transition-colors ${postType === "민원" ? "bg-red-500 text-white border-red-500" : "bg-background text-muted border-border"}`}>📢 불편 제보</button>
       </div>
 
       {/* Legal notice */}
@@ -192,7 +192,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={`${postType} 제목을 입력해주세요`}
+          placeholder={`${postType === "민원" ? "불편 제보" : "공약 제안"} 제목을 입력해주세요`}
           maxLength={MAX_TITLE}
           required
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
@@ -243,7 +243,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder={postType === "민원" ? "민원 내용을 구체적으로 작성해주세요." : "공약으로 제안하고 싶은 내용을 구체적으로 작성해주세요."}
+          placeholder={postType === "민원" ? "불편 사항을 구체적으로 작성해주세요." : "공약으로 제안하고 싶은 내용을 구체적으로 작성해주세요."}
           maxLength={MAX_CONTENT}
           rows={4}
           required

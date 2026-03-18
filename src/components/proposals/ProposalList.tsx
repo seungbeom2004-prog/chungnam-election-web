@@ -205,7 +205,7 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
         </div>
         {sort === "popular" && proposals.length > 0 && (
           <p className="text-xs text-muted">
-            좋아요를 많이 받은 제안이 후보자에게 더 잘 보입니다!
+            좋아요를 많이 받은 게시물이 후보자에게 더 잘 보입니다!
           </p>
         )}
       </div>
@@ -217,9 +217,9 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
       ) : proposals.length === 0 ? (
         <div className="py-12 text-center">
           <div className="text-4xl mb-3">{postType === "민원" ? "📢" : "💡"}</div>
-          <p className="text-base font-semibold text-foreground mb-1">아직 {postType === "민원" ? "민원이" : "제안이"} 없습니다</p>
+          <p className="text-base font-semibold text-foreground mb-1">아직 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 없습니다</p>
           <p className="text-sm text-muted">
-            {showForm ? `첫 번째 ${postType === "민원" ? "민원을" : "공약 제안을"} 남겨보세요!` : `아직 등록된 ${postType === "민원" ? "민원이" : "제안이"} 없습니다.`}
+            {showForm ? `첫 번째 ${postType === "민원" ? "불편 제보를" : "공약 제안을"} 남겨보세요!` : `아직 등록된 ${postType === "민원" ? "불편 제보가" : "공약 제안이"} 없습니다.`}
           </p>
         </div>
       ) : (

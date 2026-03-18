@@ -439,10 +439,10 @@ export default function MapPageContent() {
     fetch("/api/proposals?limit=200&hasLocation=true")
       .then((r) => r.json())
       .then((json) => {
-        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string }> = json.data ?? json ?? [];
+        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string; createdAt?: string }> = json.data ?? json ?? [];
         const items: ProposalMapItem[] = data
           .filter((p) => p.latitude != null && p.longitude != null)
-          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType }));
+          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType, createdAt: p.createdAt }));
         setProposals(items);
       })
       .catch(console.error);
@@ -619,7 +619,7 @@ export default function MapPageContent() {
           active
           onClick={() => setPanelOpen((o) => !o)}
         />
-        <RailItem icon={<IconBulb size={19} />} label="민원/제안" href="/proposals" />
+        <RailItem icon={<IconBulb size={19} />} label="제보/제안" href="/proposals" />
         <RailItem icon={<IconClipboard size={19} />} label="공약" href="/pledges" />
         <RailItem icon={<IconUsers size={19} />} label="후보자" href="/about" />
 
@@ -808,12 +808,12 @@ export default function MapPageContent() {
                 {/* CTA — 민원/제안 유도 */}
                 <div className="mx-3 mb-3 mt-2 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-3">
                   <p className="text-[11px] font-bold text-foreground mb-0.5">혹시 집 앞 문제가 있나요?</p>
-                  <p className="text-[10px] text-muted mb-2 leading-relaxed">민원 제보 또는 공약 제안을 직접 해보세요.</p>
+                  <p className="text-[10px] text-muted mb-2 leading-relaxed">불편을 제보하거나 공약을 제안해보세요.</p>
                   <Link
                     href="/proposals"
                     className="flex items-center justify-center gap-1.5 w-full py-2 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
                   >
-                    ✍️ 민원 / 공약 제안하기
+                    ✍️ 불편 제보 / 공약 제안하기
                   </Link>
                 </div>
 
@@ -1319,23 +1319,58 @@ export default function MapPageContent() {
         {/* Proposal popup */}
         {selectedProposal && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[min(90vw,380px)] md:bottom-4">
-            <div className="bg-white/98 backdrop-blur-sm border border-purple-200 rounded-2xl shadow-xl overflow-hidden">
-              <div className="flex items-start gap-2 px-4 pt-4 pb-3">
-                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-base">💬</span>
+            <div
+              className="bg-white/98 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden"
+              style={{ border: `1.5px solid ${selectedProposal.postType === "민원" ? "#FCA5A5" : "#FDE68A"}` }}
+            >
+              {/* Header */}
+              <div className="flex items-start gap-2 px-4 pt-4 pb-2">
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ backgroundColor: selectedProposal.postType === "민원" ? "#FEE2E2" : "#FEF9C3" }}
+                >
+                  <span className="text-base">{selectedProposal.postType === "민원" ? "📢" : "💡"}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-purple-700 truncate">{selectedProposal.title}</p>
-                  <p className="text-[11px] text-muted mt-0.5">{selectedProposal.authorName} · ♥ {selectedProposal.likeCount}</p>
+                  <span
+                    className="text-xs font-bold"
+                    style={{ color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309" }}
+                  >
+                    {selectedProposal.postType === "민원" ? "불편 제보" : "공약 제안"}
+                  </span>
+                  <p className="text-sm font-bold text-foreground truncate leading-snug mt-0.5">{selectedProposal.title}</p>
+                  <p className="text-[11px] text-muted mt-0.5">
+                    {selectedProposal.authorName} · ♥ {selectedProposal.likeCount}
+                    {selectedProposal.createdAt && ` · ${new Date(selectedProposal.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })}`}
+                  </p>
                 </div>
-                <button onClick={() => setSelectedProposal(null)} className="shrink-0 text-muted hover:text-foreground text-lg leading-none mt-0.5" aria-label="닫기">×</button>
+                <button onClick={() => setSelectedProposal(null)} className="shrink-0 text-muted hover:text-foreground text-xl leading-none mt-0.5" aria-label="닫기">×</button>
               </div>
-              <div className="px-4 pb-3">
-                <p className="text-xs text-foreground line-clamp-3 leading-relaxed">{selectedProposal.content}</p>
+              {/* Content + like */}
+              <div className="px-4 pb-3 flex items-start justify-between gap-3">
+                <p className="text-xs text-foreground line-clamp-2 leading-relaxed flex-1">{selectedProposal.content}</p>
+                <span
+                  className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border whitespace-nowrap"
+                  style={{
+                    color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309",
+                    borderColor: selectedProposal.postType === "민원" ? "#FCA5A5" : "#FDE68A",
+                    backgroundColor: selectedProposal.postType === "민원" ? "#FEF2F2" : "#FEFCE8",
+                  }}
+                >
+                  ♡ 좋아요 {selectedProposal.likeCount}
+                </span>
               </div>
+              {/* Footer link */}
               <div className="px-4 pb-4">
-                <a href="/proposals" className="block w-full text-center py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
-                  민원 & 제안 게시판에서 보기 →
+                <a
+                  href="/proposals"
+                  className="block w-full text-center py-2 text-xs font-semibold rounded-xl transition-colors"
+                  style={{
+                    color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309",
+                    backgroundColor: selectedProposal.postType === "민원" ? "#FEF2F2" : "#FEFCE8",
+                  }}
+                >
+                  불편 제보 & 공약 제안 게시판에서 보기 →
                 </a>
               </div>
             </div>
@@ -1361,7 +1396,7 @@ export default function MapPageContent() {
       >
         <div className="flex items-center h-14">
           <BottomNavItem icon={<IconMapPin size={20} />} label="지도" active />
-          <BottomNavItem icon={<IconBulb size={20} />} label="민원/제안" href="/proposals" />
+          <BottomNavItem icon={<IconBulb size={20} />} label="제보/제안" href="/proposals" />
           <BottomNavItem icon={<IconClipboard size={20} />} label="공약" href="/pledges" />
           <BottomNavItem icon={<IconUsers size={20} />} label="소개" href="/about" />
           <BottomNavItem icon={<IconMenu size={20} />} label="더보기" onClick={() => setMenuOpen(true)} />
