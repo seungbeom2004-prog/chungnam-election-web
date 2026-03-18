@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { ZodError } from "zod";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { createPledgeCommentSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
@@ -28,15 +30,27 @@ export async function GET(
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
   try {
-    const { data, count, error } = await supabase
+    // Try with candidateId column first, fall back if column doesn't exist
+    let { data, count, error } = await supabase
       .from("PledgeComment")
-      .select("id, pledgeId, content, authorName, status, createdAt", {
+      .select("id, pledgeId, content, authorName, status, createdAt, candidateId", {
         count: "exact",
       })
       .eq("pledgeId", pledgeId)
       .eq("status", "visible")
       .order("createdAt", { ascending: true })
       .range(offset, offset + limit - 1);
+
+    if (error && TABLE_MISSING(error.code)) {
+      // candidateId column may not exist yet — retry without it
+      ({ data, count, error } = await supabase
+        .from("PledgeComment")
+        .select("id, pledgeId, content, authorName, status, createdAt", { count: "exact" })
+        .eq("pledgeId", pledgeId)
+        .eq("status", "visible")
+        .order("createdAt", { ascending: true })
+        .range(offset, offset + limit - 1));
+    }
 
     if (error) {
       // Table not created yet — return empty gracefully
@@ -69,9 +83,26 @@ export async function POST(
     const body = await request.json();
     const validated = createPledgeCommentSchema.parse(body);
 
-    // CAPTCHA
-    if (!(await verifyRecaptcha(validated.captchaToken))) {
-      return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
+    // Session check: logged-in candidates skip CAPTCHA and password
+    const session = await getServerSession(authOptions);
+    const sessionUser = session
+      ? {
+          id: (session.user as { id?: string })?.id ?? null,
+          name: session.user?.name ?? null,
+        }
+      : null;
+
+    // CAPTCHA (only for non-authenticated users)
+    if (!sessionUser) {
+      if (!validated.captchaToken || !(await verifyRecaptcha(validated.captchaToken))) {
+        return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
+      }
+      if (!validated.authorName) {
+        return apiError("이름을 입력해주세요.", 400);
+      }
+      if (!validated.password) {
+        return apiError("비밀번호를 입력해주세요.", 400);
+      }
     }
 
     // IP hashing
@@ -79,18 +110,19 @@ export async function POST(
       request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "127.0.0.1";
     const ipHash = hashIp(rawIp);
 
-    // Rate limit: max 10 comments/hour/IP
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentCount, error: rateError } = await supabase
-      .from("PledgeComment")
-      .select("id", { count: "exact", head: true })
-      .eq("ipHash", ipHash)
-      .eq("status", "visible")
-      .gte("createdAt", oneHourAgo);
+    // Rate limit: max 10 comments/hour/IP (skip for logged-in candidates)
+    if (!sessionUser) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentCount, error: rateError } = await supabase
+        .from("PledgeComment")
+        .select("id", { count: "exact", head: true })
+        .eq("ipHash", ipHash)
+        .eq("status", "visible")
+        .gte("createdAt", oneHourAgo);
 
-    // If table doesn't exist, still allow comment submission (will fail at insert)
-    if (!rateError && (recentCount ?? 0) >= 10) {
-      return apiError("1시간에 최대 10개의 댓글만 작성할 수 있습니다", 429);
+      if (!rateError && (recentCount ?? 0) >= 10) {
+        return apiError("1시간에 최대 10개의 댓글만 작성할 수 있습니다", 429);
+      }
     }
 
     // Check pledge exists
@@ -101,21 +133,38 @@ export async function POST(
       .single();
     if (!pledge) return apiError("공약을 찾을 수 없습니다", 404);
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(validated.password, BCRYPT_ROUNDS);
+    // Password hash (only for non-authenticated users)
+    const passwordHash = sessionUser
+      ? null
+      : await bcrypt.hash(validated.password!, BCRYPT_ROUNDS);
 
-    const { data: comment, error } = await supabase
+    const authorName = sessionUser?.name ?? validated.authorName ?? "익명";
+    const candidateId = sessionUser?.id ?? null;
+
+    // Try insert with candidateId, fall back if column doesn't exist
+    const baseInsert = {
+      pledgeId,
+      content: validated.content,
+      authorName,
+      passwordHash,
+      ipHash,
+      status: "visible",
+    };
+
+    let { data: comment, error } = await supabase
       .from("PledgeComment")
-      .insert({
-        pledgeId,
-        content: validated.content,
-        authorName: validated.authorName,
-        passwordHash,
-        ipHash,
-        status: "visible",
-      })
-      .select("id, pledgeId, content, authorName, status, createdAt")
+      .insert({ ...baseInsert, candidateId })
+      .select("id, pledgeId, content, authorName, status, createdAt, candidateId")
       .single();
+
+    if (error && TABLE_MISSING(error.code)) {
+      // candidateId column doesn't exist yet — retry without it
+      ({ data: comment, error } = await supabase
+        .from("PledgeComment")
+        .insert(baseInsert)
+        .select("id, pledgeId, content, authorName, status, createdAt")
+        .single());
+    }
 
     if (error) {
       if (TABLE_MISSING(error.code)) {

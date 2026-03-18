@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useSession } from "next-auth/react";
 import type { PledgeComment } from "@/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -14,6 +15,63 @@ const relativeTime = (date: string) => {
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   return `${Math.floor(diff / 86400)}일 전`;
 };
+
+// ─── Comment Item ────────────────────────────────────────────────────────────
+
+function CommentItem({
+  comment: c,
+  deletingId,
+  deletePassword,
+  deleteError,
+  onDeleteStart,
+  onDeleteCancel,
+  onDeleteConfirm,
+  onPasswordChange,
+}: {
+  comment: PledgeComment;
+  deletingId: string | null;
+  deletePassword: string;
+  deleteError: string | null;
+  onDeleteStart: (id: string) => void;
+  onDeleteCancel: () => void;
+  onDeleteConfirm: () => void;
+  onPasswordChange: (v: string) => void;
+}) {
+  const isCandidate = !!c.candidateId;
+  const isDeleting = deletingId === c.id;
+  return (
+    <div className={`p-3 border rounded-xl ${isCandidate ? "bg-primary/5 border-primary/20" : "bg-surface border-border"}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-foreground">{c.authorName}</span>
+          {isCandidate && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white bg-primary">🏛️ 후보자</span>
+          )}
+          <time className="text-[11px] text-muted">{relativeTime(c.createdAt)}</time>
+        </div>
+        {isDeleting ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              placeholder="비밀번호"
+              className="w-24 px-2 py-1 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-red-300"
+            />
+            <button onClick={onDeleteConfirm} className="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">확인</button>
+            <button onClick={onDeleteCancel} className="text-xs px-2 py-1 border border-border rounded-lg text-muted hover:text-foreground transition-colors">취소</button>
+          </div>
+        ) : (
+          <button onClick={() => onDeleteStart(c.id)} className="text-[11px] text-muted hover:text-red-500 transition-colors">삭제</button>
+        )}
+      </div>
+      {isDeleting && deleteError && (
+        <p className="text-xs text-red-500 mb-1">{deleteError}</p>
+      )}
+      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
+    </div>
+  );
+}
 
 // ─── Like Button ─────────────────────────────────────────────────────────────
 
@@ -117,6 +175,14 @@ const siteKey =
     : "6LeAGYosAAAAAK164nVrXIvD6s5d86YxeJRAC95Z";
 
 export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProps) {
+  const { data: session } = useSession();
+  const sessionUser = session
+    ? {
+        id: (session.user as { id?: string })?.id ?? null,
+        name: session.user?.name ?? null,
+      }
+    : null;
+
   const [comments, setComments] = useState<PledgeComment[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -124,7 +190,7 @@ export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProp
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
-  // Form fields
+  // Form fields (only used for non-candidate / guest users)
   const [authorName, setAuthorName] = useState("");
   const [password, setPassword] = useState("");
   const [content, setContent] = useState("");
@@ -156,17 +222,27 @@ export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const captchaToken = recaptchaRef.current?.getValue();
-    if (!captchaToken) {
-      setFormError("보안 문자를 완료해주세요.");
-      return;
+
+    let body: Record<string, string>;
+
+    if (sessionUser) {
+      // Logged-in candidate: no CAPTCHA or password needed
+      body = { content };
+    } else {
+      const captchaToken = recaptchaRef.current?.getValue();
+      if (!captchaToken) {
+        setFormError("보안 문자를 완료해주세요.");
+        return;
+      }
+      body = { content, authorName, password, captchaToken };
     }
+
     setSubmitting(true);
     try {
       const r = await fetch(`/api/pledges/${pledgeId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, authorName, password, captchaToken }),
+        body: JSON.stringify(body),
       });
       if (r.status === 429) { setFormError("잠시 후 다시 시도해주세요."); recaptchaRef.current?.reset(); return; }
       if (!r.ok) {
@@ -244,7 +320,44 @@ export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProp
                 추가 댓글 달기
               </button>
             </div>
+          ) : sessionUser ? (
+            /* ── 후보자 로그인 상태: 간소화 폼 ── */
+            <>
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-xs font-semibold text-foreground">{sessionUser.name}</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-primary">🏛️ 후보자</span>
+                <span className="text-[10px] text-muted">로그인 상태</span>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-foreground">내용 *</label>
+                  <span className={`text-xs ${content.length > MAX_CONTENT ? "text-red-500" : "text-muted"}`}>
+                    {content.length}/{MAX_CONTENT}
+                  </span>
+                </div>
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="이 공약에 대한 의견을 남겨주세요."
+                  minLength={2}
+                  maxLength={MAX_CONTENT}
+                  rows={3}
+                  required
+                  className="w-full px-2.5 py-1.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                />
+              </div>
+              {formError && <p className="text-xs text-red-500">{formError}</p>}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-60"
+                style={{ backgroundColor: accent }}
+              >
+                {submitting ? "등록 중..." : "댓글 등록"}
+              </button>
+            </>
           ) : (
+            /* ── 비로그인 방문자: 기존 폼 ── */
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -319,48 +432,17 @@ export function PledgeComments({ pledgeId, isCute, onCountChange }: CommentsProp
       ) : (
         <div className="space-y-2.5">
           {comments.map((c) => (
-            <div key={c.id} className="p-3 bg-surface border border-border rounded-xl">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">{c.authorName}</span>
-                  <time className="text-[11px] text-muted">{relativeTime(c.createdAt)}</time>
-                </div>
-                {deletingId === c.id ? (
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="password"
-                      value={deletePassword}
-                      onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
-                      placeholder="비밀번호"
-                      className="w-24 px-2 py-1 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-red-300"
-                    />
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      className="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                    >
-                      확인
-                    </button>
-                    <button
-                      onClick={() => { setDeletingId(null); setDeletePassword(""); setDeleteError(null); }}
-                      className="text-xs px-2 py-1 border border-border rounded-lg text-muted hover:text-foreground transition-colors"
-                    >
-                      취소
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setDeletingId(c.id); setDeletePassword(""); setDeleteError(null); }}
-                    className="text-[11px] text-muted hover:text-red-500 transition-colors"
-                  >
-                    삭제
-                  </button>
-                )}
-              </div>
-              {deletingId === c.id && deleteError && (
-                <p className="text-xs text-red-500 mb-1">{deleteError}</p>
-              )}
-              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
-            </div>
+            <CommentItem
+              key={c.id}
+              comment={c}
+              deletingId={deletingId}
+              deletePassword={deletePassword}
+              deleteError={deleteError}
+              onDeleteStart={(id) => { setDeletingId(id); setDeletePassword(""); setDeleteError(null); }}
+              onDeleteCancel={() => { setDeletingId(null); setDeletePassword(""); setDeleteError(null); }}
+              onDeleteConfirm={() => handleDelete(c.id)}
+              onPasswordChange={(v) => { setDeletePassword(v); setDeleteError(null); }}
+            />
           ))}
         </div>
       )}

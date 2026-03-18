@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import crypto from "crypto";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { createProposalSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
@@ -111,9 +113,23 @@ export async function POST(request: NextRequest) {
       return apiError("Invalid request", 400);
     }
 
-    // CAPTCHA verification
-    if (!(await verifyRecaptcha(validated.captchaToken))) {
-      return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
+    // Session check: logged-in candidates skip CAPTCHA
+    const session = await getServerSession(authOptions);
+    const sessionUser = session
+      ? {
+          id: (session.user as { id?: string })?.id ?? null,
+          name: session.user?.name ?? null,
+        }
+      : null;
+
+    // CAPTCHA verification (only for non-authenticated users)
+    if (!sessionUser) {
+      if (!validated.captchaToken || !(await verifyRecaptcha(validated.captchaToken))) {
+        return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
+      }
+      if (!validated.authorName) {
+        return apiError("이름을 입력해주세요.", 400);
+      }
     }
 
     // IP hashing
@@ -122,22 +138,23 @@ export async function POST(request: NextRequest) {
       "127.0.0.1";
     const ipHash = hashIp(rawIp);
 
-    // Rate limit: max 5 proposals per hour per IP
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentCount, error: countError } = await supabase
-      .from("ProposalPost")
-      .select("id", { count: "exact", head: true })
-      .eq("ipHash", ipHash)
-      .neq("status", "deleted")
-      .gte("createdAt", oneHourAgo);
+    // Rate limit: max 5 proposals per hour per IP (skip for logged-in candidates)
+    if (!sessionUser) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentCount, error: countError } = await supabase
+        .from("ProposalPost")
+        .select("id", { count: "exact", head: true })
+        .eq("ipHash", ipHash)
+        .neq("status", "deleted")
+        .gte("createdAt", oneHourAgo);
 
-    if (countError) {
-      console.error("[POST /api/proposals] Rate limit check error:", countError);
-      // Don't block user for rate-limit check failure
-    }
+      if (countError) {
+        console.error("[POST /api/proposals] Rate limit check error:", countError);
+      }
 
-    if ((recentCount ?? 0) >= 5) {
-      return apiError("1시간에 최대 5개의 제안만 작성할 수 있습니다", 429);
+      if ((recentCount ?? 0) >= 5) {
+        return apiError("1시간에 최대 5개의 제안만 작성할 수 있습니다", 429);
+      }
     }
 
     // Strip client-only fields before inserting
@@ -151,6 +168,12 @@ export async function POST(request: NextRequest) {
       postType,
       ...baseInsert
     } = validated;
+
+    // For logged-in candidates: override authorName and candidateId from session
+    if (sessionUser) {
+      baseInsert.authorName = sessionUser.name ?? baseInsert.authorName ?? "후보자";
+      baseInsert.candidateId = sessionUser.id ?? baseInsert.candidateId ?? null;
+    }
 
     // Auto-populate city from candidate's district if not provided
     if (baseInsert.candidateId && !baseInsert.city) {

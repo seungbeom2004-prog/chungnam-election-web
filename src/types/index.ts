@@ -147,6 +147,7 @@ export interface PledgeComment {
   status: string;
   deletedAt?: string | null;
   createdAt: string;
+  candidateId?: string | null; // present when comment was posted by a logged-in candidate
 }
 
 export interface CandidateLike {

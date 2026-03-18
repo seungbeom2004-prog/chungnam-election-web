@@ -193,14 +193,14 @@ export const paginationSchema = z.object({
 export const createProposalSchema = z.object({
   title: z.string().min(2, "제목은 2자 이상이어야 합니다").max(50, "제목은 50자 이내여야 합니다"),
   content: z.string().min(10).max(500),
-  authorName: z.string().min(2).max(20),
-  password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다").max(20, "비밀번호는 20자 이내여야 합니다"),
+  authorName: z.string().min(2).max(20).optional().nullable(),
+  password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다").max(20, "비밀번호는 20자 이내여야 합니다").optional().nullable(),
   city: z.string().optional().nullable(),
   candidateId: z.string().optional().nullable(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   honeypot: z.string().max(0, "Bot detected").optional(), // anti-bot
-  captchaToken: z.string().min(1, "보안 문자 토큰이 누락되었습니다"),
+  captchaToken: z.string().optional().nullable(), // optional for logged-in candidates
   postType: z.enum(["민원", "제안"]).default("제안"),
 });
 
@@ -208,9 +208,9 @@ export const createProposalSchema = z.object({
 
 export const createPledgeCommentSchema = z.object({
   content: z.string().min(2, "댓글은 2자 이상이어야 합니다").max(300, "댓글은 300자 이내여야 합니다"),
-  authorName: z.string().min(2, "이름은 2자 이상이어야 합니다").max(20, "이름은 20자 이내여야 합니다"),
-  password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다").max(20, "비밀번호는 20자 이내여야 합니다"),
-  captchaToken: z.string().min(1, "보안 문자 토큰이 누락되었습니다"),
+  authorName: z.string().min(2, "이름은 2자 이상이어야 합니다").max(20, "이름은 20자 이내여야 합니다").optional().nullable(),
+  password: z.string().min(4, "비밀번호는 4자 이상이어야 합니다").max(20, "비밀번호는 20자 이내여야 합니다").optional().nullable(),
+  captchaToken: z.string().optional().nullable(), // optional for logged-in candidates
 });
 
 export const deletePledgeCommentSchema = z.object({

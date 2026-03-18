@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProposalPost } from "@/types";
 
 const relativeTime = (date: string) => {
@@ -35,18 +35,20 @@ function MinwonCard({
   proposal,
   onAction,
   isPending,
+  onReply,
 }: {
   proposal: ProposalPost;
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
+  onReply?: (proposal: ProposalPost) => void;
 }) {
   return (
-    <div className="p-4 border border-orange-200 rounded-xl bg-orange-50">
+    <div className="p-4 border border-red-200 rounded-xl bg-red-50">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-orange-500">
-              📢 민원
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-red-500">
+              📢 불편 제보
             </span>
             <span className="text-sm font-medium text-foreground">{proposal.authorName}</span>
             <time className="text-xs text-muted">{relativeTime(proposal.createdAt)}</time>
@@ -74,6 +76,15 @@ function MinwonCard({
               className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
             >
               채택
+            </button>
+          )}
+          {onReply && (
+            <button
+              onClick={() => onReply(proposal)}
+              disabled={isPending}
+              className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              💡 공약 제안
             </button>
           )}
           <button
@@ -166,6 +177,110 @@ function PledgeProposalCard({
   );
 }
 
+// ─── 후보자 공약 제안 작성 폼 ────────────────────────────────────────────────
+function CandidateProposalForm({
+  replyTo,
+  candidateName,
+  onSubmit,
+  onClose,
+}: {
+  replyTo: ProposalPost | null;
+  candidateName?: string;
+  onSubmit: (data: { title: string; content: string }) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(
+    replyTo?.title ? `[불편 제보 답변] ${replyTo.title}` : ""
+  );
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const MAX = 500;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (content.length < 10) { setError("내용을 10자 이상 입력해주세요."); return; }
+    setSubmitting(true);
+    setError(null);
+    await onSubmit({ title, content });
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="p-4 border border-yellow-300 rounded-xl bg-yellow-50 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-yellow-800">💡 공약 제안 작성</span>
+          {candidateName && (
+            <span className="text-[11px] text-yellow-600">({candidateName} 후보자)</span>
+          )}
+        </div>
+        <button onClick={onClose} className="text-muted hover:text-foreground text-sm transition-colors">✕</button>
+      </div>
+
+      {replyTo && (
+        <div className="text-xs bg-white border border-yellow-200 rounded-lg px-3 py-2 text-muted">
+          <span className="font-medium text-red-600">📢 불편 제보 답변:</span>{" "}
+          {replyTo.title || replyTo.content.slice(0, 40) + "…"}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">제목 *</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="공약 제안 제목 (2~50자)"
+            minLength={2}
+            maxLength={50}
+            required
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-yellow-300 transition-colors"
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium text-foreground">내용 *</label>
+            <span className={`text-xs ${content.length > MAX ? "text-red-500" : "text-muted"}`}>
+              {content.length}/{MAX}
+            </span>
+          </div>
+          <textarea
+            ref={contentRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="공약 제안 내용을 입력하세요 (10자 이상)"
+            minLength={10}
+            maxLength={MAX}
+            rows={4}
+            required
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-yellow-300 transition-colors resize-none"
+          />
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 py-2 text-sm font-semibold text-gray-900 bg-yellow-400 hover:bg-yellow-500 rounded-lg transition-colors disabled:opacity-60"
+          >
+            {submitting ? "제출 중..." : "💡 공약 제안 게시하기"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-muted border border-border rounded-lg hover:bg-background transition-colors"
+          >
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── 메인 탭 컴포넌트 ────────────────────────────────────────────────────────
 type TabKey = "minwon" | "visitor-proposal" | "candidate-proposal";
 
@@ -177,6 +292,10 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
   const [ppLoading, setPpLoading]       = useState(false);
   const [actionPending, setActionPending] = useState<Set<string>>(new Set());
   const [ppActionPending, setPpActionPending] = useState<Set<string>>(new Set());
+  // 공약 제안 작성 폼 상태
+  const [showProposalForm, setShowProposalForm] = useState(false);
+  const [replyToMinwon, setReplyToMinwon] = useState<ProposalPost | null>(null);
+  const [proposalFormError, setProposalFormError] = useState<string | null>(null);
 
   // ── fetch 민원/제안 (ProposalPost linked to this candidate) ────────────
   const fetchProposals = useCallback(async () => {
@@ -230,6 +349,35 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
     }
   };
 
+  // ── 후보자 공약 제안 게시 ──────────────────────────────────────────────
+  const handleCandidateProposal = async (data: { title: string; content: string }) => {
+    setProposalFormError(null);
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content,
+          postType: "제안",
+          candidateId,
+          // No captchaToken / authorName — server reads from session
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setProposalFormError(j.error ?? "제출에 실패했습니다.");
+        return;
+      }
+      setShowProposalForm(false);
+      setReplyToMinwon(null);
+      // 목록 새로고침
+      await fetchProposals();
+    } catch {
+      setProposalFormError("네트워크 오류가 발생했습니다.");
+    }
+  };
+
   // ── 공약 제안 액션 ─────────────────────────────────────────────────────
   const handlePpAction = async (id: string, action: "accept" | "delete") => {
     if (ppActionPending.has(id)) return;
@@ -270,22 +418,43 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Sub-tabs */}
-      <div className="flex gap-1 flex-wrap border-b border-border pb-1">
-        {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-              activeTab === tab
-                ? "bg-primary text-white"
-                : "text-muted hover:text-foreground hover:bg-background"
-            }`}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
+      {/* Sub-tabs + 공약 제안 작성 버튼 */}
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <div className="flex gap-1 flex-wrap">
+          {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                activeTab === tab
+                  ? "bg-primary text-white"
+                  : "text-muted hover:text-foreground hover:bg-background"
+              }`}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => { setReplyToMinwon(null); setShowProposalForm((v) => !v); setProposalFormError(null); }}
+          className="shrink-0 px-3 py-1.5 text-xs font-semibold text-gray-900 bg-yellow-400 hover:bg-yellow-500 rounded-lg transition-colors"
+        >
+          💡 공약 제안 작성
+        </button>
       </div>
+
+      {/* 공약 제안 작성 폼 */}
+      {showProposalForm && (
+        <CandidateProposalForm
+          replyTo={replyToMinwon}
+          candidateName={candidateName}
+          onSubmit={handleCandidateProposal}
+          onClose={() => { setShowProposalForm(false); setReplyToMinwon(null); setProposalFormError(null); }}
+        />
+      )}
+      {proposalFormError && (
+        <p className="text-xs text-red-500 px-1">{proposalFormError}</p>
+      )}
 
       {/* ── 민원 탭 ─────────────────────────────────────────────────────── */}
       {activeTab === "minwon" && (
@@ -306,6 +475,11 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   proposal={p}
                   onAction={handleProposalAction}
                   isPending={actionPending.has(p.id)}
+                  onReply={(minwon) => {
+                    setReplyToMinwon(minwon);
+                    setShowProposalForm(true);
+                    setProposalFormError(null);
+                  }}
                 />
               ))}
             </div>

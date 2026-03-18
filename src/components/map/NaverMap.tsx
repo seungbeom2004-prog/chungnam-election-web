@@ -344,12 +344,12 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
 }
 
 /** Citizen proposal/민원 pin — colored circle with like count badge. */
-function buildProposalMarkerHTML(authorName: string, likeCount: number, _isCute: boolean, postType?: string): string {
+function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
   const textColor = isMinwon ? "white" : "#111";
   const shadowColor = isMinwon ? "rgba(239,68,68,0.45)" : "rgba(250,204,21,0.55)";
-  const truncated = authorName.length > 6 ? authorName.slice(0, 6) + "…" : authorName;
+  const truncated = title.length > 8 ? title.slice(0, 8) + "…" : title;
   const likeStr = likeCount > 0 ? ` ♥${likeCount}` : "";
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
@@ -910,7 +910,7 @@ export default function NaverMap({
       const onClick = onProposalClickRef.current;
       if (!items || items.length === 0) return;
       for (const proposal of items) {
-        const markerHtml = buildProposalMarkerHTML(proposal.authorName, proposal.likeCount ?? 0, isCute, proposal.postType);
+        const markerHtml = buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType);
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(proposal.latitude, proposal.longitude),
