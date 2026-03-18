@@ -43,13 +43,17 @@ export async function GET(
 
     if (error && TABLE_MISSING(error.code)) {
       // candidateId column may not exist yet — retry without it
-      ({ data, count, error } = await supabase
+      const fallback = await supabase
         .from("PledgeComment")
         .select("id, pledgeId, content, authorName, status, createdAt", { count: "exact" })
         .eq("pledgeId", pledgeId)
         .eq("status", "visible")
         .order("createdAt", { ascending: true })
-        .range(offset, offset + limit - 1));
+        .range(offset, offset + limit - 1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data = fallback.data as any;
+      count = fallback.count;
+      error = fallback.error;
     }
 
     if (error) {
