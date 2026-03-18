@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { isAdmin } from "@/lib/admin-auth";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 import { createElectionSchema, updateElectionSchema } from "@/lib/validations";
 

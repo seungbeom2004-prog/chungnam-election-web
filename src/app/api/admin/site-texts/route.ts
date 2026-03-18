@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { isAdmin } from "@/lib/admin-auth";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 import { DEFAULT_UI_TEXTS, mergeUITexts } from "@/lib/ui-texts";
 

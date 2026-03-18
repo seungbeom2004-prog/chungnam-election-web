@@ -10,7 +10,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const { status } = await request.json();
+  const body = await request.json();
+  const { status, postType } = body;
+
+  // postType-only update (종류 변경)
+  if (postType !== undefined && status === undefined) {
+    if (postType !== "민원" && postType !== "제안") {
+      return NextResponse.json({ error: "Invalid postType" }, { status: 400 });
+    }
+    const { error } = await supabaseAdmin.from("ProposalPost").update({ postType }).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
 
   const allowed = ["pending", "accepted", "hidden", "deleted"];
   if (!allowed.includes(status)) {

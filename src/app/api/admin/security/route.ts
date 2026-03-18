@@ -6,7 +6,7 @@ import { apiSuccess, apiError } from "@/lib/api-utils";
 // Note: In edge runtime the middleware runs in a separate context,
 // so we maintain a parallel in-memory log here for the API.
 // For persistent logging, we also query the SecurityLog table.
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 
 export async function GET(request: NextRequest) {
   try {

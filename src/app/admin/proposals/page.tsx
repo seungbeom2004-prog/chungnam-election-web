@@ -5,10 +5,13 @@ import Card from "@/components/ui/Card";
 
 interface Proposal {
   id: string;
+  title: string | null;
   authorName: string;
   content: string;
   city: string | null;
   status: string;
+  postType: string | null;
+  candidateId: string | null;
   createdAt: string;
   candidate?: { id: string; name: string; district: string } | null;
 }
@@ -19,6 +22,7 @@ export default function AdminProposalsPage() {
   const [filter, setFilter] = useState<"all" | "pending" | "accepted" | "hidden">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [typeLoading, setTypeLoading] = useState<string | null>(null);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -58,6 +62,36 @@ export default function AdminProposalsPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const changePostType = async (id: string, newType: "민원" | "제안") => {
+    setTypeLoading(id);
+    try {
+      const res = await fetch(`/api/admin/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postType: newType }),
+      });
+      if (res.ok) {
+        setMessage(`종류를 "${newType === "민원" ? "불편 제보" : "공약 제안"}"으로 변경했습니다.`);
+        fetchProposals();
+      } else {
+        setMessage("종류 변경에 실패했습니다.");
+      }
+    } catch {
+      setMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setTypeLoading(null);
+    }
+  };
+
+  const postTypeBadge = (postType: string | null) => {
+    if (postType === "민원") return (
+      <span className="px-2 py-0.5 text-xs font-bold rounded-full text-white" style={{ backgroundColor: "#EF4444" }}>📢 불편 제보</span>
+    );
+    return (
+      <span className="px-2 py-0.5 text-xs font-bold rounded-full text-gray-900" style={{ backgroundColor: "#FACC15" }}>💡 공약 제안</span>
+    );
   };
 
   const statusLabel = (status: string) => {
@@ -114,18 +148,34 @@ export default function AdminProposalsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    {postTypeBadge(p.postType)}
                     {statusLabel(p.status)}
                     <span className="text-xs text-muted">
-                      {p.candidate ? `${p.candidate.name} (${p.candidate.district})` : "후보자 없음"}
+                      {p.candidate ? `→ ${p.candidate.name} (${p.candidate.district})` : ""}
                     </span>
                     <span className="text-xs text-muted">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
                   </div>
-                  <p className="text-sm font-medium text-foreground">{p.authorName}</p>
-                  <p className="text-sm text-muted mt-1 break-words">{p.content}</p>
+                  <p className="text-sm font-semibold text-foreground">{p.title || p.authorName}</p>
+                  {p.title && <p className="text-xs text-muted">작성자: {p.authorName}</p>}
+                  <p className="text-sm text-muted mt-1 break-words line-clamp-3">{p.content}</p>
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
                   {p.status !== "deleted" && (
                     <>
+                      {/* 종류 변경 — 후보자가 단 공약 제안(candidateId 있는 제안)은 삭제만 */}
+                      {!(p.postType === "제안" && p.candidateId) && (
+                        <button
+                          onClick={() => changePostType(p.id, p.postType === "민원" ? "제안" : "민원")}
+                          disabled={typeLoading === p.id}
+                          className="px-2.5 py-1 text-xs border rounded-lg hover:opacity-80 transition-colors disabled:opacity-50"
+                          style={p.postType === "민원"
+                            ? { backgroundColor: "#FEF9C3", color: "#B45309", borderColor: "#FDE68A" }
+                            : { backgroundColor: "#FEF2F2", color: "#EF4444", borderColor: "#FCA5A5" }
+                          }
+                        >
+                          {typeLoading === p.id ? "변경 중..." : p.postType === "민원" ? "→ 공약 제안" : "→ 불편 제보"}
+                        </button>
+                      )}
                       {p.status === "hidden" ? (
                         <button
                           onClick={() => updateStatus(p.id, "pending")}
@@ -143,7 +193,7 @@ export default function AdminProposalsPage() {
                           숨김
                         </button>
                       )}
-                      {p.status === "pending" && (
+                      {p.status === "pending" && !(p.postType === "제안" && p.candidateId) && (
                         <button
                           onClick={() => updateStatus(p.id, "accepted")}
                           disabled={actionLoading === p.id}

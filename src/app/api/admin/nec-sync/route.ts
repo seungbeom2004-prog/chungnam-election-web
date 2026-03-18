@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { isAdmin } from "@/lib/admin-auth";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
 const NEC_API_KEY = process.env.NEC_API_KEY || "40c8fb3f3f39e2d88885f91bbfc25aaa397229a6b344944116d973f594ffbd92";
