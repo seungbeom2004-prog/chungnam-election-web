@@ -323,20 +323,25 @@ function buildClusterMarkerHTML(count: number, isCute: boolean): string {
 
 /** Bylaw council pin — blue with 📜 emoji, city label, and always-visible count badge. */
 function buildBylawMarkerHTML(cityName: string, count: number): string {
+  const hasBylaws = count > 0;
+  const bg = hasBylaws ? "#3B82F6" : "#9CA3AF";
+  const shadow = hasBylaws ? "rgba(59,130,246,0.55)" : "rgba(0,0,0,0.15)";
+  const badgeBg = hasBylaws ? "#EF4444" : "#6B7280";
+  const badgeHtml = `<div style="position:absolute;top:-9px;right:-9px;background:${badgeBg};color:white;` +
+    `font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `padding:0 4px;box-shadow:0 1px 4px rgba(0,0,0,0.35);z-index:1;">${hasBylaws ? count : "·"}</div>`;
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
-    `<div style="position:relative;width:44px;height:44px;background:#3B82F6;border-radius:12px;` +
+    `<div style="position:relative;width:44px;height:44px;background:${bg};border-radius:12px;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `overflow:visible;box-shadow:0 3px 10px rgba(59,130,246,0.55);">` +
-    `<span style="font-size:22px;line-height:1;">📜</span>` +
-    `<div style="position:absolute;top:-9px;right:-9px;background:#EF4444;color:white;` +
-    `font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;` +
-    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `padding:0 4px;box-shadow:0 1px 4px rgba(0,0,0,0.35);z-index:1;">${count}</div>` +
+    `overflow:visible;box-shadow:0 3px 10px ${shadow};">` +
+    `<span style="font-size:22px;line-height:1;">🏛️</span>` +
+    badgeHtml +
     `</div>` +
-    `<div style="margin-top:4px;background:#3B82F6;color:white;font-size:10px;font-weight:700;` +
+    `<div style="margin-top:4px;background:${bg};color:white;font-size:10px;font-weight:700;` +
     `padding:2px 7px;border-radius:6px;white-space:nowrap;max-width:90px;overflow:hidden;` +
     `text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,0.25);">${escapeHtml(cityName)}</div>` +
     `</div>`

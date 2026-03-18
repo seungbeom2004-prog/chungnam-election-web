@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Fetch last 30 days of page views
     const { data: rows, error } = await supabaseAdmin
       .from("PageView")
-      .select("path, referrer, createdAt")
+      .select("path, referrer, createdAt, city")
       .gte("createdAt", monthStart.toISOString())
       .order("createdAt", { ascending: false })
       .limit(50000);
@@ -115,6 +115,16 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
       .map(([referrer, count]) => ({ referrer, count }));
 
+    // City distribution (visitors who interacted with the map)
+    const cityMap: Record<string, number> = {};
+    for (const r of allRows) {
+      const c = (r as { city?: string | null }).city;
+      if (c) cityMap[c] = (cityMap[c] ?? 0) + 1;
+    }
+    const cityDistribution = Object.entries(cityMap)
+      .sort(([, a], [, b]) => b - a)
+      .map(([city, count]) => ({ city, count }));
+
     return NextResponse.json({
       success: true,
       data: {
@@ -124,6 +134,7 @@ export async function GET(request: NextRequest) {
         dailyCounts,
         topPages,
         topReferrers,
+        cityDistribution,
         tableExists: true,
       },
     });

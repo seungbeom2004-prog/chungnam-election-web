@@ -17,6 +17,11 @@ interface TopReferrer {
   count: number;
 }
 
+interface CityCount {
+  city: string;
+  count: number;
+}
+
 interface AnalyticsData {
   todayCount: number;
   weekCount: number;
@@ -24,6 +29,7 @@ interface AnalyticsData {
   dailyCounts: DailyCount[];
   topPages: TopPage[];
   topReferrers: TopReferrer[];
+  cityDistribution: CityCount[];
   tableExists: boolean;
 }
 
@@ -126,6 +132,31 @@ export default function AnalyticsPage() {
           </table>
         </div>
       </div>
+
+      {/* City distribution */}
+      {data.cityDistribution && data.cityDistribution.length > 0 && (
+        <div className="bg-surface border border-border rounded-xl p-6">
+          <h2 className="text-base font-semibold text-foreground mb-1">관심 지역 분포</h2>
+          <p className="text-xs text-muted mb-4">지도에서 지역을 선택한 방문자 기준 (최근 30일)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {data.cityDistribution.map((c, i) => {
+              const max = data.cityDistribution[0]?.count ?? 1;
+              const pct = Math.round((c.count / max) * 100);
+              return (
+                <div key={c.city} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">{i + 1}. {c.city}</span>
+                    <span className="text-primary font-semibold">{c.count}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-border overflow-hidden">
+                    <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Top pages + Top referrers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

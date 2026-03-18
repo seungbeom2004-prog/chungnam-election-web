@@ -14,7 +14,7 @@ import { useMapStore } from "@/store/useMapStore";
 import { useUITexts } from "@/hooks/useUITexts";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Pledge, BylawGroup } from "@/types";
-import { findDistrictCity } from "@/lib/districts";
+import { findDistrictCity, CHUNGNAM_DISTRICTS } from "@/lib/districts";
 import UserProfileButton from "@/components/layout/UserProfileButton";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import PledgePinTooltip from "@/components/ui/PledgePinTooltip";
@@ -411,14 +411,16 @@ export default function MapPageContent() {
       .then((r) => r.json())
       .then((json) => {
         const data: Pledge[] = json.data ?? [];
+        // Always include all 15 충남 cities as council pins, even if they have no bylaws
         const grouped: Record<string, BylawGroup> = {};
+        for (const d of CHUNGNAM_DISTRICTS) {
+          grouped[d.name] = { cityName: d.name, councilLat: d.councilLat, councilLng: d.councilLng, pledges: [] };
+        }
         for (const pledge of data) {
           if (!pledge.candidate) continue;
           const districtCity = findDistrictCity(pledge.candidate.district);
           if (!districtCity) continue;
-          const key = districtCity.name;
-          if (!grouped[key]) grouped[key] = { cityName: districtCity.name, councilLat: districtCity.councilLat, councilLng: districtCity.councilLng, pledges: [] };
-          grouped[key]!.pledges.push(pledge);
+          grouped[districtCity.name]!.pledges.push(pledge);
         }
         setBylawGroups(Object.values(grouped));
       })
@@ -544,6 +546,7 @@ export default function MapPageContent() {
     setSelectedDistrict(district.name);
     setDistrictDropdownOpen(false);
     setMobileDistrictOpen(false);
+    try { localStorage.setItem("mapLastCity", district.name); } catch {}
   }, [setCenter, setZoomLevel, setSelectedDistrict]);
 
   const handlePledgeClick = useCallback((pledge: Pledge) => {
@@ -558,6 +561,7 @@ export default function MapPageContent() {
   const handleBylawGroupClick = useCallback((group: BylawGroup) => {
     setSelectedBylawGroup(group);
     setCenter(group.councilLat, group.councilLng);
+    try { localStorage.setItem("mapLastCity", group.cityName); } catch {}
   }, [setSelectedBylawGroup, setCenter]);
 
   const handleProposalClick = useCallback((proposal: ProposalMapItem) => {

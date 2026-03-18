@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
+import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: false });
 
@@ -22,14 +24,18 @@ const LEGAL_NOTICE = `[게시물 작성 시 유의사항 및 법적 책임]
 
 3. 본 홈페이지의 관리자는 공직선거법을 위반하는 내용(허위사실, 비방, 불법 선거운동 등)이 포함된 게시물이나 댓글을 발견할 경우, 사전 통보 없이 즉시 삭제할 수 있으며, 해당 게시물로 인해 발생하는 모든 민·형사상 법적 책임은 작성자 본인에게 있습니다.`;
 
-export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
+export default function ProposalForm({ candidateId, city: propCity, onSuccess }: Props) {
+  const { data: session } = useSession();
+  const isCandidate = (session?.user as { role?: string })?.role === "candidate";
+
   const [postType, setPostType] = useState<"민원" | "제안">("제안");
+  const [selectedCity, setSelectedCity] = useState<string>(propCity ?? "");
   const [title, setTitle] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [password, setPassword] = useState("");
   const [content, setContent] = useState("");
   const [honeypot, setHoneypot] = useState("");
-  const [useLocation, setUseLocation] = useState(false);
+  const [useDetailedLocation, setUseDetailedLocation] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,54 +47,84 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
   const MAX_TITLE = 50;
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
+  // When city changes, update lat/lng to city center (unless detailed location enabled)
+  const handleCityChange = (cityName: string) => {
+    setSelectedCity(cityName);
+    if (!useDetailedLocation) {
+      setLatitude(null);
+      setLongitude(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (honeypot) return;
 
+    if (!selectedCity) {
+      setError("지역을 선택해주세요.");
+      return;
+    }
+
     if (title.trim().length < 2 || title.trim().length > MAX_TITLE) {
       setError(`제목은 2자 이상 ${MAX_TITLE}자 이하로 입력해주세요.`);
       return;
     }
-    if (authorName.trim().length < 2 || authorName.trim().length > 20) {
-      setError("제안자명은 2자 이상 20자 이하로 입력해주세요.");
-      return;
+
+    // Guest-only validation
+    if (!isCandidate) {
+      if (authorName.trim().length < 2 || authorName.trim().length > 20) {
+        setError("작성자명은 2자 이상 20자 이하로 입력해주세요.");
+        return;
+      }
+      if (password.length < 4 || password.length > 20) {
+        setError("비밀번호는 4자 이상 20자 이하로 입력해주세요.");
+        return;
+      }
     }
-    if (password.length < 4 || password.length > 20) {
-      setError("비밀번호는 4자 이상 20자 이하로 입력해주세요.");
-      return;
-    }
+
     if (content.trim().length < 10 || content.trim().length > MAX_CONTENT) {
       setError(`내용은 10자 이상 ${MAX_CONTENT}자 이하로 입력해주세요.`);
       return;
     }
-    if (useLocation && (latitude == null || longitude == null)) {
-      setError("지도에서 위치를 클릭해서 선택해주세요.");
+    if (useDetailedLocation && (latitude == null || longitude == null)) {
+      setError("지도에서 세부 위치를 클릭해서 선택해주세요.");
       return;
     }
 
-    const recaptchaToken = recaptchaRef.current?.getValue();
-    if (siteKey && !recaptchaToken) {
-      setError("보안 문자를 완료해주세요.");
-      return;
+    // reCAPTCHA for guests only
+    if (!isCandidate) {
+      const recaptchaToken = recaptchaRef.current?.getValue();
+      if (siteKey && !recaptchaToken) {
+        setError("보안 문자를 완료해주세요.");
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
+      // Resolve lat/lng: if detailed location, use picked pin; else use city center
+      const cityData = CHUNGNAM_DISTRICTS.find((d) => d.name === selectedCity);
+      const resolvedLat = useDetailedLocation && latitude != null ? latitude : (cityData?.centerLat ?? null);
+      const resolvedLng = useDetailedLocation && longitude != null ? longitude : (cityData?.centerLng ?? null);
+
       const body: Record<string, unknown> = {
         title: title.trim(),
-        authorName: authorName.trim(),
-        password,
         content: content.trim(),
-        captchaToken: recaptchaToken ?? "no-captcha",
+        postType,
+        city: selectedCity,
       };
-      body.postType = postType;
+
+      if (resolvedLat != null) body.latitude = resolvedLat;
+      if (resolvedLng != null) body.longitude = resolvedLng;
       if (candidateId) body.candidateId = candidateId;
-      if (city) body.city = city;
-      if (useLocation && latitude != null && longitude != null) {
-        body.latitude = latitude;
-        body.longitude = longitude;
+
+      if (!isCandidate) {
+        const recaptchaToken = recaptchaRef.current?.getValue();
+        body.authorName = authorName.trim();
+        body.password = password;
+        body.captchaToken = recaptchaToken ?? "no-captcha";
       }
 
       const res = await fetch("/api/proposals", {
@@ -117,7 +153,7 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
       setContent("");
       setLatitude(null);
       setLongitude(null);
-      setUseLocation(false);
+      setUseDetailedLocation(false);
       recaptchaRef.current?.reset();
       onSuccess?.();
     } catch {
@@ -180,6 +216,29 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         aria-hidden="true"
       />
 
+      {/* City selector (required) */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          📍 지역 선택<span aria-hidden="true"> *</span>
+        </label>
+        <select
+          value={selectedCity}
+          onChange={(e) => handleCityChange(e.target.value)}
+          required
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+        >
+          <option value="">-- 지역을 선택하세요 --</option>
+          {CHUNGNAM_DISTRICTS.map((d) => (
+            <option key={d.name} value={d.name}>{d.name}</option>
+          ))}
+        </select>
+        {selectedCity && !useDetailedLocation && (
+          <p className="text-[11px] text-muted mt-1">
+            📌 {selectedCity} 전체 지역으로 등록됩니다. 세부 위치를 추가하려면 아래 체크박스를 선택하세요.
+          </p>
+        )}
+      </div>
+
       {/* Title */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
@@ -199,38 +258,50 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         />
       </div>
 
-      {/* 제안자명 + Password */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">작성자명<span aria-hidden="true"> *</span></label>
-          <input
-            type="text"
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="홍길동"
-            maxLength={20}
-            required
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-          />
+      {/* 작성자명 + Password — hidden for logged-in candidates */}
+      {!isCandidate && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">작성자명<span aria-hidden="true"> *</span></label>
+            <input
+              type="text"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              placeholder="홍길동"
+              maxLength={20}
+              required
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              비밀번호<span aria-hidden="true"> *</span> <span className="text-xs text-muted font-normal">(삭제용)</span>
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="4~20자"
+              minLength={4}
+              maxLength={20}
+              required
+              aria-required="true"
+              autoComplete="new-password"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">
-            비밀번호<span aria-hidden="true"> *</span> <span className="text-xs text-muted font-normal">(삭제용)</span>
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="4~20자"
-            minLength={4}
-            maxLength={20}
-            required
-            aria-required="true"
-            autoComplete="new-password"
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-          />
+      )}
+
+      {/* Candidate badge */}
+      {isCandidate && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+          <span className="text-sm">🏛️</span>
+          <p className="text-xs text-primary font-medium">
+            후보자 계정으로 작성됩니다 · <strong>{session?.user?.name}</strong>
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div>
@@ -251,49 +322,51 @@ export default function ProposalForm({ candidateId, city, onSuccess }: Props) {
         />
       </div>
 
-      {/* Location via Map */}
-      <div className="border border-dashed border-border rounded-lg p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="use-location"
-            checked={useLocation}
-            onChange={(e) => {
-              setUseLocation(e.target.checked);
-              if (!e.target.checked) { setLatitude(null); setLongitude(null); }
-            }}
-            className="w-4 h-4 accent-primary"
-          />
-          <label htmlFor="use-location" className="text-sm text-foreground cursor-pointer">
-            📍 위치 정보 첨부 <span className="text-xs text-muted">(선택, 지도에 표시됩니다)</span>
-          </label>
-        </div>
-        {useLocation && (
-          <div className="space-y-2">
-            <LocationPickerMap
-              lat={latitude}
-              lng={longitude}
-              onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+      {/* Detailed location (optional) — only available after city is selected */}
+      {selectedCity && (
+        <div className="border border-dashed border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="use-detailed-location"
+              checked={useDetailedLocation}
+              onChange={(e) => {
+                setUseDetailedLocation(e.target.checked);
+                if (!e.target.checked) { setLatitude(null); setLongitude(null); }
+              }}
+              className="w-4 h-4 accent-primary"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label htmlFor="lat-input" className="block text-xs text-muted mb-1">위도 (직접입력)</label>
-                <input id="lat-input" type="number" value={latitude ?? ""} onChange={e => setLatitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="36.5184" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
-              </div>
-              <div>
-                <label htmlFor="lng-input" className="block text-xs text-muted mb-1">경도 (직접입력)</label>
-                <input id="lng-input" type="number" value={longitude ?? ""} onChange={e => setLongitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="126.8000" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
-              </div>
-            </div>
-            {latitude != null && longitude != null && (
-              <p className="text-xs text-primary text-center font-medium">✅ 위치 선택됨: {latitude.toFixed(5)}, {longitude.toFixed(5)}</p>
-            )}
+            <label htmlFor="use-detailed-location" className="text-sm text-foreground cursor-pointer">
+              📍 세부 위치 추가 <span className="text-xs text-muted">(선택, 지도에 정확한 위치로 표시됩니다)</span>
+            </label>
           </div>
-        )}
-      </div>
+          {useDetailedLocation && (
+            <div className="space-y-2">
+              <LocationPickerMap
+                lat={latitude}
+                lng={longitude}
+                onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="lat-input" className="block text-xs text-muted mb-1">위도 (직접입력)</label>
+                  <input id="lat-input" type="number" value={latitude ?? ""} onChange={e => setLatitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="36.5184" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                </div>
+                <div>
+                  <label htmlFor="lng-input" className="block text-xs text-muted mb-1">경도 (직접입력)</label>
+                  <input id="lng-input" type="number" value={longitude ?? ""} onChange={e => setLongitude(e.target.value ? parseFloat(e.target.value) : null)} placeholder="126.8000" step="0.000001" className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                </div>
+              </div>
+              {latitude != null && longitude != null && (
+                <p className="text-xs text-primary text-center font-medium">✅ 세부 위치 선택됨: {latitude.toFixed(5)}, {longitude.toFixed(5)}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* reCAPTCHA — scale down on very small screens to prevent overflow */}
-      {siteKey && (
+      {/* reCAPTCHA — guests only */}
+      {!isCandidate && siteKey && (
         <div className="flex justify-center overflow-hidden">
           <div className="scale-[0.82] origin-left sm:scale-100 sm:origin-center">
             <ReCAPTCHA ref={recaptchaRef} sitekey={siteKey} />

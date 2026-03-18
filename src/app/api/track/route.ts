@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const path: string = typeof body.path === "string" ? body.path.slice(0, 500) : "/";
     const referrer: string | null = typeof body.referrer === "string" ? body.referrer.slice(0, 500) : null;
+    const city: string | null = typeof body.city === "string" ? body.city.slice(0, 50) : null;
 
     // Hash IP for privacy
     const ip =
@@ -31,12 +32,22 @@ export async function POST(request: NextRequest) {
       "unknown";
     const ipHash = createHash("sha256").update(ip + (process.env.NEXTAUTH_SECRET ?? "salt")).digest("hex").slice(0, 16);
 
-    // Non-blocking insert
+    // Non-blocking insert — try with city column, fall back without
     supabaseAdmin
       .from("PageView")
-      .insert({ path, ipHash, referrer, createdAt: new Date().toISOString() })
+      .insert({ path, ipHash, referrer, city, createdAt: new Date().toISOString() })
       .then(({ error }) => {
-        if (error) console.error("[track] insert error:", error.message);
+        if (error) {
+          if (error.code === "42703" || error.code === "PGRST204") {
+            // city column doesn't exist yet — retry without it
+            supabaseAdmin
+              .from("PageView")
+              .insert({ path, ipHash, referrer, createdAt: new Date().toISOString() })
+              .then(({ error: e2 }) => { if (e2) console.error("[track] insert error:", e2.message); });
+          } else {
+            console.error("[track] insert error:", error.message);
+          }
+        }
       });
   } catch (err) {
     console.error("[track] error:", err);
