@@ -12,6 +12,7 @@ import {
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import PageTracker from "@/components/layout/PageTracker";
+import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/layout/JsonLd";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
@@ -57,6 +58,8 @@ export default function RootLayout({
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
+        <OrganizationJsonLd />
+        <WebSiteJsonLd />
       </head>
       <body className="antialiased">
         {/* Naver Maps SDK — loaded via next/script beforeInteractive so it's

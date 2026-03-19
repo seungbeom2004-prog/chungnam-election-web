@@ -28,5 +28,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...candidateRoutes];
+  // Dynamic pledge share pages
+  const candidateIds = (candidates ?? []).map((c) => c.id);
+  const { data: pledges } = candidateIds.length > 0
+    ? await supabase
+        .from("Pledge")
+        .select("id, updatedAt")
+        .in("candidateId", candidateIds)
+        .eq("visible", true)
+        .limit(1000)
+    : { data: [] };
+
+  const pledgeRoutes: MetadataRoute.Sitemap = (pledges ?? []).map((p) => ({
+    url: `${BASE_URL}/pledge/${p.id}`,
+    lastModified: new Date(p.updatedAt ?? new Date()),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...candidateRoutes, ...pledgeRoutes];
 }

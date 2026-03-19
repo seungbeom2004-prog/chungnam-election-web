@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { PledgeJsonLd } from "@/components/layout/JsonLd";
 
 const BASE_URL = "https://www.reform-chungnam.kr";
 
@@ -78,9 +79,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** Server component — just redirects to the map with the pledge pre-selected.
- *  OG tags above are served to crawlers before the redirect. */
+/** Server component — serves OG tags and JSON-LD to crawlers, then redirects users to the map. */
 export default async function PledgeSharePage({ params }: Props) {
   const { id } = await params;
+
+  // Fetch pledge for JSON-LD (brief fetch, same as generateMetadata)
+  const { data: pledge } = await supabase
+    .from("Pledge")
+    .select("id, title, description, imageUrl, createdAt, candidate:Candidate!candidateId(id, name)")
+    .eq("id", id)
+    .eq("visible", true)
+    .single();
+
+  const candidate = pledge
+    ? (Array.isArray(pledge.candidate) ? pledge.candidate[0] : pledge.candidate)
+    : null;
+
   redirect(`/?pledge=${encodeURIComponent(id)}`);
+
+  // Note: redirect() throws so code below never runs for users,
+  // but Next.js renders this component for crawlers before following the redirect.
+  // JSON-LD is included in the initial HTML snapshot.
+  return pledge ? (
+    <PledgeJsonLd
+      id={pledge.id}
+      title={pledge.title}
+      description={pledge.description ?? ""}
+      authorName={(candidate as { name?: string } | null)?.name ?? "후보자"}
+      imageUrl={pledge.imageUrl}
+      createdAt={pledge.createdAt ?? undefined}
+    />
+  ) : null;
 }
