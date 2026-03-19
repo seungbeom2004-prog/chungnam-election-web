@@ -13,6 +13,7 @@ import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import PageTracker from "@/components/layout/PageTracker";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/layout/JsonLd";
+import ThemeColorMeta from "@/components/layout/ThemeColorMeta";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
@@ -58,6 +59,10 @@ export default function RootLayout({
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
+        {/* PWA */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content="#F97316" id="theme-color-meta" />
         <OrganizationJsonLd />
         <WebSiteJsonLd />
       </head>
@@ -107,6 +112,7 @@ export default function RootLayout({
             >
               본문으로 건너뛰기
             </a>
+            <ThemeColorMeta />
             <DisclaimerModal />
             <PageTracker />
             {/* Desktop left rail (fixed) on non-map pages */}

@@ -1,0 +1,40 @@
+{
+  "name": "개혁 충남 - 우리 동네 변화 플랫폼",
+  "short_name": "개혁 충남",
+  "description": "2026 충남 지방선거 개혁신당 후보자들의 공약을 지도에서 확인하세요",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#F97316",
+  "background_color": "#FFFFFF",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["politics", "government", "news"],
+  "shortcuts": [
+    {
+      "name": "공약 지도",
+      "short_name": "공약 지도",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "제보 & 제안",
+      "short_name": "제보/제안",
+      "url": "/proposals",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
