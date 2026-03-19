@@ -20,8 +20,15 @@ const SAFE_SELECT = "id, content, authorName, city, candidateId, status, created
 const V10_SELECT = "title, latitude, longitude, acceptedAt";
 /** Columns added in migration v11 */
 const V11_SELECT = "postType";
-/** Full select with ProposalLike join */
+/** ProposalResponse join (migration v12) */
+const RESPONSE_JOIN = "responses:ProposalResponse(id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt)";
+/** Full select with ProposalLike join + responses */
 const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
+  candidate:Candidate!candidateId(id, name, district),
+  likes:ProposalLike(count),
+  ${RESPONSE_JOIN}`;
+/** Fallback without responses join */
+const FULL_SELECT_NO_RESP = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
   candidate:Candidate!candidateId(id, name, district),
   likes:ProposalLike(count)`;
 /** Fallback without v11 (postType) */
@@ -60,9 +67,13 @@ export async function GET(request: NextRequest) {
     };
 
     const MIGRATION_ERRORS = ["42703", "42P01", "PGRST204", "PGRST200"];
-    // Try full query first (v10 + v11 columns)
+    // Try full query first (v10 + v11 + responses)
     let { data: proposals, count, error } = await buildQuery(FULL_SELECT);
 
+    if (error && MIGRATION_ERRORS.includes(error.code)) {
+      // ProposalResponse table not yet created — try without it
+      ({ data: proposals, count, error } = await buildQuery(FULL_SELECT_NO_RESP));
+    }
     if (error && MIGRATION_ERRORS.includes(error.code)) {
       // v11 (postType) not applied yet — try without it
       ({ data: proposals, count, error } = await buildQuery(V10_FALLBACK_SELECT));

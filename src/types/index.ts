@@ -111,6 +111,19 @@ export interface Category {
   updatedAt: string;
 }
 
+export interface ProposalResponse {
+  id: string;
+  proposalId: string;
+  candidateId: string;
+  candidateName: string;
+  candidateProfileImage: string | null;
+  /** "접수됨" | "검토 중" | "공약 반영 예정" | "공약 반영 완료" | "반영 불가" */
+  status: string;
+  content: string;
+  pledgeId: string | null;
+  createdAt: string;
+}
+
 export interface ProposalPost {
   id: string;
   title: string;
@@ -129,6 +142,7 @@ export interface ProposalPost {
   postType?: string;  // "민원" | "제안"
   hasLiked?: boolean;
   candidate?: { id: string; name: string; district: string } | null;
+  responses?: ProposalResponse[];
 }
 
 export interface PledgeLike {

@@ -160,6 +160,7 @@ model ProposalPost {
   createdAt    DateTime @default(now())
 
   likes       ProposalLike[]
+  responses   ProposalResponse[]
 
   @@index([candidateId])
   @@index([city])
@@ -177,6 +178,26 @@ model ProposalLike {
 
   @@unique([proposalId, ipHash])
   @@index([proposalId])
+}
+
+/// 후보자가 제보/제안 게시물에 남기는 공식 답변
+model ProposalResponse {
+  id                    String   @id @default(cuid())
+  proposalId            String
+  proposal              ProposalPost @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  candidateId           String
+  candidateName         String
+  candidateProfileImage String?
+  /// "접수됨" | "검토 중" | "공약 반영 예정" | "공약 반영 완료" | "반영 불가"
+  status                String   @default("접수됨")
+  content               String   @db.Text
+  /// 공약 반영 완료일 때 연결된 정식 공약 ID
+  pledgeId              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([proposalId])
+  @@index([candidateId])
 }
 
 model CandidateLike {
