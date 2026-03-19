@@ -75,8 +75,13 @@ export default function RootLayout({
           src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
           strategy="beforeInteractive"
         />
-        {/* Kakao SDK: KakaoShareButton 컴포넌트에서 동적으로 로드+초기화.
-            data-kakao-sdk 속성으로 중복 로드 방지됨. */}
+        {/* Kakao SDK preload: 브라우저가 HTML 파싱 즉시 다운로드 시작.
+            실행은 KakaoShareButton이 script 태그를 삽입할 때 캐시에서 즉시 사용. */}
+        <link
+          rel="preload"
+          as="script"
+          href="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+        />
         {/* Vercel Analytics */}
         <Analytics />
 
