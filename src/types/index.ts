@@ -42,6 +42,13 @@ export interface Election {
   updatedAt: string;
 }
 
+export interface RelatedLink {
+  url: string;
+  title: string;
+  /** "youtube" | "instagram" | "facebook" | "news" | "other" */
+  type?: string;
+}
+
 export interface Pledge {
   id: string;
   title: string;
@@ -58,6 +65,14 @@ export interface Pledge {
   bylawTagged?: boolean;
   /** ID of a related pledge (links a map pledge ↔ bylaw pledge). */
   relatedPledgeId?: string | null;
+  /** 배경/필요성 */
+  background?: string | null;
+  /** 실행 방안 */
+  plan?: string | null;
+  /** 기대 효과 */
+  expectedEffect?: string | null;
+  /** 관련 링크 */
+  relatedLinks?: RelatedLink[] | null;
   candidateId: string;
   categoryId: string | null;
   candidate?: Candidate;

@@ -25,6 +25,9 @@ interface PledgeFormProps {
     longitude: number;
     address?: string;
     categoryId?: string;
+    background?: string;
+    plan?: string;
+    expectedEffect?: string;
   }) => void;
   onClose: () => void;
 }
@@ -42,6 +45,9 @@ export default function PledgeForm({
   const [address, setAddress] = useState(pledge?.address || draftPin?.address || "");
   const [imageUrl, setImageUrl] = useState(pledge?.imageUrl || "");
   const [categoryId, setCategoryId] = useState(pledge?.categoryId || "");
+  const [background, setBackground] = useState(pledge?.background || "");
+  const [plan, setPlan] = useState(pledge?.plan || "");
+  const [expectedEffect, setExpectedEffect] = useState(pledge?.expectedEffect || "");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +95,9 @@ export default function PledgeForm({
       longitude: lng,
       address: address || undefined,
       categoryId: categoryId || undefined,
+      background: background || undefined,
+      plan: plan || undefined,
+      expectedEffect: expectedEffect || undefined,
     });
     setSubmitting(false);
   };
@@ -180,6 +189,52 @@ export default function PledgeForm({
             </select>
           </div>
         )}
+
+        {/* Extended detail fields */}
+        <div className="pt-1 border-t border-border/40">
+          <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wide">상세 정보 (선택)</p>
+          <div className="space-y-2.5">
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">
+                📋 배경 / 필요성
+                {!background && <span className="ml-1 text-amber-500 font-normal">· 미작성</span>}
+              </label>
+              <textarea
+                value={background}
+                onChange={(e) => setBackground(e.target.value)}
+                placeholder="이 공약이 필요한 배경과 이유를 설명하세요"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">
+                🛠️ 실행 방안
+                {!plan && <span className="ml-1 text-amber-500 font-normal">· 미작성</span>}
+              </label>
+              <textarea
+                value={plan}
+                onChange={(e) => setPlan(e.target.value)}
+                placeholder="구체적인 실행 계획과 단계를 설명하세요"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">
+                ✨ 기대 효과
+                {!expectedEffect && <span className="ml-1 text-amber-500 font-normal">· 미작성</span>}
+              </label>
+              <textarea
+                value={expectedEffect}
+                onChange={(e) => setExpectedEffect(e.target.value)}
+                placeholder="이 공약이 실현되면 어떤 변화가 생기나요?"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Image upload */}
         <div>

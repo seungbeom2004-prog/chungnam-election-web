@@ -187,6 +187,9 @@ export default function PledgesPage() {
     longitude: number;
     address?: string;
     categoryId?: string;
+    background?: string;
+    plan?: string;
+    expectedEffect?: string;
   }) => {
     setPledgeSaveError(null);
     let res: Response;

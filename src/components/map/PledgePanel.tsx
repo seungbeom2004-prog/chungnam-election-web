@@ -268,6 +268,11 @@ function PledgePanelContent({
             {pledge.description}
           </p>
 
+          {/* Extended fields — only shown when data exists */}
+          {(pledge.background || pledge.plan || pledge.expectedEffect) && (
+            <PledgeDetailAccordion pledge={pledge} />
+          )}
+
           {/* Author card — highlighted with primary border */}
           {pledge.candidate && (
             <button
@@ -500,6 +505,52 @@ function PledgePanelContent({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Accordion for extended pledge detail fields */
+function PledgeDetailAccordion({
+  pledge,
+}: {
+  pledge: NonNullable<ReturnType<typeof useMapStore.getState>["selectedPledge"]>;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+
+  const sections = [
+    { key: "background",     label: "📋 배경 / 필요성", content: pledge.background },
+    { key: "plan",           label: "🛠️ 실행 방안",    content: pledge.plan },
+    { key: "expectedEffect", label: "✨ 기대 효과",    content: pledge.expectedEffect },
+  ].filter((s) => s.content);
+
+  if (sections.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 mt-2">
+      {sections.map((s) => (
+        <div key={s.key} className="border border-border rounded-xl overflow-hidden">
+          <button
+            onClick={() => setOpen(open === s.key ? null : s.key)}
+            className="w-full flex items-center justify-between px-3 py-2.5 text-left bg-background hover:bg-border/30 transition-colors"
+          >
+            <span className="text-xs font-semibold text-foreground">{s.label}</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              className={`transition-transform ${open === s.key ? "rotate-180" : ""}`}
+            >
+              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {open === s.key && (
+            <div className="px-3 py-2.5 bg-surface border-t border-border">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{s.content}</p>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
