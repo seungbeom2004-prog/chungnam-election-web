@@ -100,7 +100,9 @@ export default async function PledgeSharePage({ params }: Props) {
   // Note: redirect() throws so code below never runs for users,
   // but Next.js renders this component for crawlers before following the redirect.
   // JSON-LD is included in the initial HTML snapshot.
-  return pledge ? (
+  if (!pledge) return null;
+
+  return (
     <PledgeJsonLd
       id={pledge.id}
       title={pledge.title}
@@ -109,5 +111,5 @@ export default async function PledgeSharePage({ params }: Props) {
       imageUrl={pledge.imageUrl}
       createdAt={pledge.createdAt ?? undefined}
     />
-  ) : null;
+  );
 }
