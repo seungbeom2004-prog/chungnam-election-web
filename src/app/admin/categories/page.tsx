@@ -55,6 +55,14 @@ export default function AdminCategoriesPage() {
   const [sortSaving, setSortSaving] = useState(false);
   const [sortSaved, setSortSaved] = useState(false);
 
+  // ── 일괄 색상 변경 state ──────────────────────────────────────────────────
+  const [bulkColorMode, setBulkColorMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkColor, setBulkColor] = useState("#FF5A00");
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkSaved, setBulkSaved] = useState(false);
+  // ──────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -223,6 +231,65 @@ export default function AdminCategoriesPage() {
     setSortSaving(false);
   };
 
+  // ── 일괄 색상 변경 핸들러 ─────────────────────────────────────────────────
+  const toggleBulkColorMode = () => {
+    setBulkColorMode((v) => !v);
+    setSelectedIds(new Set());
+    setBulkSaved(false);
+  };
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === categories.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(categories.map((c) => c.id)));
+    }
+  };
+
+  const handleBulkColorApply = async () => {
+    if (selectedIds.size === 0) return;
+    if (!/^#[0-9A-Fa-f]{6}$/.test(bulkColor)) {
+      alert("올바른 색상 코드를 입력하세요 (예: #FF5A00)");
+      return;
+    }
+    setBulkSaving(true);
+    setBulkSaved(false);
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categoryId: id, color: bulkColor }),
+          })
+        )
+      );
+      // 로컬 상태 즉시 반영
+      setCategories((prev) =>
+        prev.map((c) => (selectedIds.has(c.id) ? { ...c, color: bulkColor } : c))
+      );
+      setOriginal((prev) =>
+        prev.map((c) => (selectedIds.has(c.id) ? { ...c, color: bulkColor } : c))
+      );
+      setBulkSaved(true);
+      setSelectedIds(new Set());
+      setBulkColorMode(false);
+    } catch {
+      alert("색상 일괄 변경에 실패했습니다.");
+    }
+    setBulkSaving(false);
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   // Drag-and-drop handlers
   const handleDragStart = (index: number) => {
     setDragIndex(index);
@@ -262,6 +329,16 @@ export default function AdminCategoriesPage() {
           <Button size="sm" variant="ghost" onClick={openCreate}>
             + 추가
           </Button>
+          {categories.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={toggleBulkColorMode}
+              className={bulkColorMode ? "ring-2 ring-primary" : ""}
+            >
+              🎨 색상 일괄 변경
+            </Button>
+          )}
           {hasSortChanges && (
             <Button
               size="sm"
@@ -282,9 +359,104 @@ export default function AdminCategoriesPage() {
         </div>
       </div>
 
+      {/* 일괄 색상 변경 패널 */}
+      {bulkColorMode && (
+        <div className="mb-4 rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">카테고리 색상 일괄 변경</span>
+              <span className="text-xs text-muted">
+                {selectedIds.size > 0
+                  ? `${selectedIds.size}개 선택됨`
+                  : "변경할 카테고리를 선택하세요"}
+              </span>
+            </div>
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs text-primary hover:underline"
+            >
+              {selectedIds.size === categories.length ? "전체 해제" : "전체 선택"}
+            </button>
+          </div>
+
+          {/* 색상 선택 */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted">적용할 색상</p>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setBulkColor(c)}
+                  className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{
+                    backgroundColor: c,
+                    borderColor: bulkColor === c ? "#000" : "transparent",
+                    boxShadow: bulkColor === c ? "0 0 0 2px #fff, 0 0 0 3px #000" : "none",
+                  }}
+                  title={c}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={bulkColor}
+                onChange={(e) => setBulkColor(e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-border"
+              />
+              <input
+                type="text"
+                value={bulkColor}
+                onChange={(e) => setBulkColor(e.target.value)}
+                placeholder="#FF5A00"
+                maxLength={7}
+                className="w-32 px-3 py-2 border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              />
+              {/* 미리보기 */}
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+                style={{
+                  backgroundColor: bulkColor + "20",
+                  border: `2px solid ${bulkColor}`,
+                }}
+                title="미리보기"
+              >
+                {categories.find((c) => selectedIds.has(c.id))?.emoji || "📌"}
+              </div>
+              <span className="text-xs text-muted">미리보기</span>
+            </div>
+          </div>
+
+          {/* 적용 버튼 */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={handleBulkColorApply}
+              disabled={bulkSaving || selectedIds.size === 0}
+            >
+              {bulkSaving
+                ? "적용 중..."
+                : selectedIds.size > 0
+                  ? `선택한 ${selectedIds.size}개에 적용`
+                  : "카테고리를 선택하세요"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={toggleBulkColorMode}>
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
+
       {published && (
         <div className="mb-4 px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg">
           변경 사항이 저장되었습니다.
+        </div>
+      )}
+
+      {bulkSaved && !bulkColorMode && (
+        <div className="mb-4 px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg">
+          색상이 일괄 변경되었습니다.
         </div>
       )}
 
@@ -314,29 +486,57 @@ export default function AdminCategoriesPage() {
             {categories.map((cat, index) => (
               <div
                 key={cat.id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
+                draggable={!bulkColorMode}
+                onDragStart={() => !bulkColorMode && handleDragStart(index)}
+                onDragOver={(e) => !bulkColorMode && handleDragOver(e, index)}
+                onDrop={(e) => !bulkColorMode && handleDrop(e, index)}
+                onDragEnd={() => !bulkColorMode && handleDragEnd()}
                 className={`flex items-center justify-between px-4 py-3 transition-colors ${
                   dragIndex === index ? "opacity-40" : "opacity-100"
                 } ${
                   dragOverIndex === index && dragIndex !== index
                     ? "bg-primary/5 border-t-2 border-t-primary"
                     : ""
+                } ${
+                  bulkColorMode && selectedIds.has(cat.id)
+                    ? "bg-primary/5"
+                    : ""
                 }`}
               >
-                {/* Drag handle */}
-                <div className="mr-2 text-muted cursor-grab active:cursor-grabbing shrink-0">
-                  <IconGrip />
-                </div>
+                {/* 일괄 변경 모드: 체크박스 / 일반 모드: 드래그 핸들 */}
+                {bulkColorMode ? (
+                  <button
+                    onClick={() => toggleSelectId(cat.id)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mr-2 transition-colors ${
+                      selectedIds.has(cat.id)
+                        ? "bg-primary border-primary text-white"
+                        : "border-gray-300 bg-white"
+                    }`}
+                    aria-label={selectedIds.has(cat.id) ? "선택 해제" : "선택"}
+                  >
+                    {selectedIds.has(cat.id) && (
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </button>
+                ) : (
+                  <div className="mr-2 text-muted cursor-grab active:cursor-grabbing shrink-0">
+                    <IconGrip />
+                  </div>
+                )}
 
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  className={`flex items-center gap-3 flex-1 min-w-0 ${bulkColorMode ? "cursor-pointer" : ""}`}
+                  onClick={() => bulkColorMode && toggleSelectId(cat.id)}
+                >
                   {/* Emoji chip — always shown */}
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
-                    style={{ backgroundColor: (cat.color || "#FF5A00") + "20", border: `2px solid ${cat.color || "#FF5A00"}` }}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0 transition-all"
+                    style={{
+                      backgroundColor: (bulkColorMode && selectedIds.has(cat.id) ? bulkColor : cat.color || "#FF5A00") + "20",
+                      border: `2px solid ${bulkColorMode && selectedIds.has(cat.id) ? bulkColor : cat.color || "#FF5A00"}`,
+                    }}
                     title="이모지 (지도 핀 기본)"
                   >
                     {cat.emoji || "📌"}
@@ -359,6 +559,20 @@ export default function AdminCategoriesPage() {
                       <span className="text-xs text-muted">
                         #{index + 1}
                       </span>
+                      {/* 현재 색상 칩 */}
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: (cat.color || "#FF5A00") + "20",
+                          color: cat.color || "#FF5A00",
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full inline-block"
+                          style={{ backgroundColor: cat.color || "#FF5A00" }}
+                        />
+                        {cat.color || "#FF5A00"}
+                      </span>
                     </div>
                     {cat.description && (
                       <p className="text-sm text-muted mt-0.5 truncate">
@@ -368,7 +582,7 @@ export default function AdminCategoriesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className={`flex items-center gap-3 shrink-0 ${bulkColorMode ? "pointer-events-none opacity-40" : ""}`}>
                   {/* Toggle */}
                   <button
                     onClick={() => handleToggle(cat.id)}
