@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     "2026 충남 지방선거 개혁신당 후보자들의 공약을 지도에서 투명하게 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보고 공약을 제안하세요.",
   keywords: ["개혁신당", "충남", "공약", "지방선거", "2026", "충청남도", "후보자", "공약지도"],
   openGraph: {
+    url: "https://www.reform-chungnam.kr",
     title: "개혁 충남 | 우리 동네 변화 플랫폼",
     description: "2026 충남 지방선거 후보자들의 공약을 지도에서 투명하게 확인하세요.",
     type: "website",
@@ -34,6 +35,10 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "https://www.reform-chungnam.kr",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

@@ -137,7 +137,7 @@ function PledgePanelContent({
 
   const pledgeUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/?pledge=${pledge.id}`
+      ? `${window.location.origin}/pledge/${pledge.id}`
       : "";
 
   // Fetch collaborators whenever this pledge is shown

@@ -6,14 +6,42 @@ import type { PledgeTile } from "./PledgeTicker";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "공약 목록 | 개혁 충남",
-  description: "2026 충남 지방선거 개혁신당 후보자들의 공약을 지역·분류별로 한눈에 확인하세요.",
-  openGraph: {
+const BASE_URL = "https://www.reform-chungnam.kr";
+
+export async function generateMetadata(): Promise<Metadata> {
+  // Fetch counts for dynamic description
+  const [{ count: candidateCount }, { count: pledgeCount }] = await Promise.all([
+    supabase
+      .from("Candidate")
+      .select("id", { count: "exact", head: true })
+      .eq("verified", true)
+      .eq("role", "candidate")
+      .eq("caucusStatus", "공천 확정")
+      .in("candidateStatus", ["예비후보자", "후보자"]),
+    supabase
+      .from("Pledge")
+      .select("id", { count: "exact", head: true })
+      .eq("visible", true),
+  ]);
+
+  const nCandidates = candidateCount ?? 0;
+  const nPledges = pledgeCount ?? 0;
+  const description = `공천 확정 후보자 ${nCandidates}명의 공약 ${nPledges}건을 확인하세요.`;
+
+  return {
     title: "공약 목록 | 개혁 충남",
-    description: "2026 충남 지방선거 개혁신당 후보자들의 공약을 지역·분류별로 한눈에 확인하세요.",
-  },
-};
+    description,
+    alternates: { canonical: `${BASE_URL}/pledges` },
+    openGraph: {
+      url: `${BASE_URL}/pledges`,
+      title: "공약 목록 | 개혁 충남",
+      description,
+      type: "website",
+      locale: "ko_KR",
+      images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630, alt: "개혁 충남 공약 목록" }],
+    },
+  };
+}
 
 interface CandidateInfo {
   id: string;

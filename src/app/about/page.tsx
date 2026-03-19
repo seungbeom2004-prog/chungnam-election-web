@@ -4,9 +4,20 @@ import AboutClient from "./AboutClient";
 
 export const dynamic = "force-dynamic";
 
+const BASE_URL = "https://www.reform-chungnam.kr";
+
 export const metadata: Metadata = {
   title: "사이트 & 후보자 소개 | 개혁 충남",
   description: "충남 지역 개혁신당 후보자들을 소개합니다.",
+  alternates: { canonical: `${BASE_URL}/about` },
+  openGraph: {
+    url: `${BASE_URL}/about`,
+    title: "사이트 & 후보자 소개 | 개혁 충남",
+    description: "충남 지역 개혁신당 후보자들을 소개합니다.",
+    type: "website",
+    locale: "ko_KR",
+    images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630, alt: "개혁 충남 후보자 소개" }],
+  },
 };
 
 export default async function AboutPage() {

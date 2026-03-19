@@ -2,9 +2,20 @@ import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import ProposalBoardClient from "./ProposalBoardClient";
 
+const BASE_URL = "https://www.reform-chungnam.kr";
+
 export const metadata: Metadata = {
   title: "불편 제보 & 공약 제안 | 개혁 충남",
   description: "우리 동네 불편을 제보하거나 후보자에게 공약을 제안하세요.",
+  alternates: { canonical: `${BASE_URL}/proposals` },
+  openGraph: {
+    url: `${BASE_URL}/proposals`,
+    title: "불편 제보 & 공약 제안 | 개혁 충남",
+    description: "우리 동네 불편을 제보하거나 후보자에게 공약을 제안하세요.",
+    type: "website",
+    locale: "ko_KR",
+    images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630, alt: "개혁 충남 제보/제안" }],
+  },
 };
 
 export default async function ProposalsPage() {
