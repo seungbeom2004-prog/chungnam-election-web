@@ -5,6 +5,7 @@ import Supercluster from "supercluster";
 import { useMapStore } from "@/store/useMapStore";
 import type { Pledge, BylawGroup } from "@/types";
 import type { CandidateForMap, DistrictCoords } from "@/components/map/MapPageContent";
+import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
 
 export interface ProposalMapItem {
   id: string;
@@ -348,7 +349,31 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
   );
 }
 
-/** Citizen proposal/민원 pin — colored circle with like count badge. */
+// Naver zoom threshold: labels visible only when zoomed in enough
+const PROPOSAL_LABEL_ZOOM = 13;
+// City-center proximity threshold (degrees) for grouping proposals with council pins
+const CITY_CENTER_THRESHOLD = 0.005;
+
+/** Returns true if a lat/lng is near any 충남 city center (city-wide proposal) */
+function isAtCityCenter(lat: number, lng: number): string | null {
+  for (const d of CHUNGNAM_DISTRICTS) {
+    if (Math.abs(d.centerLat - lat) < CITY_CENTER_THRESHOLD && Math.abs(d.centerLng - lng) < CITY_CENTER_THRESHOLD) {
+      return d.name;
+    }
+  }
+  return null;
+}
+
+/** Citizen proposal/민원 pin — simple dot at low zoom, icon+title at high zoom */
+function buildProposalDotHTML(postType?: string): string {
+  const color = postType === "민원" ? "#EF4444" : "#FACC15";
+  return (
+    `<div style="width:10px;height:10px;border-radius:50%;background:${color};` +
+    `border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);cursor:pointer;` +
+    `animation:markerFadeIn 0.15s ease-out both;"></div>`
+  );
+}
+
 function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
@@ -374,6 +399,35 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     `<div style="margin-top:3px;background:${color};color:${textColor};font-size:9px;font-weight:700;` +
     `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);">` +
     `${escapeHtml(truncated)}${likeStr}</div>` +
+    `</div>`
+  );
+}
+
+/** City-wide proposal group pin — shown south-east of the council pin */
+function buildCityProposalGroupHTML(cityName: string, minwonCount: number, proposalCount: number): string {
+  const total = minwonCount + proposalCount;
+  const hasMinwon = minwonCount > 0;
+  const hasProposal = proposalCount > 0;
+  const bg = hasMinwon && hasProposal ? "linear-gradient(135deg,#EF4444 50%,#FACC15 50%)"
+    : hasMinwon ? "#EF4444" : "#FACC15";
+  const label = [
+    hasMinwon ? `📢${minwonCount}` : "",
+    hasProposal ? `💡${proposalCount}` : "",
+  ].filter(Boolean).join(" ");
+  const bgStyle = hasMinwon && hasProposal
+    ? `background:${bg};`
+    : `background:${bg};`;
+  return (
+    `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
+    `animation:markerFadeIn 0.2s ease-out both;">` +
+    `<div style="position:relative;min-width:32px;height:32px;${bgStyle}border-radius:10px;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `padding:0 6px;box-shadow:0 2px 8px rgba(0,0,0,0.25);">` +
+    `<span style="font-size:11px;font-weight:800;color:${hasMinwon && !hasProposal ? "white" : "#111"};">${total}</span>` +
+    (minwonCount > 0 && proposalCount === 0 ? `<span style="font-size:9px;color:white;margin-left:2px;">건</span>` : "") +
+    `</div>` +
+    `<div style="margin-top:2px;background:#374151;color:white;font-size:8px;font-weight:700;` +
+    `padding:1px 5px;border-radius:4px;white-space:nowrap;">${escapeHtml(label)}</div>` +
     `</div>`
   );
 }
@@ -914,15 +968,64 @@ export default function NaverMap({
       const items = proposalsRef.current;
       const onClick = onProposalClickRef.current;
       if (!items || items.length === 0) return;
+
+      const currentZoom = map.getZoom(); // Naver zoom level
+      const showLabel = currentZoom >= PROPOSAL_LABEL_ZOOM;
+
+      // ── Group proposals that are at city center (city-wide) ──────────────
+      const cityGroups = new Map<string, { cityName: string; items: typeof items; centerLat: number; centerLng: number }>();
+      const individualItems: typeof items = [];
+
       for (const proposal of items) {
-        const markerHtml = buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType);
+        const cityName = isAtCityCenter(proposal.latitude, proposal.longitude);
+        if (cityName) {
+          if (!cityGroups.has(cityName)) {
+            // Find district center to compute offset position
+            const d = CHUNGNAM_DISTRICTS.find((d) => d.name === cityName)!;
+            // Offset south-east from the council pin to avoid overlap
+            cityGroups.set(cityName, { cityName, items: [], centerLat: d.centerLat + 0.008, centerLng: d.centerLng + 0.008 });
+          }
+          cityGroups.get(cityName)!.items.push(proposal);
+        } else {
+          individualItems.push(proposal);
+        }
+      }
+
+      // ── Render city-group pins ──────────────────────────────────────────
+      for (const [, group] of cityGroups) {
+        const minwon = group.items.filter((i) => i.postType === "민원").length;
+        const proposal = group.items.filter((i) => i.postType !== "민원").length;
+        const markerHtml = buildCityProposalGroupHTML(group.cityName, minwon, proposal);
+        const marker = new naver.maps.Marker({
+          map,
+          position: new naver.maps.LatLng(group.centerLat, group.centerLng),
+          icon: { content: markerHtml, anchor: new naver.maps.Point(20, 40) },
+          zIndex: 9, // Above bylaw pin (zIndex 8) but below popups
+        });
+        const listener = naver.maps.Event.addListener(marker, "click", () => {
+          // Call onClick with the first item; the map popup can list all
+          if (group.items.length === 1) {
+            onClick?.(group.items[0]!);
+          } else {
+            // Trigger a synthetic multi-item click by calling onClick with a sentinel
+            // We encode the group as the first item with a special title
+            onClick?.({ ...group.items[0]!, title: `__group__${group.cityName}`, content: JSON.stringify(group.items) });
+          }
+        });
+        proposalMarkersRef.current.push(marker);
+        proposalListenersRef.current.push(listener);
+      }
+
+      // ── Render individual proposals (zoom-based: dot vs icon+label) ─────
+      for (const proposal of individualItems) {
+        const markerHtml = showLabel
+          ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType)
+          : buildProposalDotHTML(proposal.postType);
+        const anchor = showLabel ? new naver.maps.Point(20, 52) : new naver.maps.Point(5, 5);
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(proposal.latitude, proposal.longitude),
-          icon: {
-            content: markerHtml,
-            anchor: new naver.maps.Point(20, 52),
-          },
+          icon: { content: markerHtml, anchor },
           zIndex: 6,
         });
         const listener = naver.maps.Event.addListener(marker, "click", () => {
@@ -1101,12 +1204,14 @@ export default function NaverMap({
           }, 150);
         };
 
-        // zoom_changed: recompute clusters + re-render candidate markers (recalculate collision)
+        // zoom_changed: recompute clusters + re-render candidate/proposal markers
         naver.maps.Event.addListener(map, "zoom_changed", () => {
           const curZoom = map.getZoom();
           setZoomLevel(toStoreLevel(curZoom));
           debouncedRenderClusters();
           debouncedRenderCandidates();
+          // Re-render proposals so dot↔label transition fires on zoom
+          addProposalMarkersRef.current(map);
           prevNaverZoom = curZoom;
         });
 
