@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import ProposalBoardClient from "./ProposalBoardClient";
 
@@ -38,7 +39,9 @@ export default async function ProposalsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-xl mx-auto px-4 py-8">
-        <ProposalBoardClient candidates={candidates} districts={districts} />
+        <Suspense fallback={<div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+          <ProposalBoardClient candidates={candidates} districts={districts} />
+        </Suspense>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import ProposalList from "@/components/proposals/ProposalList";
 import ProposalForm from "@/components/proposals/ProposalForm";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -38,11 +39,15 @@ interface MapPost {
 }
 
 export default function ProposalBoardClient({ candidates, districts }: Props) {
-  const [selectedCity, setSelectedCity] = useState<string>("");
+  const searchParams = useSearchParams();
+  // Pre-select city and postType from URL query params (e.g. from map empty-state CTA)
+  const [selectedCity, setSelectedCity] = useState<string>(searchParams.get("city") ?? "");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
   const [rankingRefreshKey, setRankingRefreshKey] = useState(0);
-  const [showForm, setShowForm] = useState(false);
-  const [postTypeFilter, setPostTypeFilter] = useState<"all" | "제안" | "민원">("all");
+  const [showForm, setShowForm] = useState(!!searchParams.get("city"));
+  const [postTypeFilter, setPostTypeFilter] = useState<"all" | "제안" | "민원">(
+    (searchParams.get("type") as "민원" | "제안" | null) ?? "all"
+  );
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const [minwonCount, setMinwonCount] = useState<number | null>(null);
   const [proposalCount, setProposalCount] = useState<number | null>(null);

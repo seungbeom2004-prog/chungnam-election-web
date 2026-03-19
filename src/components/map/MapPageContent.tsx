@@ -731,6 +731,26 @@ export default function MapPageContent() {
                       <p className="font-medium text-sm">검색 결과가 없어요</p>
                       <p className="text-xs mt-1">다른 키워드로 검색해보세요</p>
                     </div>
+                  ) : filteredCandidates.length === 0 && selectedDistrict ? (
+                    /* 후보자 없는 지역 — 개선된 안내 */
+                    <div className="px-4 py-5 text-center space-y-2">
+                      <p className="text-2xl">📍</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        아직 {selectedDistrict}에는 등록된 후보자가 없습니다.
+                      </p>
+                      <p className="text-xs text-muted leading-relaxed">
+                        곧 업데이트 예정입니다!<br />
+                        먼저 불편 제보를 남겨두시면<br />
+                        향후 후보자에게 전달됩니다.
+                      </p>
+                      <a
+                        href={`/proposals?city=${encodeURIComponent(selectedDistrict)}&type=민원`}
+                        className="inline-block mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-colors"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        📢 {selectedDistrict} 불편 제보하기
+                      </a>
+                    </div>
                   ) : (
                     <p className="px-4 py-4 text-xs text-muted text-center">공약이 없습니다</p>
                   )
@@ -772,9 +792,20 @@ export default function MapPageContent() {
                 </div>
 
                 {filteredCandidates.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted">
+                  <div className="flex flex-col items-center justify-center py-6 text-muted px-4 text-center">
                     <IconPerson size={28} />
-                    <p className="text-xs mt-2">{searchQuery ? "검색 결과 없음" : "등록된 후보자 없음"}</p>
+                    {searchQuery ? (
+                      <p className="text-xs mt-2">검색 결과 없음</p>
+                    ) : selectedDistrict ? (
+                      <>
+                        <p className="text-xs mt-2 font-medium text-foreground">
+                          아직 {selectedDistrict}에 등록된 후보자가 없습니다
+                        </p>
+                        <p className="text-xs mt-1 text-muted">곧 업데이트 예정!</p>
+                      </>
+                    ) : (
+                      <p className="text-xs mt-2">등록된 후보자 없음</p>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-border/40">
@@ -1152,9 +1183,28 @@ export default function MapPageContent() {
               </div>
               <div className="flex-1 overflow-y-auto">
                 {filteredCandidates.length === 0 ? (
-                  <div className="py-14 text-center text-muted">
+                  <div className="py-10 text-center text-muted px-6 space-y-2">
                     <IconPerson size={36} />
-                    <p className="text-sm mt-3">등록된 후보자가 없습니다</p>
+                    {selectedDistrict ? (
+                      <>
+                        <p className="text-sm font-semibold text-foreground mt-3">
+                          아직 {selectedDistrict}에는 등록된 후보자가 없습니다.
+                        </p>
+                        <p className="text-xs leading-relaxed">
+                          곧 업데이트 예정입니다!<br />
+                          먼저 불편 제보를 남겨두시면 향후 후보자에게 전달됩니다.
+                        </p>
+                        <a
+                          href={`/proposals?city=${encodeURIComponent(selectedDistrict)}&type=민원`}
+                          className="inline-block mt-2 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-colors"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          📢 불편 제보하기
+                        </a>
+                      </>
+                    ) : (
+                      <p className="text-sm mt-3">등록된 후보자가 없습니다</p>
+                    )}
                   </div>
                 ) : filteredCandidates.map((c) => (
                   <button
