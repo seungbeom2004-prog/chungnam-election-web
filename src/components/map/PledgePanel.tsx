@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui";
 import type { PledgeCollaboration } from "@/types";
 import { PledgeLikeButton, PledgeComments } from "@/components/pledges/PledgeInteractions";
 import KakaoShareButton from "@/components/ui/KakaoShareButton";
+import { trackPledgeClick, trackShareClick } from "@/lib/analytics";
 
 /** Extract YouTube video ID from a URL embedded in any text. */
 function extractYouTubeId(text: string): string | null {
@@ -152,9 +153,18 @@ function PledgePanelContent({
       .finally(() => setCollabLoading(false));
   }, [pledge.id]);
 
+  // Track pledge view
+  useEffect(() => {
+    if (pledge?.id && pledge?.title) {
+      trackPledgeClick(pledge.id, pledge.title);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pledge?.id]);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(pledgeUrl).then(() => {
       setCopied(true);
+      trackShareClick("copy", "pledge");
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {});
   };
@@ -462,7 +472,7 @@ function PledgePanelContent({
             className="border border-[#FEE500]/60 hover:opacity-90"
           />
           <button
-            onClick={() => setShowQR((v) => !v)}
+            onClick={() => { setShowQR((v) => !v); trackShareClick("qr", "pledge"); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

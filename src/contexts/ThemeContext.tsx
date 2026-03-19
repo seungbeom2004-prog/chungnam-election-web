@@ -65,9 +65,16 @@ export function ThemeProvider({
     }
   }, [theme]);
 
-  const setTheme = useCallback((mode: ThemeMode) => setThemeState(mode), []);
+  const setTheme = useCallback((mode: ThemeMode) => {
+    setThemeState(mode);
+    import("@/lib/analytics").then(({ trackThemeSwitch }) => trackThemeSwitch(mode)).catch(() => {});
+  }, []);
   const toggleTheme = useCallback(
-    () => setThemeState((t) => (t === "cute" ? "regular" : "cute")),
+    () => setThemeState((t) => {
+      const next = t === "cute" ? "regular" : "cute";
+      import("@/lib/analytics").then(({ trackThemeSwitch }) => trackThemeSwitch(next)).catch(() => {});
+      return next;
+    }),
     [],
   );
 

@@ -5,6 +5,7 @@ import ReCAPTCHA from "react-google-recaptcha";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
+import { trackProposalSubmit } from "@/lib/analytics";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: false });
 
@@ -147,6 +148,7 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       }
 
       setSuccess(true);
+      trackProposalSubmit(postType as "민원" | "제안", selectedCity || undefined);
       setTitle("");
       setAuthorName("");
       setPassword("");
