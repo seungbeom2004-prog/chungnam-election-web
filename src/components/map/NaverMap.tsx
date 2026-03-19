@@ -29,6 +29,7 @@ interface NaverMapProps {
   onBylawGroupClick?: (group: BylawGroup) => void;
   proposals?: ProposalMapItem[];
   onProposalClick?: (proposal: ProposalMapItem) => void;
+  onProposalGroupClick?: (items: ProposalMapItem[]) => void;
   isCute?: boolean;
   /** Category name to filter pledge markers. 'all' = show everything. */
   selectedCategory?: string;
@@ -350,7 +351,8 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
 }
 
 // Naver zoom threshold: labels visible only when zoomed in enough
-const PROPOSAL_LABEL_ZOOM = 13;
+// Show proposal icon+label only at very high zoom; below this they are dots
+const PROPOSAL_LABEL_ZOOM = 16;
 // City-center proximity threshold (degrees) for grouping proposals with council pins
 const CITY_CENTER_THRESHOLD = 0.005;
 
@@ -445,6 +447,7 @@ export default function NaverMap({
   onBylawGroupClick,
   proposals = [],
   onProposalClick,
+  onProposalGroupClick,
   isCute = false,
   selectedCategory = "all",
   selectedPledgeId = null,
@@ -957,16 +960,19 @@ export default function NaverMap({
 
   // ── Proposal markers ──────────────────────────────────────────────────────
   // Keep a stable ref to the proposals + callback to avoid stale closures
-  const proposalsRef       = useRef(proposals);
-  const onProposalClickRef = useRef(onProposalClick);
-  useEffect(() => { proposalsRef.current       = proposals;       }, [proposals]);
-  useEffect(() => { onProposalClickRef.current = onProposalClick; }, [onProposalClick]);
+  const proposalsRef            = useRef(proposals);
+  const onProposalClickRef      = useRef(onProposalClick);
+  const onProposalGroupClickRef = useRef(onProposalGroupClick);
+  useEffect(() => { proposalsRef.current            = proposals;            }, [proposals]);
+  useEffect(() => { onProposalClickRef.current      = onProposalClick;      }, [onProposalClick]);
+  useEffect(() => { onProposalGroupClickRef.current = onProposalGroupClick; }, [onProposalGroupClick]);
 
   const addProposalMarkers = useCallback(
     (map: naver.maps.Map) => {
       clearProposalMarkers();
       const items = proposalsRef.current;
       const onClick = onProposalClickRef.current;
+      const onGroupClick = onProposalGroupClickRef.current;
       if (!items || items.length === 0) return;
 
       const currentZoom = map.getZoom(); // Naver zoom level
@@ -980,10 +986,9 @@ export default function NaverMap({
         const cityName = isAtCityCenter(proposal.latitude, proposal.longitude);
         if (cityName) {
           if (!cityGroups.has(cityName)) {
-            // Find district center to compute offset position
             const d = CHUNGNAM_DISTRICTS.find((d) => d.name === cityName)!;
-            // Offset south-east from the council pin to avoid overlap
-            cityGroups.set(cityName, { cityName, items: [], centerLat: d.centerLat + 0.008, centerLng: d.centerLng + 0.008 });
+            // Offset slightly NORTH of the council pin (same lng) to avoid overlap
+            cityGroups.set(cityName, { cityName, items: [], centerLat: d.centerLat + 0.003, centerLng: d.centerLng });
           }
           cityGroups.get(cityName)!.items.push(proposal);
         } else {
@@ -999,17 +1004,15 @@ export default function NaverMap({
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(group.centerLat, group.centerLng),
-          icon: { content: markerHtml, anchor: new naver.maps.Point(20, 40) },
+          // anchor: bottom-center of the badge content (approx 28px wide, 46px tall)
+          icon: { content: markerHtml, anchor: new naver.maps.Point(28, 46) },
           zIndex: 9, // Above bylaw pin (zIndex 8) but below popups
         });
         const listener = naver.maps.Event.addListener(marker, "click", () => {
-          // Call onClick with the first item; the map popup can list all
           if (group.items.length === 1) {
             onClick?.(group.items[0]!);
           } else {
-            // Trigger a synthetic multi-item click by calling onClick with a sentinel
-            // We encode the group as the first item with a special title
-            onClick?.({ ...group.items[0]!, title: `__group__${group.cityName}`, content: JSON.stringify(group.items) });
+            onGroupClick?.(group.items);
           }
         });
         proposalMarkersRef.current.push(marker);

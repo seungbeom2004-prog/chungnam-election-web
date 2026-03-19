@@ -319,6 +319,7 @@ export default function MapPageContent() {
   const [bylawGroups, setBylawGroups] = useState<BylawGroup[]>([]);
   const [proposals, setProposals] = useState<ProposalMapItem[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<ProposalMapItem | null>(null);
+  const [selectedProposalGroup, setSelectedProposalGroup] = useState<ProposalMapItem[] | null>(null);
   const [candidates, setCandidates] = useState<CandidateForMap[]>([]);
   const [districts, setDistricts] = useState<DistrictCoords[]>([]);
   const [mapReady, setMapReady] = useState(false);
@@ -566,7 +567,14 @@ export default function MapPageContent() {
 
   const handleProposalClick = useCallback((proposal: ProposalMapItem) => {
     setSelectedProposal(proposal);
+    setSelectedProposalGroup(null);
     setCenter(proposal.latitude, proposal.longitude);
+  }, [setCenter]);
+
+  const handleProposalGroupClick = useCallback((items: ProposalMapItem[]) => {
+    setSelectedProposalGroup(items);
+    setSelectedProposal(null);
+    if (items[0]) setCenter(items[0].latitude, items[0].longitude);
   }, [setCenter]);
 
   const handleOpenOtherProvinces = useCallback(() => {
@@ -936,6 +944,7 @@ export default function MapPageContent() {
             bylawGroups={bylawGroups}
             proposals={proposals}
             onProposalClick={handleProposalClick}
+            onProposalGroupClick={handleProposalGroupClick}
             isCute={isCute}
             selectedCategory={selectedCategory}
             selectedPledgeId={selectedPledge?.id ?? null}
@@ -1375,6 +1384,58 @@ export default function MapPageContent() {
                   }}
                 >
                   불편 제보 & 공약 제안 게시판에서 보기 →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Proposal group list popup */}
+        {selectedProposalGroup && selectedProposalGroup.length > 0 && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[min(92%,420px)] md:bottom-4">
+            <div className="bg-white/98 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-border">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    📍 {selectedProposalGroup[0]?.postType === "민원" ? "불편 제보" : "공약 제안"} 목록
+                  </p>
+                  <p className="text-xs text-muted mt-0.5">총 {selectedProposalGroup.length}건</p>
+                </div>
+                <button
+                  onClick={() => setSelectedProposalGroup(null)}
+                  className="text-muted hover:text-foreground text-xl leading-none"
+                  aria-label="닫기"
+                >×</button>
+              </div>
+              {/* List */}
+              <div className="max-h-60 overflow-y-auto divide-y divide-border/50">
+                {selectedProposalGroup.map((item) => (
+                  <button
+                    key={item.id}
+                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      setSelectedProposal(item);
+                      setSelectedProposalGroup(null);
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                        style={{ backgroundColor: item.postType === "민원" ? "#EF4444" : "#B45309" }}
+                      >
+                        {item.postType === "민원" ? "불편" : "제안"}
+                      </span>
+                      <span className="flex-1 text-sm font-medium text-foreground truncate">{item.title}</span>
+                      <span className="shrink-0 text-xs text-muted">♥{item.likeCount}</span>
+                    </div>
+                    <p className="text-xs text-muted mt-0.5 truncate">{item.authorName}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-t border-border">
+                <a href="/proposals" className="block w-full text-center py-2 text-xs font-semibold rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+                  불편 제보 &amp; 공약 제안 게시판에서 보기 →
                 </a>
               </div>
             </div>
