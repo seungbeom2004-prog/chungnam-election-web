@@ -8,6 +8,7 @@ import { useMapStore } from "@/store/useMapStore";
 import { Badge } from "@/components/ui";
 import type { PledgeCollaboration } from "@/types";
 import { PledgeLikeButton, PledgeComments } from "@/components/pledges/PledgeInteractions";
+import KakaoShareButton from "@/components/ui/KakaoShareButton";
 
 /** Extract YouTube video ID from a URL embedded in any text. */
 function extractYouTubeId(text: string): string | null {
@@ -447,7 +448,19 @@ function PledgePanelContent({
 
       {/* Share / QR — always visible at bottom */}
       <div className="mt-5 pt-4 border-t border-border">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Kakao Share */}
+          <KakaoShareButton
+            title={pledge.title}
+            description={(pledge.description ?? "").slice(0, 100)}
+            imageUrl={
+              pledge.imageUrl ??
+              (pledge.candidate as { profileImage?: string | null } | null)?.profileImage ??
+              undefined
+            }
+            shareUrl={pledgeUrl}
+            className="border border-[#FEE500]/60 hover:opacity-90"
+          />
           <button
             onClick={() => setShowQR((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
