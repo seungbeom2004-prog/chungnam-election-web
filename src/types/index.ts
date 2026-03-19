@@ -128,7 +128,8 @@ export interface Category {
 
 export interface ProposalResponse {
   id: string;
-  proposalId: string;
+  proposalId: string | null;
+  pledgeProposalId?: string | null;
   candidateId: string;
   candidateName: string;
   candidateProfileImage: string | null;

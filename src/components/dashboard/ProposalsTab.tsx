@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ProposalPost } from "@/types";
+import type { ProposalPost, ProposalResponse, Pledge } from "@/types";
 
 const relativeTime = (date: string) => {
   const diff = (Date.now() - new Date(date).getTime()) / 1000;
@@ -30,18 +30,225 @@ interface Props {
   candidateName?: string;
 }
 
+// ─── 상태 설정 ───────────────────────────────────────────────────────────────
+const STATUS_CONFIG = [
+  { value: "접수됨",        label: "📋 접수됨",        bg: "bg-gray-100",   text: "text-gray-700",   border: "border-gray-300" },
+  { value: "검토 중",       label: "🔍 검토 중",       bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300" },
+  { value: "공약 반영 예정", label: "📝 공약 반영 예정", bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300" },
+  { value: "공약 반영 완료", label: "✅ 공약 반영 완료", bg: "bg-green-100",  text: "text-green-700",  border: "border-green-300" },
+  { value: "반영 불가",     label: "❌ 반영 불가",     bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300" },
+] as const;
+
+type StatusValue = (typeof STATUS_CONFIG)[number]["value"];
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG.find(s => s.value === status) ?? STATUS_CONFIG[0];
+  return (
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── 답변 패널 ───────────────────────────────────────────────────────────────
+function ResponsePanel({
+  proposalId,
+  pledgeProposalId,
+  initialResponse,
+  pledges,
+  onSaved,
+  onClose,
+}: {
+  proposalId?: string;
+  pledgeProposalId?: string;
+  initialResponse?: ProposalResponse;
+  pledges: Pledge[];
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(!initialResponse && !!pledgeProposalId);
+  const [existing, setExisting] = useState<ProposalResponse | undefined>(initialResponse);
+  const [status, setStatus] = useState<StatusValue>((initialResponse?.status as StatusValue) ?? "접수됨");
+  const [content, setContent] = useState(initialResponse?.content ?? "");
+  const [linkedPledgeId, setLinkedPledgeId] = useState(initialResponse?.pledgeId ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // For pledgeProposal: fetch existing response lazily
+  useEffect(() => {
+    if (!pledgeProposalId) return;
+    fetch(`/api/pledge-proposals/${pledgeProposalId}/responses`)
+      .then(r => r.json())
+      .then(json => {
+        const mine = (json.data ?? [])[0] as ProposalResponse | undefined;
+        if (mine) {
+          setExisting(mine);
+          setStatus((mine.status as StatusValue) ?? "접수됨");
+          setContent(mine.content);
+          setLinkedPledgeId(mine.pledgeId ?? "");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pledgeProposalId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (content.trim().length < 5) { setError("5자 이상 입력해주세요."); return; }
+    setSubmitting(true);
+    setError(null);
+
+    const endpoint = proposalId
+      ? `/api/proposals/${proposalId}/responses`
+      : `/api/pledge-proposals/${pledgeProposalId}/responses`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status,
+        content: content.trim(),
+        pledgeId: status === "공약 반영 완료" ? (linkedPledgeId || null) : null,
+      }),
+    });
+
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error ?? "저장에 실패했습니다.");
+      setSubmitting(false);
+      return;
+    }
+
+    setSubmitting(false);
+    onSaved();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-3 mt-2 border-t border-dashed border-gray-200">
+        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-xs font-semibold text-foreground">
+          💬 {existing ? "답변 수정" : "답변 작성"}
+        </span>
+        <button onClick={onClose} className="text-xs text-muted hover:text-foreground transition-colors">
+          ✕ 닫기
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        {/* Status buttons */}
+        <div>
+          <p className="text-[11px] text-muted mb-1.5 font-medium">처리 상태</p>
+          <div className="flex flex-wrap gap-1.5">
+            {STATUS_CONFIG.map(s => (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => setStatus(s.value)}
+                className={`px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors ${
+                  status === s.value
+                    ? `${s.bg} ${s.text} ${s.border}`
+                    : "bg-surface text-muted border-border hover:bg-background"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pledge link (공약 반영 완료) */}
+        {status === "공약 반영 완료" && pledges.length > 0 && (
+          <div>
+            <label className="text-[11px] text-muted mb-1 block font-medium">연결 공약 (선택)</label>
+            <select
+              value={linkedPledgeId}
+              onChange={e => setLinkedPledgeId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">연결할 공약 선택</option>
+              {pledges.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Content */}
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <label className="text-[11px] text-muted font-medium">답변 내용 *</label>
+            {status === "반영 불가" && (
+              <span className="text-[10px] text-red-500">· 반영 불가 사유를 포함해주세요</span>
+            )}
+          </div>
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            placeholder={
+              status === "반영 불가"
+                ? "반영이 어려운 사유를 설명해주세요 (5자 이상)"
+                : "제보자에게 전달할 답변을 작성하세요 (5자 이상)"
+            }
+            rows={3}
+            maxLength={2000}
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+          />
+          <p className="text-[10px] text-muted text-right mt-0.5">{content.length}/2000</p>
+        </div>
+
+        {error && <p className="text-xs text-red-500">{error}</p>}
+
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-60"
+          >
+            {submitting ? "저장 중..." : existing ? "답변 수정" : "답변 등록"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-xs text-muted border border-border rounded-lg hover:bg-background transition-colors"
+          >
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── 민원 카드 ────────────────────────────────────────────────────────────────
 function MinwonCard({
   proposal,
+  candidateId,
+  pledges,
   onAction,
   isPending,
   onReply,
+  onRefresh,
 }: {
   proposal: ProposalPost;
+  candidateId: string;
+  pledges: Pledge[];
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
   onReply?: (proposal: ProposalPost) => void;
+  onRefresh: () => void;
 }) {
+  const myResponse = proposal.responses?.find(r => r.candidateId === candidateId);
+  const [showResponsePanel, setShowResponsePanel] = useState(false);
+
   return (
     <div className="p-4 border border-red-200 rounded-xl bg-red-50">
       <div className="flex items-start justify-between gap-3">
@@ -57,6 +264,7 @@ function MinwonCard({
                 ✅ 채택됨
               </span>
             )}
+            {myResponse && <StatusBadge status={myResponse.status} />}
           </div>
           {proposal.title && (
             <h4 className="text-sm font-bold text-foreground mb-0.5">{proposal.title}</h4>
@@ -67,7 +275,16 @@ function MinwonCard({
           {proposal.likeCount != null && proposal.likeCount > 0 && (
             <p className="text-xs text-muted mt-1">공감 {proposal.likeCount}명</p>
           )}
+
+          {/* 기존 답변 미리보기 */}
+          {myResponse && !showResponsePanel && (
+            <div className="mt-2 p-2 bg-white/70 rounded-lg border border-red-100 text-xs text-foreground">
+              <span className="font-medium text-muted">내 답변: </span>
+              <span className="line-clamp-2">{myResponse.content}</span>
+            </div>
+          )}
         </div>
+
         <div className="flex gap-2 shrink-0 flex-col">
           {proposal.status !== "accepted" && (
             <button
@@ -78,6 +295,17 @@ function MinwonCard({
               채택
             </button>
           )}
+          <button
+            onClick={() => setShowResponsePanel(v => !v)}
+            disabled={isPending}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-60 whitespace-nowrap ${
+              myResponse
+                ? "text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
+                : "text-foreground border-border bg-white hover:bg-background"
+            }`}
+          >
+            {myResponse ? "💬 답변 수정" : "💬 답변하기"}
+          </button>
           {onReply && (
             <button
               onClick={() => onReply(proposal)}
@@ -96,6 +324,16 @@ function MinwonCard({
           </button>
         </div>
       </div>
+
+      {showResponsePanel && (
+        <ResponsePanel
+          proposalId={proposal.id}
+          initialResponse={myResponse}
+          pledges={pledges}
+          onSaved={() => { setShowResponsePanel(false); onRefresh(); }}
+          onClose={() => setShowResponsePanel(false)}
+        />
+      )}
     </div>
   );
 }
@@ -104,15 +342,22 @@ function MinwonCard({
 function PledgeProposalCard({
   item,
   candidateId,
+  pledges,
   onAction,
   isPending,
+  onRefresh,
 }: {
   item: PledgeProposalItem;
   candidateId: string;
+  pledges: Pledge[];
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
+  onRefresh: () => void;
 }) {
   const isMine = item.candidateId === candidateId;
+  const [showResponsePanel, setShowResponsePanel] = useState(false);
+  // response is fetched lazily inside ResponsePanel
+
   return (
     <div
       className={`p-4 border rounded-xl ${
@@ -151,7 +396,7 @@ function PledgeProposalCard({
             </p>
           )}
         </div>
-        {/* 내 공약에 연결된 제안이거나 방문자 제안이면 채택/삭제 가능 */}
+
         {(isMine || item.authorType === "visitor") && (
           <div className="flex gap-2 shrink-0 flex-col">
             {item.status !== "accepted" && (
@@ -164,6 +409,13 @@ function PledgeProposalCard({
               </button>
             )}
             <button
+              onClick={() => setShowResponsePanel(v => !v)}
+              disabled={isPending}
+              className="px-3 py-1.5 text-xs font-medium text-foreground border border-border bg-white rounded-lg hover:bg-background transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              💬 답변하기
+            </button>
+            <button
               onClick={() => onAction(item.id, "delete")}
               disabled={isPending}
               className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
@@ -173,6 +425,15 @@ function PledgeProposalCard({
           </div>
         )}
       </div>
+
+      {showResponsePanel && (
+        <ResponsePanel
+          pledgeProposalId={item.id}
+          pledges={pledges}
+          onSaved={() => { setShowResponsePanel(false); onRefresh(); }}
+          onClose={() => setShowResponsePanel(false)}
+        />
+      )}
     </div>
   );
 }
@@ -288,49 +549,49 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("minwon");
   const [proposals, setProposals]       = useState<ProposalPost[]>([]);
   const [pledgeProposals, setPledgeProposals] = useState<PledgeProposalItem[]>([]);
+  const [pledges, setPledges]           = useState<Pledge[]>([]);
   const [loading, setLoading]           = useState(true);
   const [ppLoading, setPpLoading]       = useState(false);
   const [actionPending, setActionPending] = useState<Set<string>>(new Set());
   const [ppActionPending, setPpActionPending] = useState<Set<string>>(new Set());
-  // 공약 제안 작성 폼 상태
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [replyToMinwon, setReplyToMinwon] = useState<ProposalPost | null>(null);
   const [proposalFormError, setProposalFormError] = useState<string | null>(null);
 
-  // ── fetch 민원/제안 (ProposalPost linked to this candidate) ────────────
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     try {
       const res  = await fetch(`/api/proposals?candidateId=${candidateId}&limit=100`);
       const json = await res.json();
       setProposals(json.data ?? []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   }, [candidateId]);
 
-  // ── fetch 공약 제안 (PledgeProposal targeting this candidate) ──────────
   const fetchPledgeProposals = useCallback(async () => {
     setPpLoading(true);
     try {
       const res  = await fetch(`/api/pledge-proposals?candidateId=${candidateId}&limit=100`);
       const json = await res.json();
       setPledgeProposals(json.data ?? []);
-    } catch {
-      // ignore
-    } finally {
-      setPpLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setPpLoading(false); }
+  }, [candidateId]);
+
+  const fetchPledges = useCallback(async () => {
+    try {
+      const res  = await fetch(`/api/pledges?candidateId=${candidateId}&pledgeType=map`);
+      const json = await res.json();
+      setPledges(json.data ?? json ?? []);
+    } catch { /* ignore */ }
   }, [candidateId]);
 
   useEffect(() => {
     fetchProposals();
     fetchPledgeProposals();
-  }, [fetchProposals, fetchPledgeProposals]);
+    fetchPledges();
+  }, [fetchProposals, fetchPledgeProposals, fetchPledges]);
 
-  // ── 민원/제안 액션 ─────────────────────────────────────────────────────
   const handleProposalAction = async (id: string, action: "accept" | "delete") => {
     if (actionPending.has(id)) return;
     if (action === "delete" && !confirm("삭제하시겠습니까?")) return;
@@ -342,14 +603,10 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
         body: JSON.stringify({ action }),
       });
       await fetchProposals();
-    } catch {
-      // ignore
-    } finally {
-      setActionPending((s) => { const n = new Set(s); n.delete(id); return n; });
-    }
+    } catch { /* ignore */ }
+    finally { setActionPending((s) => { const n = new Set(s); n.delete(id); return n; }); }
   };
 
-  // ── 후보자 공약 제안 게시 ──────────────────────────────────────────────
   const handleCandidateProposal = async (data: { title: string; content: string }) => {
     setProposalFormError(null);
     try {
@@ -361,7 +618,6 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
           content: data.content,
           postType: "제안",
           candidateId,
-          // No captchaToken / authorName — server reads from session
         }),
       });
       if (!res.ok) {
@@ -371,14 +627,12 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
       }
       setShowProposalForm(false);
       setReplyToMinwon(null);
-      // 목록 새로고침
       await fetchProposals();
     } catch {
       setProposalFormError("네트워크 오류가 발생했습니다.");
     }
   };
 
-  // ── 공약 제안 액션 ─────────────────────────────────────────────────────
   const handlePpAction = async (id: string, action: "accept" | "delete") => {
     if (ppActionPending.has(id)) return;
     if (action === "delete" && !confirm("삭제하시겠습니까?")) return;
@@ -390,14 +644,11 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
         body: JSON.stringify({ action }),
       });
       await fetchPledgeProposals();
-    } catch {
-      // ignore
-    } finally {
-      setPpActionPending((s) => { const n = new Set(s); n.delete(id); return n; });
-    }
+    } catch { /* ignore */ }
+    finally { setPpActionPending((s) => { const n = new Set(s); n.delete(id); return n; }); }
   };
 
-  const minwons         = proposals.filter((p) => p.postType === "민원");
+  const minwons          = proposals.filter((p) => p.postType === "민원");
   const generalProposals = proposals.filter((p) => p.postType !== "민원");
   const visitorPledgeProposals   = pledgeProposals.filter((p) => p.authorType === "visitor");
   const candidatePledgeProposals = pledgeProposals.filter((p) => p.authorType === "candidate");
@@ -473,8 +724,11 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                 <MinwonCard
                   key={p.id}
                   proposal={p}
+                  candidateId={candidateId}
+                  pledges={pledges}
                   onAction={handleProposalAction}
                   isPending={actionPending.has(p.id)}
+                  onRefresh={fetchProposals}
                   onReply={(minwon) => {
                     setReplyToMinwon(minwon);
                     setShowProposalForm(true);
@@ -494,11 +748,14 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   <div key={p.id} className="p-4 border border-border rounded-xl bg-surface">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="text-sm font-medium text-foreground">{p.authorName}</span>
                           <time className="text-xs text-muted">{relativeTime(p.createdAt)}</time>
                           {p.status === "accepted" && (
                             <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">✅ 채택됨</span>
+                          )}
+                          {p.responses?.find(r => r.candidateId === candidateId) && (
+                            <StatusBadge status={p.responses.find(r => r.candidateId === candidateId)!.status} />
                           )}
                         </div>
                         <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
@@ -550,8 +807,10 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   key={item.id}
                   item={item}
                   candidateId={candidateId}
+                  pledges={pledges}
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}
+                  onRefresh={fetchPledgeProposals}
                 />
               ))}
             </div>
@@ -581,8 +840,10 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   key={item.id}
                   item={item}
                   candidateId={candidateId}
+                  pledges={pledges}
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}
+                  onRefresh={fetchPledgeProposals}
                 />
               ))}
             </div>

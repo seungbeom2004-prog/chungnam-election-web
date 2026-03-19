@@ -63,7 +63,18 @@ export default function KakaoShareButton({
   if (!appKey) return null;
 
   const handleShare = () => {
-    if (!window.Kakao?.isInitialized()) return;
+    if (!window.Kakao) {
+      alert("카카오톡 공유 기능을 불러오는 중입니다. 잠시 후 다시 눌러주세요.");
+      return;
+    }
+    if (!window.Kakao.isInitialized() && appKey) {
+      window.Kakao.init(appKey);
+      initialized.current = true;
+    }
+    if (!window.Kakao.isInitialized()) {
+      alert("카카오톡 공유 초기화에 실패했습니다. 페이지를 새로고침 후 시도해주세요.");
+      return;
+    }
 
     const content: Record<string, unknown> = {
       title,

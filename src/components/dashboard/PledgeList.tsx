@@ -135,6 +135,17 @@ export default function PledgeList({
               <p className="text-xs text-muted line-clamp-2 mt-1 leading-relaxed">
                 {pledge.description}
               </p>
+              {pledge.pledgeType !== "bylaws" && (() => {
+                const missing = [pledge.background, pledge.plan, pledge.expectedEffect].filter(v => !v).length;
+                return missing > 0 ? (
+                  <button
+                    onClick={() => onEdit(pledge)}
+                    className="mt-1 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5 hover:bg-amber-100 transition-colors"
+                  >
+                    ⚠️ 상세 내용 미작성 ({missing}/3)
+                  </button>
+                ) : null;
+              })()}
             </div>
 
             {/* Thumbnail image */}

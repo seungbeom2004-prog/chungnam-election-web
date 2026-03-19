@@ -75,12 +75,12 @@ export default function RootLayout({
           src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
           strategy="beforeInteractive"
         />
-        {/* Kakao SDK — loaded lazily, initialized in KakaoShareButton */}
+        {/* Kakao SDK — afterInteractive so it loads soon after hydration.
+            No integrity/crossOrigin: SRI hashes can block the script on some
+            networks/proxies, and Kakao CDN occasionally rotates file hashes. */}
         <Script
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
-          integrity="sha384-TiCUE00h649CAMonG018J1YatRfAZjHFy9z7gQQb//LBYBFVnFqQMzFDToVRNvWm"
-          crossOrigin="anonymous"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
         {/* Vercel Analytics */}
         <Analytics />
