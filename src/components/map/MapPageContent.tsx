@@ -344,6 +344,7 @@ export default function MapPageContent() {
     id: string; name: string; district: string; province: string;
   }>>([]);
   const [otherProvincesLoading, setOtherProvincesLoading] = useState(false);
+  const [sharedProposalId, setSharedProposalId] = useState<string | null>(null);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
   const categoryLegendRef = useRef<HTMLDivElement>(null);
@@ -369,6 +370,20 @@ export default function MapPageContent() {
   }, [router]);
 
   const primaryColor = isCute ? "#FF6B9D" : "#D14800";
+
+  const handleShareProposal = useCallback(async (proposal: ProposalMapItem) => {
+    const url = `${window.location.origin}/proposals/${proposal.id}`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ title: proposal.title, url }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setSharedProposalId(proposal.id);
+      setTimeout(() => setSharedProposalId(null), 2000);
+    } catch {
+      window.prompt("링크를 복사하세요:", url);
+    }
+  }, []);
 
   // Filtered candidates
   const filteredCandidates = candidates.filter((c) => {
@@ -1493,17 +1508,26 @@ export default function MapPageContent() {
                   ♡ 좋아요 {selectedProposal.likeCount}
                 </span>
               </div>
-              {/* Footer link */}
-              <div className="px-4 pb-4">
+              {/* Footer: share + direct link */}
+              <div className="px-4 pb-4 flex gap-2">
+                <button
+                  onClick={() => handleShareProposal(selectedProposal)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors bg-background text-muted hover:text-foreground border-border"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+                  </svg>
+                  {sharedProposalId === selectedProposal.id ? "복사됨!" : "공유"}
+                </button>
                 <a
-                  href="/proposals"
-                  className="block w-full text-center py-2 text-xs font-semibold rounded-xl transition-colors"
+                  href={`/proposals/${selectedProposal.id}`}
+                  className="flex-1 block text-center py-2 text-xs font-semibold rounded-xl transition-colors"
                   style={{
                     color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309",
                     backgroundColor: selectedProposal.postType === "민원" ? "#FEF2F2" : "#FEFCE8",
                   }}
                 >
-                  불편 제보 & 공약 제안 게시판에서 보기 →
+                  게시글 바로 보기 →
                 </a>
               </div>
             </div>
@@ -1531,13 +1555,10 @@ export default function MapPageContent() {
               {/* List */}
               <div className="max-h-60 overflow-y-auto divide-y divide-border/50">
                 {selectedProposalGroup.map((item) => (
-                  <button
+                  <a
                     key={item.id}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                    onClick={() => {
-                      setSelectedProposal(item);
-                      setSelectedProposalGroup(null);
-                    }}
+                    href={`/proposals/${item.id}`}
+                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors block"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -1550,12 +1571,12 @@ export default function MapPageContent() {
                       <span className="shrink-0 text-xs text-muted">♥{item.likeCount}</span>
                     </div>
                     <p className="text-xs text-muted mt-0.5 truncate">{item.authorName}</p>
-                  </button>
+                  </a>
                 ))}
               </div>
               <div className="px-4 py-3 border-t border-border">
                 <a href="/proposals" className="block w-full text-center py-2 text-xs font-semibold rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
-                  불편 제보 &amp; 공약 제안 게시판에서 보기 →
+                  전체 게시판 보기 →
                 </a>
               </div>
             </div>

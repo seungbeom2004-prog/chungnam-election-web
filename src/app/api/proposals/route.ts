@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get("sort") ?? "popular"; // "latest" | "popular"
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 500);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+    const since = searchParams.get("since"); // ISO date string for filtering createdAt >= since
 
     const buildQuery = (selectStr: string) => {
       let q = supabase
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
       if (candidateId) q = q.eq("candidateId", candidateId);
       // postType filter only applied when v11 migration is present
       if (postType && (selectStr.includes("postType"))) q = q.eq("postType", postType);
+      if (since) q = q.gte("createdAt", since);
       // hasLocation only works after v10 migration
       return q;
     };

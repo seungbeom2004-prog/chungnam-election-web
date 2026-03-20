@@ -52,6 +52,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const [minwonCount, setMinwonCount] = useState<number | null>(null);
   const [proposalCount, setProposalCount] = useState<number | null>(null);
+  const [todayMinwonCount, setTodayMinwonCount] = useState<number | null>(null);
+  const [todayProposalCount, setTodayProposalCount] = useState<number | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const { isCute } = useTheme();
@@ -73,6 +75,15 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
     fetch("/api/proposals?limit=1&postType=제안")
       .then((r) => r.json())
       .then((json) => { if (typeof json.total === "number") setProposalCount(json.total); })
+      .catch(() => {});
+    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    fetch(`/api/proposals?limit=1&postType=민원&since=${today}T00:00:00.000Z`)
+      .then((r) => r.json())
+      .then((json) => { if (typeof json.total === "number") setTodayMinwonCount(json.total); })
+      .catch(() => {});
+    fetch(`/api/proposals?limit=1&postType=제안&since=${today}T00:00:00.000Z`)
+      .then((r) => r.json())
+      .then((json) => { if (typeof json.total === "number") setTodayProposalCount(json.total); })
       .catch(() => {});
   }, [rankingRefreshKey]);
 
@@ -122,13 +133,30 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             <span className="text-primary font-semibold">로그인 없이도 글을 쓸 수 있어요.</span>
           </p>
           {(minwonCount !== null || proposalCount !== null) && (
-            <p className="text-xs text-muted mt-1">
-              지금까지{" "}
-              <span className="text-red-500 font-semibold">{minwonCount ?? 0}개의 불편 제보</span>
-              와{" "}
-              <span className="text-yellow-600 font-semibold">{proposalCount ?? 0}개의 공약 제안</span>
-              이 쌓였습니다.
-            </p>
+            <div className="mt-1 space-y-0.5">
+              <p className="text-xs text-muted">
+                지금까지{" "}
+                <span className="text-red-500 font-semibold">{minwonCount ?? 0}개의 불편 제보</span>
+                와{" "}
+                <span className="text-yellow-600 font-semibold">{proposalCount ?? 0}개의 공약 제안</span>
+                이 쌓였습니다.
+              </p>
+              {(todayMinwonCount !== null || todayProposalCount !== null) && (todayMinwonCount ?? 0) + (todayProposalCount ?? 0) > 0 && (
+                <p className="text-xs flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 font-semibold text-[11px]">
+                    오늘
+                  </span>
+                  {(todayMinwonCount ?? 0) > 0 && (
+                    <span className="text-red-500 font-semibold">불편 제보 {todayMinwonCount}개</span>
+                  )}
+                  {(todayMinwonCount ?? 0) > 0 && (todayProposalCount ?? 0) > 0 && <span className="text-muted">·</span>}
+                  {(todayProposalCount ?? 0) > 0 && (
+                    <span className="text-yellow-600 font-semibold">공약 제안 {todayProposalCount}개</span>
+                  )}
+                  <span className="text-muted">등록됨</span>
+                </p>
+              )}
+            </div>
           )}
         </div>
         <button
