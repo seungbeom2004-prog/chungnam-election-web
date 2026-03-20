@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import type { ProposalPost, ProposalResponse, Pledge } from "@/types";
 
 const relativeTime = (date: string) => {
@@ -342,6 +343,7 @@ function MinwonCard({
 function PledgeProposalCard({
   item,
   candidateId,
+  userRole,
   pledges,
   onAction,
   isPending,
@@ -349,14 +351,60 @@ function PledgeProposalCard({
 }: {
   item: PledgeProposalItem;
   candidateId: string;
+  userRole?: string;
   pledges: Pledge[];
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
   onRefresh: () => void;
 }) {
   const isMine = item.candidateId === candidateId;
+  const isAdmin = userRole === "admin";
+  const isCandidate = userRole === "candidate";
   const [showResponsePanel, setShowResponsePanel] = useState(false);
-  // response is fetched lazily inside ResponsePanel
+  const [showRevisions, setShowRevisions] = useState(false);
+  const [revisions, setRevisions] = useState<Array<{
+    id: string; revisionNumber: number; title: string; content: string;
+    authorName: string; commitMessage: string | null; createdAt: string;
+  }>>([]);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Array<{
+    id: string; content: string; authorName: string; authorType: string;
+    status: string; createdAt: string;
+  }>>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentName, setCommentName] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+
+  const loadRevisions = async () => {
+    const res = await fetch(`/api/pledge-proposals/${item.id}/revisions`);
+    const json = await res.json();
+    if (json.success) setRevisions(json.data);
+  };
+
+  const loadComments = async () => {
+    const res = await fetch(`/api/pledge-proposals/${item.id}/comments`);
+    const json = await res.json();
+    if (json.success) setComments(json.data);
+  };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || commentText.trim().length < 2) return;
+    setCommentSubmitting(true);
+    try {
+      const res = await fetch(`/api/pledge-proposals/${item.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: commentText.trim(), authorName: commentName.trim() || "익명" }),
+      });
+      if (res.ok) {
+        setCommentText("");
+        await loadComments();
+      }
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -395,9 +443,92 @@ function PledgeProposalCard({
               연결된 민원 {item.minwonLinks!.length}개
             </p>
           )}
+
+          {/* 버전 이력 / 코멘트 토글 버튼 */}
+          <div className="flex gap-2 mt-2 flex-wrap">
+            <button
+              onClick={() => { setShowRevisions(v => !v); if (!showRevisions) loadRevisions(); }}
+              className="text-xs text-muted hover:text-foreground border border-border rounded px-2 py-1"
+            >
+              📋 버전 이력
+            </button>
+            <button
+              onClick={() => { setShowComments(v => !v); if (!showComments) loadComments(); }}
+              className="text-xs text-muted hover:text-foreground border border-border rounded px-2 py-1"
+            >
+              💬 코멘트 {comments.length > 0 ? `(${comments.length})` : ""}
+            </button>
+          </div>
+
+          {/* 버전 목록 */}
+          {showRevisions && (
+            <div className="mt-2 space-y-1 border border-border rounded-lg p-2 bg-background">
+              {revisions.length === 0 ? (
+                <p className="text-xs text-muted">버전 이력이 없습니다.</p>
+              ) : revisions.map(r => (
+                <div key={r.id} className="text-xs">
+                  <span className="font-mono text-muted">v{r.revisionNumber}</span>
+                  <span className="ml-2 font-medium">{r.title}</span>
+                  {r.commitMessage && <span className="ml-1 text-muted">({r.commitMessage})</span>}
+                  <span className="ml-1 text-muted">{new Date(r.createdAt).toLocaleDateString("ko")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 코멘트 목록 + 작성 */}
+          {showComments && (
+            <div className="mt-2 border border-border rounded-lg p-2 bg-background space-y-2">
+              {comments.length === 0 ? (
+                <p className="text-xs text-muted">코멘트가 없습니다.</p>
+              ) : (
+                <div className="space-y-1">
+                  {comments.map(c => (
+                    <div key={c.id} className="text-xs border-b border-border pb-1 last:border-0">
+                      <span className="font-medium text-foreground">{c.authorName}</span>
+                      {c.authorType === "candidate" && (
+                        <span className="ml-1 text-[10px] text-blue-600 font-bold">후보자</span>
+                      )}
+                      <span className="ml-2 text-muted">{new Date(c.createdAt).toLocaleDateString("ko")}</span>
+                      <p className="mt-0.5 text-foreground whitespace-pre-wrap">{c.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form onSubmit={handleCommentSubmit} className="flex flex-col gap-1.5">
+                {!isCandidate && !isAdmin && (
+                  <input
+                    type="text"
+                    value={commentName}
+                    onChange={e => setCommentName(e.target.value)}
+                    placeholder="이름 (익명)"
+                    maxLength={30}
+                    className="px-2 py-1 text-xs border border-border rounded bg-surface text-foreground"
+                  />
+                )}
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    placeholder="코멘트 입력 (2자 이상, 500자 이내)"
+                    maxLength={500}
+                    className="flex-1 px-2 py-1 text-xs border border-border rounded bg-surface text-foreground"
+                  />
+                  <button
+                    type="submit"
+                    disabled={commentSubmitting || commentText.trim().length < 2}
+                    className="px-2 py-1 text-xs text-white bg-primary rounded hover:bg-primary-hover disabled:opacity-60"
+                  >
+                    등록
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
 
-        {(isMine || item.authorType === "visitor") && (
+        {(isMine || isAdmin || item.authorType === "visitor") && (
           <div className="flex gap-2 shrink-0 flex-col">
             {item.status !== "accepted" && (
               <button
@@ -406,6 +537,24 @@ function PledgeProposalCard({
                 className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
               >
                 채택
+              </button>
+            )}
+            {/* 머지 버튼 (후보자 본인 또는 관리자, pending 상태일 때만) */}
+            {(isCandidate || isAdmin) && item.status === "pending" && (
+              <button
+                onClick={async () => {
+                  if (!confirm("이 제안을 정식 공약으로 머지하시겠습니까?")) return;
+                  const res = await fetch(`/api/pledge-proposals/${item.id}/merge`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({}),
+                  });
+                  if (res.ok) onRefresh();
+                }}
+                disabled={isPending}
+                className="text-xs text-green-600 border border-green-300 rounded px-2 py-1 hover:bg-green-50 disabled:opacity-60"
+              >
+                🔀 머지
               </button>
             )}
             <button
@@ -546,6 +695,8 @@ function CandidateProposalForm({
 type TabKey = "minwon" | "visitor-proposal" | "candidate-proposal";
 
 export default function ProposalsTab({ candidateId, candidateName }: Props) {
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
   const [activeTab, setActiveTab] = useState<TabKey>("minwon");
   const [proposals, setProposals]       = useState<ProposalPost[]>([]);
   const [pledgeProposals, setPledgeProposals] = useState<PledgeProposalItem[]>([]);
@@ -807,6 +958,7 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   key={item.id}
                   item={item}
                   candidateId={candidateId}
+                  userRole={userRole}
                   pledges={pledges}
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}
@@ -840,6 +992,7 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   key={item.id}
                   item={item}
                   candidateId={candidateId}
+                  userRole={userRole}
                   pledges={pledges}
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}

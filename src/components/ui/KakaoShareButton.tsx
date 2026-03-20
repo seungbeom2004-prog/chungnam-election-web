@@ -41,64 +41,65 @@ export default function KakaoShareButton({
     if (!appKey) return;
 
     const tryInit = () => {
-      if (initialized.current) {
-        setReady(true);
-        return;
-      }
+      if (initialized.current) { setReady(true); return; }
       try {
-        if (window.Kakao && !window.Kakao.isInitialized()) {
-          window.Kakao.init(appKey);
-        }
+        if (window.Kakao && !window.Kakao.isInitialized()) window.Kakao.init(appKey);
         initialized.current = true;
         setReady(true);
-      } catch (e) {
-        console.error("[KakaoShareButton] init 실패", e);
-        // init이 실패해도 setReady(true) — 이미 initialized인 경우 등
+      } catch {
         initialized.current = true;
-        setReady(true);
+        setReady(true); // init 중복 호출 등 예외도 그냥 ready 처리
       }
     };
 
-    // 1) SDK가 이미 로드된 경우 (동일 페이지 내 다른 인스턴스, hot-reload 등)
-    if (window.Kakao) {
-      tryInit();
-      return;
-    }
+    // 1) SDK 이미 로드됨 (동일 페이지 다른 인스턴스 / hot-reload)
+    if (window.Kakao) { tryInit(); return; }
 
     const handleLoad = () => tryInit();
-    const handleError = () => {
-      console.error("[KakaoShareButton] SDK 로드 실패");
-      setFailed(true);
-    };
+    const handleError = () => { console.warn("[KakaoShareButton] SDK 로드 실패"); setFailed(true); };
 
-    // 2) 다른 인스턴스가 이미 스크립트 태그를 삽입한 경우
-    const existing = document.querySelector<HTMLScriptElement>(
-      "script[data-kakao-sdk]"
-    );
+    // 2) 이미 다른 인스턴스가 script 태그를 삽입한 경우
+    const existing = document.querySelector<HTMLScriptElement>("script[data-kakao-sdk]");
     if (existing) {
       existing.addEventListener("load", handleLoad, { once: true });
       existing.addEventListener("error", handleError, { once: true });
-      // ★ 핵심 fix: 리스너 붙인 직후 이미 로드 완료됐을 수 있음 (preload 경쟁 조건)
+      // preload 경쟁 조건: 리스너 붙인 직후 이미 로드 완료일 수 있음
       if (window.Kakao) tryInit();
+      // 폴링 백업: load 이벤트가 이미 지나간 경우를 위한 안전망
+      const poll = setInterval(() => { if (window.Kakao) { clearInterval(poll); tryInit(); } }, 200);
+      const timeout = setTimeout(() => { clearInterval(poll); if (!initialized.current) setFailed(true); }, 6000);
       return () => {
         existing.removeEventListener("load", handleLoad);
         existing.removeEventListener("error", handleError);
+        clearInterval(poll);
+        clearTimeout(timeout);
       };
     }
 
     // 3) 직접 스크립트 삽입
     const script = document.createElement("script");
-    script.src =
-      "https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js";
+    script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js";
     script.async = true;
     script.setAttribute("data-kakao-sdk", "true");
     script.addEventListener("load", handleLoad, { once: true });
     script.addEventListener("error", handleError, { once: true });
     document.head.appendChild(script);
 
+    // 폴링 백업 + 6초 타임아웃 (load 이벤트 미발생 대비)
+    const poll = setInterval(() => { if (window.Kakao) { clearInterval(poll); tryInit(); } }, 200);
+    const timeout = setTimeout(() => {
+      clearInterval(poll);
+      if (!initialized.current) {
+        console.warn("[KakaoShareButton] 6초 타임아웃 — SDK 로드 실패로 처리");
+        setFailed(true);
+      }
+    }, 6000);
+
     return () => {
       script.removeEventListener("load", handleLoad);
       script.removeEventListener("error", handleError);
+      clearInterval(poll);
+      clearTimeout(timeout);
     };
   }, [appKey]);
 

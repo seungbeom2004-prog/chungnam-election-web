@@ -124,22 +124,35 @@ export async function POST(request: NextRequest) {
       return apiError("Invalid request", 400);
     }
 
-    // Session check: logged-in candidates skip CAPTCHA
+    // Session check: logged-in users skip CAPTCHA
     const session = await getServerSession(authOptions);
     const sessionUser = session
       ? {
           id: (session.user as { id?: string })?.id ?? null,
           name: session.user?.name ?? null,
+          role: (session.user as { role?: string })?.role ?? null,
         }
       : null;
+    const isAdmin = sessionUser?.role === "admin";
+    const isCandidate = sessionUser?.role === "candidate";
+    const isAuthenticated = !!sessionUser;
 
     // CAPTCHA verification (only for non-authenticated users)
-    if (!sessionUser) {
+    if (!isAuthenticated) {
       if (!validated.captchaToken || !(await verifyRecaptcha(validated.captchaToken))) {
         return apiError("보안 문자 인증에 실패했습니다. 다시 시도해주세요.", 400);
       }
       if (!validated.authorName) {
         return apiError("이름을 입력해주세요.", 400);
+      }
+    }
+
+    // Reserved name check (guests only)
+    if (!isAuthenticated && validated.authorName) {
+      const RESERVED = ["관리자", "admin", "administrator", "운영자", "개혁신당", "후보자", "candidate"];
+      const lower = validated.authorName.toLowerCase();
+      if (RESERVED.some((r) => lower.includes(r.toLowerCase()))) {
+        return apiError("사용할 수 없는 이름입니다.", 400);
       }
     }
 
@@ -149,8 +162,8 @@ export async function POST(request: NextRequest) {
       "127.0.0.1";
     const ipHash = hashIp(rawIp);
 
-    // Rate limit: max 5 proposals per hour per IP (skip for logged-in candidates)
-    if (!sessionUser) {
+    // Rate limit: max 5 proposals per hour per IP (skip for authenticated users)
+    if (!isAuthenticated) {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { count: recentCount, error: countError } = await supabase
         .from("ProposalPost")
@@ -180,10 +193,13 @@ export async function POST(request: NextRequest) {
       ...baseInsert
     } = validated;
 
-    // For logged-in candidates: override authorName and candidateId from session
-    if (sessionUser) {
-      baseInsert.authorName = sessionUser.name ?? baseInsert.authorName ?? "후보자";
-      baseInsert.candidateId = sessionUser.id ?? baseInsert.candidateId ?? null;
+    // For logged-in users: override authorName and candidateId from session
+    if (isAdmin) {
+      baseInsert.authorName = validated.authorName?.trim() || "익명";
+      baseInsert.candidateId = null;
+    } else if (isCandidate || sessionUser) {
+      baseInsert.authorName = sessionUser!.name ?? baseInsert.authorName ?? "후보자";
+      baseInsert.candidateId = sessionUser!.id ?? baseInsert.candidateId ?? null;
     }
 
     // Auto-populate city from candidate's district if not provided

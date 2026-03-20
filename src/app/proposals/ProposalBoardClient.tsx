@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -51,10 +51,17 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const [minwonCount, setMinwonCount] = useState<number | null>(null);
   const [proposalCount, setProposalCount] = useState<number | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { isCute } = useTheme();
   const { data: session } = useSession();
   const isCandidate = (session?.user as { role?: string })?.role === "candidate";
   const candidateName = (session?.user as { name?: string })?.name ?? undefined;
+
+  const handleRankingSelect = (id: string) => {
+    setHighlightedId(id);
+    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Fetch counts for minwon / proposal
   useEffect(() => {
@@ -167,8 +174,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
 
       {/* Rankings - 2 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} />
-        <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} />
+        <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} onSelect={handleRankingSelect} />
+        <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} onSelect={handleRankingSelect} />
       </div>
 
       {/* Filters + list */}
@@ -223,15 +230,54 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         </div>
 
         {/* Post list */}
-        <ProposalList
-          candidateId={selectedCandidateId || undefined}
-          city={selectedCity || undefined}
-          postType={postTypeFilter === "all" ? undefined : postTypeFilter}
-          showForm={false}
-          onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
-          isCandidate={isCandidate}
-          candidateName={candidateName}
-        />
+        <div ref={listRef}>
+          {selectedCity ? (
+            <div className="space-y-4">
+              <h2 className="text-base font-bold text-foreground">
+                📍 {selectedCity} 전체 불편 제보 &amp; 공약 제안
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-red-600 mb-2">📢 불편 제보</h3>
+                  <ProposalList
+                    candidateId={selectedCandidateId || undefined}
+                    city={selectedCity}
+                    postType="민원"
+                    showForm={false}
+                    onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
+                    isCandidate={isCandidate}
+                    candidateName={candidateName}
+                    highlightedId={highlightedId ?? undefined}
+                  />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-yellow-600 mb-2">💡 공약 제안</h3>
+                  <ProposalList
+                    candidateId={selectedCandidateId || undefined}
+                    city={selectedCity}
+                    postType="제안"
+                    showForm={false}
+                    onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
+                    isCandidate={isCandidate}
+                    candidateName={candidateName}
+                    highlightedId={highlightedId ?? undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ProposalList
+              candidateId={selectedCandidateId || undefined}
+              city={selectedCity || undefined}
+              postType={postTypeFilter === "all" ? undefined : postTypeFilter}
+              showForm={false}
+              onRankingRefresh={() => setRankingRefreshKey((k) => k + 1)}
+              isCandidate={isCandidate}
+              candidateName={candidateName}
+              highlightedId={highlightedId ?? undefined}
+            />
+          )}
+        </div>
       </div>
 
       {/* Fixed floating write button — bottom-left */}

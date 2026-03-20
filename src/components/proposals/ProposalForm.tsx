@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
@@ -28,6 +28,7 @@ const LEGAL_NOTICE = `[게시물 작성 시 유의사항 및 법적 책임]
 export default function ProposalForm({ candidateId, city: propCity, onSuccess }: Props) {
   const { data: session } = useSession();
   const isCandidate = (session?.user as { role?: string })?.role === "candidate";
+  const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
   const [postType, setPostType] = useState<"민원" | "제안">("제안");
   const [selectedCity, setSelectedCity] = useState<string>(propCity ?? "");
@@ -47,6 +48,14 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const MAX_CONTENT = 500;
   const MAX_TITLE = 50;
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
+  // Set default authorName for admin
+  useEffect(() => {
+    if (isAdmin && !authorName) {
+      setAuthorName("익명");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   // When city changes, update lat/lng to city center (unless detailed location enabled)
   const handleCityChange = (cityName: string) => {
@@ -74,13 +83,20 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
     }
 
     // Guest-only validation
-    if (!isCandidate) {
+    if (!isCandidate && !isAdmin) {
       if (authorName.trim().length < 2 || authorName.trim().length > 20) {
         setError("작성자명은 2자 이상 20자 이하로 입력해주세요.");
         return;
       }
       if (password.length < 4 || password.length > 20) {
         setError("비밀번호는 4자 이상 20자 이하로 입력해주세요.");
+        return;
+      }
+      // Reserved name check (guest only)
+      const RESERVED_NAMES = ["관리자", "admin", "administrator", "운영자", "개혁신당", "후보자", "candidate"];
+      const lowerName = authorName.trim().toLowerCase();
+      if (RESERVED_NAMES.some((n) => lowerName.includes(n.toLowerCase()))) {
+        setError("사용할 수 없는 이름입니다.");
         return;
       }
     }
@@ -94,8 +110,8 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       return;
     }
 
-    // reCAPTCHA for guests only
-    if (!isCandidate) {
+    // reCAPTCHA for guests only (not candidate, not admin)
+    if (!isCandidate && !isAdmin) {
       const recaptchaToken = recaptchaRef.current?.getValue();
       if (siteKey && !recaptchaToken) {
         setError("보안 문자를 완료해주세요.");
@@ -121,7 +137,9 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       if (resolvedLng != null) body.longitude = resolvedLng;
       if (candidateId) body.candidateId = candidateId;
 
-      if (!isCandidate) {
+      if (isAdmin) {
+        body.authorName = authorName.trim() || "익명";
+      } else if (!isCandidate) {
         const recaptchaToken = recaptchaRef.current?.getValue();
         body.authorName = authorName.trim();
         body.password = password;
@@ -260,8 +278,8 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
         />
       </div>
 
-      {/* 작성자명 + Password — hidden for logged-in candidates */}
-      {!isCandidate && (
+      {/* 작성자명 + Password — hidden for logged-in candidates and admin */}
+      {!isCandidate && !isAdmin && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">작성자명<span aria-hidden="true"> *</span></label>
@@ -292,6 +310,24 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
               className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
             />
           </div>
+        </div>
+      )}
+
+      {/* Admin section */}
+      {isAdmin && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <span>🛡️</span>
+            <p className="text-xs text-blue-700 font-medium">관리자로 작성됩니다 (이름을 &quot;익명&quot;으로 설정하거나 변경할 수 있습니다)</p>
+          </div>
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="익명"
+            maxLength={20}
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+          />
         </div>
       )}
 
@@ -367,8 +403,8 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
         </div>
       )}
 
-      {/* reCAPTCHA — guests only */}
-      {!isCandidate && siteKey && (
+      {/* reCAPTCHA — guests only (not candidate, not admin) */}
+      {!isCandidate && !isAdmin && siteKey && (
         <div className="flex justify-center overflow-hidden">
           <div className="scale-[0.82] origin-left sm:scale-100 sm:origin-center">
             <ReCAPTCHA ref={recaptchaRef} sitekey={siteKey} />

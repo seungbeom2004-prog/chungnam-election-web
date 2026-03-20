@@ -37,17 +37,40 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now);
     monthStart.setDate(monthStart.getDate() - 30);
 
-    // Fetch last 30 days of page views
-    const { data: rows, error } = await supabaseAdmin
-      .from("PageView")
-      .select("path, referrer, createdAt, city")
-      .gte("createdAt", monthStart.toISOString())
-      .order("createdAt", { ascending: false })
-      .limit(50000);
+    // Fetch last 30 days of page views — try with city column first
+    type PageViewRow = { path: string; referrer: string | null; createdAt: string; city?: string | null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rows: PageViewRow[] | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let queryError: any = null;
 
+    {
+      const result = await supabaseAdmin
+        .from("PageView")
+        .select("path, referrer, createdAt, city")
+        .gte("createdAt", monthStart.toISOString())
+        .order("createdAt", { ascending: false })
+        .limit(50000);
+      rows = result.data as PageViewRow[] | null;
+      queryError = result.error;
+    }
+
+    // Fallback: city column might not exist yet
+    if (queryError && (queryError.code === "42703" || queryError.code === "PGRST200" || queryError.code === "PGRST204")) {
+      const result = await supabaseAdmin
+        .from("PageView")
+        .select("path, referrer, createdAt")
+        .gte("createdAt", monthStart.toISOString())
+        .order("createdAt", { ascending: false })
+        .limit(50000);
+      rows = result.data as PageViewRow[] | null;
+      queryError = result.error;
+    }
+
+    const error = queryError;
     if (error) {
       // Table might not exist yet — return empty data gracefully
-      if (error.code === "42P01") {
+      if (error.code === "42P01" || error.code === "42703") {
         return NextResponse.json({
           success: true,
           data: {

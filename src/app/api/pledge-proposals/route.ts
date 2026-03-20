@@ -118,10 +118,13 @@ export async function POST(request: NextRequest) {
     if (body.content.length > 1000) return apiError("내용은 1000자 이하로 입력해주세요", 400);
 
     const session = await getServerSession(authOptions);
-    const candidateId = (session?.user as { id?: string })?.id ?? null;
-    const isCandidate = !!candidateId;
+    const sessionUser = session?.user as { id?: string; role?: string; name?: string } | undefined;
+    const candidateId = sessionUser?.id ?? null;
+    const isCandidate = sessionUser?.role === "candidate";
+    const isAdmin = sessionUser?.role === "admin";
+    const isAuthenticated = !!(isCandidate || isAdmin);
 
-    // Candidates MUST link a minwon
+    // Candidates MUST link a minwon (admin exempt)
     const minwonIds = Array.isArray(body.minwonIds) ? body.minwonIds.filter(Boolean) : [];
     if (isCandidate && minwonIds.length === 0) {
       return apiError("후보자는 민원을 선택해야 공약 제안을 작성할 수 있습니다.", 400);
@@ -130,7 +133,7 @@ export async function POST(request: NextRequest) {
     const rawIp = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "127.0.0.1";
     const ipHash = hashIp(rawIp);
 
-    if (!isCandidate) {
+    if (!isAuthenticated) {
       // CAPTCHA for visitors
       if (!body.captchaToken) return apiError("보안 문자 인증이 필요합니다", 400);
       if (!(await verifyRecaptcha(body.captchaToken))) {
@@ -155,7 +158,9 @@ export async function POST(request: NextRequest) {
 
     // Get candidate name from DB if needed
     let authorName = body.authorName?.trim() ?? "";
-    if (isCandidate) {
+    if (isAdmin) {
+      authorName = body.authorName?.trim() || "익명";
+    } else if (isCandidate) {
       const { data: cand } = await supabase
         .from("Candidate")
         .select("name")
@@ -172,8 +177,8 @@ export async function POST(request: NextRequest) {
         content:     body.content.trim(),
         authorName,
         authorType:  isCandidate ? "candidate" : "visitor",
-        candidateId: candidateId ?? null,
-        ipHash:      isCandidate ? null : ipHash,
+        candidateId: isAdmin ? null : (candidateId ?? null),
+        ipHash:      isAuthenticated ? null : ipHash,
         status:      "pending",
       })
       .select("id")
@@ -203,6 +208,26 @@ export async function POST(request: NextRequest) {
           .from("PledgeProposalMinwon")
           .insert(validIds.map((mid) => ({ pledgeProposalId: created.id, minwonId: mid })));
       }
+    }
+
+    // 초기 Revision 자동 생성 (실패해도 무시 — 마이그레이션으로 복구 가능)
+    if (created?.id) {
+      Promise.resolve(
+        supabaseAdmin
+          .from("PledgeProposalRevision")
+          .insert({
+            id: crypto.randomUUID(),
+            pledgeProposalId: created.id,
+            revisionNumber: 1,
+            title: body.title.trim(),
+            content: body.content.trim(),
+            authorName,
+            authorType: isCandidate ? "candidate" : "visitor",
+            candidateId: isAdmin ? null : (candidateId ?? null),
+            commitMessage: "초기 제안",
+            createdAt: new Date().toISOString(),
+          })
+      ).catch((e: unknown) => console.warn("[pledge-proposals] revision insert:", e));
     }
 
     return apiSuccess({ id: created?.id, message: "공약 제안이 등록되었습니다." }, 201);

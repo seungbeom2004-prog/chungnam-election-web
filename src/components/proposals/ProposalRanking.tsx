@@ -19,9 +19,10 @@ function RankMedal({ rank, idx }: { rank: number; idx: number }) {
 interface Props {
   refreshKey?: number;
   postType?: string;
+  onSelect?: (id: string) => void;
 }
 
-export default function ProposalRanking({ refreshKey, postType }: Props) {
+export default function ProposalRanking({ refreshKey, postType, onSelect }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,9 +62,11 @@ export default function ProposalRanking({ refreshKey, postType }: Props) {
           <p className="text-xs text-muted text-center py-6">아직 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 없습니다.</p>
         ) : (
           proposals.map((p, idx) => (
-            <div
+            <button
               key={p.id}
-              className={`flex items-start gap-2.5 p-2.5 rounded-lg ${idx < 3 ? "bg-primary/5 border border-primary/20" : ""}`}
+              type="button"
+              onClick={() => onSelect?.(p.id)}
+              className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:bg-primary/10 transition-colors ${idx < 3 ? "bg-primary/5 border border-primary/20" : ""}`}
             >
               <div className="pt-0.5 shrink-0">
                 <RankMedal rank={idx + 1} idx={idx} />
@@ -88,7 +91,7 @@ export default function ProposalRanking({ refreshKey, postType }: Props) {
                   </span>
                 </div>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>

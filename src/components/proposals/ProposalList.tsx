@@ -40,9 +40,10 @@ interface Props {
   onRankingRefresh?: () => void;
   isCandidate?: boolean;
   candidateName?: string;
+  highlightedId?: string;
 }
 
-export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh, isCandidate, candidateName }: Props) {
+export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh, isCandidate, candidateName, highlightedId }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -229,11 +230,12 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
             {proposals.map((proposal, idx) => (
               <div
                 key={proposal.id}
+                id={proposal.id}
                 className={`p-4 border rounded-xl bg-surface transition-shadow hover:shadow-sm ${
                   showRankBadge && idx < 3
                     ? "border-primary/30 bg-primary/5"
                     : "border-border"
-                }`}
+                } ${highlightedId === proposal.id ? "ring-2 ring-primary" : ""}`}
               >
                 <div className="flex items-start gap-3">
                   {/* Rank badge */}

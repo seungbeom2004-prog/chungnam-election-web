@@ -213,3 +213,46 @@ export interface BylawGroup {
   /** All bylaw (+ bylawTagged) pledges in this city, from any candidate. */
   pledges: Pledge[];
 }
+
+export interface PledgeProposalRevision {
+  id: string;
+  pledgeProposalId: string;
+  revisionNumber: number;
+  title: string;
+  content: string;
+  authorName: string;
+  authorType: "visitor" | "candidate";
+  candidateId: string | null;
+  commitMessage: string | null;
+  createdAt: string;
+}
+
+export interface PledgeProposalComment {
+  id: string;
+  pledgeProposalId: string;
+  content: string;
+  authorName: string;
+  authorType: "visitor" | "candidate";
+  candidateId: string | null;
+  status: "visible" | "deleted";
+  createdAt: string;
+}
+
+export interface PledgeProposal {
+  id: string;
+  title: string;
+  content: string;
+  authorName: string;
+  authorType: "visitor" | "candidate";
+  candidateId: string | null;
+  ipHash: string | null;
+  status: string;
+  createdAt: string;
+  mergedAt?: string | null;
+  mergedBy?: string | null;
+  mergedPledgeId?: string | null;
+  revisionCount?: number;
+  latestRevision?: PledgeProposalRevision | null;
+  minwonLinks?: { minwonId: string }[];
+  candidate?: { id: string; name: string; district: string } | null;
+}

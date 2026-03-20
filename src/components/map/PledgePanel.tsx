@@ -464,7 +464,29 @@ function PledgePanelContent({
       {/* Share / QR — always visible at bottom */}
       <div className="mt-5 pt-4 border-t border-border">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Kakao Share */}
+          {/* 링크 공유 — 먼저 표시 (카카오 SDK 로딩 여부와 무관하게 즉시 동작) */}
+          <button
+            onClick={async () => {
+              if (typeof navigator !== "undefined" && navigator.share) {
+                try { await navigator.share({ title: pledge.title, url: pledgeUrl }); return; } catch { /* fallback */ }
+              }
+              handleCopyLink();
+              trackShareClick("copy", "pledge");
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
+          >
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            )}
+            {copied ? "복사됨!" : "링크 공유"}
+          </button>
+
+          {/* Kakao Share — SDK 로딩 시 스피너 표시, 실패해도 링크 공유로 커버됨 */}
           <KakaoShareButton
             title={pledge.title}
             description={(pledge.description ?? "").slice(0, 100)}
@@ -476,6 +498,7 @@ function PledgePanelContent({
             shareUrl={pledgeUrl}
             className="border border-[#FEE500]/60 hover:opacity-90"
           />
+
           <button
             onClick={() => { setShowQR((v) => !v); trackShareClick("qr", "pledge"); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
@@ -486,16 +509,6 @@ function PledgePanelContent({
               <path d="M14 14h1v1h-1zM17 14h1v1h-1zM14 17h1v1h-1zM17 17h4v4h-4z"/>
             </svg>
             QR 코드
-          </button>
-          <button
-            onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
-            {copied ? "복사됨!" : "링크 복사"}
           </button>
         </div>
         {showQR && pledgeUrl && (
