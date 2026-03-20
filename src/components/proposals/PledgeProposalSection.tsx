@@ -150,6 +150,7 @@ interface Props {
   minwonTitle: string;
   isCandidate?: boolean;
   candidateName?: string;
+  autoOpenForm?: boolean;
 }
 
 const relativeTime = (date: string) => {
@@ -307,12 +308,20 @@ export default function PledgeProposalSection({
   minwonTitle,
   isCandidate = false,
   candidateName,
+  autoOpenForm,
 }: Props) {
   const [proposals, setProposals]       = useState<PledgeProposalItem[]>([]);
   const [loading, setLoading]           = useState(false);
   const [showForm, setShowForm]         = useState(false);
   const [expanded, setExpanded]         = useState(false);
   const [revisionTargetId, setRevisionTargetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (autoOpenForm) {
+      setExpanded(true);
+      setShowForm(true);
+    }
+  }, [autoOpenForm]);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);

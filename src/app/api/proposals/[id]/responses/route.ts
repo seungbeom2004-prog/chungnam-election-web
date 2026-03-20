@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     .from("ProposalResponse")
     .select("id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt")
     .eq("proposalId", proposalId)
+    .neq("status", "revision_suggestion")
     .order("createdAt", { ascending: true });
 
   if (error) {

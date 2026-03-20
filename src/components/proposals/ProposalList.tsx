@@ -53,6 +53,7 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<"latest" | "popular">("popular");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [autoOpenFormIds, setAutoOpenFormIds] = useState<Set<string>>(new Set());
   const [sharedId, setSharedId] = useState<string | null>(null);
 
   const buildUrl = useCallback(
@@ -188,6 +189,12 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
+        // Remove from autoOpenFormIds when collapsing
+        setAutoOpenFormIds((prev2) => {
+          const n = new Set(prev2);
+          n.delete(id);
+          return n;
+        });
       } else {
         next.add(id);
       }
@@ -371,7 +378,7 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                           className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
                             proposal.hasLiked
                               ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100 scale-105"
-                              : "bg-background text-muted border-border hover:text-foreground hover:bg-border/50"
+                              : "bg-background text-rose-400 border-border hover:text-foreground hover:bg-border/50"
                           }`}
                         >
                           <svg
@@ -428,28 +435,29 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                           <span>상세보기</span>
                         </Link>
 
-                        {/* Popularity score bar (shown in popular sort for top items) */}
-                        {showRankBadge && idx < 10 && (proposal.likeCount ?? 0) > 0 && (
-                          <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                              <div
-                                role="progressbar"
-                                aria-valuenow={proposal.likeCount ?? 0}
-                                aria-valuemin={0}
-                                aria-valuemax={proposals[0]?.likeCount ?? 1}
-                                aria-label="인기도"
-                                className="h-full bg-primary rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(100, ((proposal.likeCount ?? 0) / Math.max(proposals[0]?.likeCount ?? 1, 1)) * 100)}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-[10px] text-muted shrink-0">
-                              {proposal.likeCount}표
-                            </span>
-                          </div>
-                        )}
                       </div>
+
+                      {/* CTA buttons */}
+                      {proposal.postType === "민원" ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedIds((prev) => { const n = new Set(prev); n.add(proposal.id); return n; });
+                            setAutoOpenFormIds((prev) => { const n = new Set(prev); n.add(proposal.id); return n; });
+                          }}
+                          className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors"
+                        >
+                          💡 이 불편 제보에 공약 제안하기
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/proposals/${proposal.id}?revise=1`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                        >
+                          ✏️ 이 공약 제안에 수정제안하기
+                        </Link>
+                      )}
 
                       {/* Expanded sections */}
                       {isExpanded && (
@@ -461,6 +469,7 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                               minwonTitle={proposal.title || proposal.content.slice(0, 30)}
                               isCandidate={isCandidate}
                               candidateName={candidateName}
+                              autoOpenForm={autoOpenFormIds.has(proposal.id)}
                             />
                           )}
 

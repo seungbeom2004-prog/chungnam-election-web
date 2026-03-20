@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const PledgeProposalSection = dynamic(
@@ -39,6 +40,7 @@ const relativeTime = (date: string) => {
 };
 
 export default function ProposalDetailClient({ post }: Props) {
+  const searchParams = useSearchParams();
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLiked, setHasLiked] = useState(false);
   const [likePending, setLikePending] = useState(false);
@@ -49,6 +51,34 @@ export default function ProposalDetailClient({ post }: Props) {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Revision suggestion state
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [revisionAuthorName, setRevisionAuthorName] = useState("");
+  const [revisionContent, setRevisionContent] = useState("");
+  const [revisionSubmitting, setRevisionSubmitting] = useState(false);
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+  const [revisionSuccess, setRevisionSuccess] = useState(false);
+  const [revisions, setRevisions] = useState<{ id: string; candidateName: string; content: string; createdAt: string }[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+
+  // Fetch revisions on mount (for 제안 type)
+  useEffect(() => {
+    if (post.postType === "민원") return;
+    setRevisionsLoading(true);
+    fetch(`/api/proposals/${post.id}/revisions`)
+      .then((r) => r.json())
+      .then((json) => setRevisions(json.data ?? []))
+      .catch(() => {})
+      .finally(() => setRevisionsLoading(false));
+  }, [post.id, post.postType]);
+
+  // Auto-open revision form when ?revise=1
+  useEffect(() => {
+    if (searchParams.get("revise") === "1") {
+      setShowRevisionForm(true);
+    }
+  }, [searchParams]);
 
   const typeLabel = post.postType === "민원" ? "불편 제보" : "공약 제안";
   const typeEmoji = post.postType === "민원" ? "📢" : "💡";
@@ -291,6 +321,125 @@ export default function ProposalDetailClient({ post }: Props) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Revision Suggestion Section — for 제안 type */}
+      {post.postType !== "민원" && (
+        <div className="border-t border-border pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-violet-700 flex items-center gap-1.5">
+              ✏️ 수정 제안
+              {revisions.length > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">
+                  {revisions.length}
+                </span>
+              )}
+            </p>
+            <button
+              onClick={() => setShowRevisionForm((v) => !v)}
+              className="text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 px-3 py-1 rounded-full transition-colors"
+            >
+              {showRevisionForm ? "✕ 취소" : "✍️ 수정제안 하기"}
+            </button>
+          </div>
+
+          {/* Existing revisions */}
+          {revisionsLoading ? (
+            <div className="flex justify-center py-2">
+              <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : revisions.length > 0 ? (
+            <div className="space-y-2">
+              {revisions.map((r) => (
+                <div key={r.id} className="bg-violet-50 border border-violet-200 rounded-xl px-3 py-2.5 text-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-violet-800">{r.candidateName}</span>
+                    <time className="text-muted ml-auto">{relativeTime(r.createdAt)}</time>
+                  </div>
+                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">{r.content}</p>
+                </div>
+              ))}
+            </div>
+          ) : !showRevisionForm ? (
+            <p className="text-xs text-muted text-center py-2">아직 수정 제안이 없습니다. 첫 번째 수정 제안을 남겨보세요!</p>
+          ) : null}
+
+          {/* Revision form */}
+          {showRevisionForm && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setRevisionError(null);
+                setRevisionSubmitting(true);
+                try {
+                  const res = await fetch(`/api/proposals/${post.id}/revisions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ authorName: revisionAuthorName, content: revisionContent }),
+                  });
+                  const json = await res.json();
+                  if (!res.ok) { setRevisionError(json.error ?? "등록에 실패했습니다."); return; }
+                  setRevisionSuccess(true);
+                  setRevisionContent("");
+                  setShowRevisionForm(false);
+                  // Refresh list
+                  const updated = await fetch(`/api/proposals/${post.id}/revisions`).then(r => r.json());
+                  setRevisions(updated.data ?? []);
+                } catch {
+                  setRevisionError("네트워크 오류가 발생했습니다.");
+                } finally {
+                  setRevisionSubmitting(false);
+                }
+              }}
+              className="space-y-2.5 bg-violet-50 border border-violet-200 rounded-xl p-4"
+            >
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">이름 <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={revisionAuthorName}
+                  onChange={(e) => setRevisionAuthorName(e.target.value)}
+                  maxLength={30}
+                  required
+                  placeholder="작성자 이름"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">수정 제안 내용 <span className="text-red-500">*</span></label>
+                <textarea
+                  value={revisionContent}
+                  onChange={(e) => setRevisionContent(e.target.value)}
+                  maxLength={1000}
+                  required
+                  rows={4}
+                  placeholder="이 공약 제안을 어떻게 수정하면 좋을지 구체적으로 작성해주세요..."
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 resize-none"
+                />
+              </div>
+              {revisionError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{revisionError}</p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button type="button" onClick={() => setShowRevisionForm(false)}
+                  className="px-4 py-2 text-sm text-muted border border-border rounded-lg hover:bg-background transition-colors">
+                  취소
+                </button>
+                <button type="submit" disabled={revisionSubmitting}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+                  {revisionSubmitting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  {revisionSubmitting ? "등록 중..." : "수정제안 등록"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {revisionSuccess && (
+            <p className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 text-center">
+              ✅ 수정 제안이 등록되었습니다. 감사합니다!
+            </p>
+          )}
         </div>
       )}
 
