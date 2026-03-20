@@ -24,20 +24,20 @@ const V11_SELECT = "postType";
 const RESPONSE_JOIN = "responses:ProposalResponse(id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt)";
 /** Full select with ProposalLike join + responses */
 const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
-  candidate:Candidate!candidateId(id, name, district, profileImage),
+  candidate:Candidate!candidateId(id, name, district, profileImage, role),
   likes:ProposalLike(count),
   ${RESPONSE_JOIN}`;
 /** Fallback without responses join */
 const FULL_SELECT_NO_RESP = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
-  candidate:Candidate!candidateId(id, name, district, profileImage),
+  candidate:Candidate!candidateId(id, name, district, profileImage, role),
   likes:ProposalLike(count)`;
 /** Fallback without v11 (postType) */
 const V10_FALLBACK_SELECT = `${SAFE_SELECT}, ${V10_SELECT},
-  candidate:Candidate!candidateId(id, name, district, profileImage),
+  candidate:Candidate!candidateId(id, name, district, profileImage, role),
   likes:ProposalLike(count)`;
 /** Fallback select without v10/v11 additions */
 const FALLBACK_SELECT = `${SAFE_SELECT},
-  candidate:Candidate!candidateId(id, name, district, profileImage)`;
+  candidate:Candidate!candidateId(id, name, district, profileImage, role)`;
 
 export async function GET(request: NextRequest) {
   try {

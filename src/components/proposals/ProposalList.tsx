@@ -257,7 +257,12 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
           <div className="space-y-3">
             {proposals.map((proposal, idx) => {
               const isExpanded = expandedIds.has(proposal.id);
-              const showCandidateInfo = proposal.candidateId != null && proposal.candidate != null;
+              // Only show candidate badge for actual candidate role — admin posts with candidateId=null won't appear,
+              // but double-check role as a safeguard against old data or account type changes.
+              const showCandidateInfo =
+                proposal.candidateId != null &&
+                proposal.candidate != null &&
+                (proposal.candidate.role == null || proposal.candidate.role === "candidate");
 
               return (
                 <div

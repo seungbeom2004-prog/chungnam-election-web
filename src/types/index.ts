@@ -159,7 +159,7 @@ export interface ProposalPost {
   postType?: string;  // "민원" | "제안"
   hasLiked?: boolean;
   authorType?: string | null;
-  candidate?: { id: string; name: string; district: string; profileImage?: string | null } | null;
+  candidate?: { id: string; name: string; district: string; profileImage?: string | null; role?: string | null } | null;
   responses?: ProposalResponse[];
 }
 

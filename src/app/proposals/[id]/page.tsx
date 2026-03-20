@@ -34,7 +34,7 @@ export default async function ProposalDetailPage({ params }: Props) {
   const { id } = await params;
   const { data: post } = await supabase
     .from("ProposalPost")
-    .select("id, title, content, authorName, postType, status, createdAt, latitude, longitude, candidateId, candidate:Candidate!candidateId(id, name, district, profileImage)")
+    .select("id, title, content, authorName, postType, status, createdAt, latitude, longitude, candidateId, candidate:Candidate!candidateId(id, name, district, profileImage, role)")
     .eq("id", id)
     .neq("status", "deleted")
     .single();

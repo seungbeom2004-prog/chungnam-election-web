@@ -23,7 +23,7 @@ interface Post {
   latitude: number | null;
   longitude: number | null;
   candidateId: string | null;
-  candidate: { id: string; name: string; district: string; profileImage: string | null } | null;
+  candidate: { id: string; name: string; district: string; profileImage: string | null; role?: string | null } | null;
 }
 
 interface Props {
@@ -125,7 +125,7 @@ export default function ProposalDetailClient({ post }: Props) {
 
         {/* Author row */}
         <div className="flex items-center gap-2 flex-wrap">
-          {post.candidateId && post.candidate ? (
+          {post.candidateId && post.candidate && (post.candidate.role == null || post.candidate.role === "candidate") ? (
             <>
               <div className="w-8 h-8 rounded-full bg-primary/10 overflow-hidden shrink-0 flex items-center justify-center">
                 {post.candidate.profileImage ? (
