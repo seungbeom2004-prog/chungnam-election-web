@@ -1,14 +1,22 @@
 import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { apiError, apiSuccess } from "@/lib/api-utils";
 
 /**
  * One-time migration endpoint.
- * Call: POST /api/admin/migrate  body: { "secret": "<ADMIN_SECRET>", "version": "v11" }
+ * Auth: admin session (로그인) OR body.secret === ADMIN_SECRET
+ * Call: POST /api/admin/migrate  body: { "version": "v14" }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    if (body.secret !== process.env.ADMIN_SECRET) {
+
+    // Auth: admin session OR secret
+    const session = await getServerSession(authOptions);
+    const isAdminSession = (session?.user as { role?: string })?.role === "admin";
+    const isSecretOk = process.env.ADMIN_SECRET && body.secret === process.env.ADMIN_SECRET;
+    if (!isAdminSession && !isSecretOk) {
       return apiError("Unauthorized", 401);
     }
 
