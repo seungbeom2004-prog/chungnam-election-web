@@ -422,6 +422,8 @@ export default function PledgesPage() {
         <ProposalsTab
           candidateId={candidateId}
           candidateName={(session?.user as { name?: string })?.name ?? undefined}
+          pinLat={candidatePin?.lat ?? null}
+          pinLng={candidatePin?.lng ?? null}
         />
       )}
 

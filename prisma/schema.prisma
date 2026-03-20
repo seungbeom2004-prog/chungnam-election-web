@@ -37,6 +37,7 @@ model Candidate {
   tiktok          String?
   kakao           String?
   naverBlog       String?
+  donationUrl     String?
   contactEmail    String?
   showPhone       Boolean  @default(false)
   showContactEmail Boolean @default(false)

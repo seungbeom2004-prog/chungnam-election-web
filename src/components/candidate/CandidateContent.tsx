@@ -50,6 +50,7 @@ interface CandidateContentProps {
     tiktok?: string | null;
     kakao?: string | null;
     naverBlog?: string | null;
+    donationUrl?: string | null;
     articleUrl?: string | null;
     articleTitle?: string | null;
     phone?: string | null;
@@ -108,6 +109,16 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
             {candidate.bio}
           </p>
+          {candidate.donationUrl && (
+            <a
+              href={candidate.donationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              💝 후원하기
+            </a>
+          )}
         </div>
       )}
 
@@ -270,7 +281,7 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
                         className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-primary/25 text-primary text-[11px] font-semibold hover:bg-primary hover:text-white transition-colors"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        💡 민원 / 공약 제안하러 가기
+                        💡 불편 제보 / 공약 제안하러 가기
                       </Link>
                     </div>
                   </div>
@@ -283,13 +294,13 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           <div className="mt-6 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="font-bold text-foreground text-sm mb-0.5">혹시 당신의 집 앞 문제는 없나요?</p>
-              <p className="text-xs text-muted">민원을 제보하거나, {candidate.name} 후보에게 직접 공약을 제안해보세요.</p>
+              <p className="text-xs text-muted">불편 사항을 제보하거나, {candidate.name} 후보에게 직접 공약을 제안해보세요.</p>
             </div>
             <Link
               href="/proposals"
               className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
             >
-              💡 민원 / 공약 제안하러 가기
+              💡 불편 제보 / 공약 제안하러 가기
             </Link>
           </div>
         </div>

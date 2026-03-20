@@ -15,6 +15,7 @@ export interface Candidate {
   tiktok: string | null;
   kakao: string | null;
   naverBlog: string | null;
+  donationUrl?: string | null;
   articleUrl: string | null;
   articleTitle: string | null;
   party: string;
@@ -157,7 +158,8 @@ export interface ProposalPost {
   likeCount?: number;
   postType?: string;  // "민원" | "제안"
   hasLiked?: boolean;
-  candidate?: { id: string; name: string; district: string } | null;
+  authorType?: string | null;
+  candidate?: { id: string; name: string; district: string; profileImage?: string | null } | null;
   responses?: ProposalResponse[];
 }
 

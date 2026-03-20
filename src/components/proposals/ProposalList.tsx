@@ -51,6 +51,8 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
   const [hasMore, setHasMore] = useState(false);
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<"latest" | "popular">("popular");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [sharedId, setSharedId] = useState<string | null>(null);
 
   const buildUrl = useCallback(
     (p: number, sortMode = sort) => {
@@ -166,6 +168,32 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
     }
   };
 
+  const handleShare = async (id: string) => {
+    const url = `${window.location.origin}/proposals/${id}`;
+    if (navigator.share) {
+      try { await navigator.share({ url }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setSharedId(id);
+      setTimeout(() => setSharedId(null), 2000);
+    } catch {
+      window.prompt("링크를 복사하세요:", url);
+    }
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   // Top 3 popular proposals (in popular sort mode, first PAGE shown)
   const showRankBadge = sort === "popular";
 
@@ -227,136 +255,207 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
       ) : (
         <>
           <div className="space-y-3">
-            {proposals.map((proposal, idx) => (
-              <div
-                key={proposal.id}
-                id={proposal.id}
-                className={`p-4 border rounded-xl bg-surface transition-shadow hover:shadow-sm ${
-                  showRankBadge && idx < 3
-                    ? "border-primary/30 bg-primary/5"
-                    : "border-border"
-                } ${highlightedId === proposal.id ? "ring-2 ring-primary" : ""}`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Rank badge */}
-                  {showRankBadge && (
-                    <div className="pt-0.5 shrink-0">
-                      <RankBadge rank={idx + 1} />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {proposal.postType && (
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
-                            style={{ backgroundColor: proposal.postType === "민원" ? "#EF4444" : "#FACC15" }}
-                            title={proposal.postType}
-                          />
-                        )}
-                        <span className="text-sm font-semibold text-foreground truncate">
-                          {proposal.title || proposal.content.slice(0, 30)}
-                        </span>
-                        <time className="text-xs text-muted shrink-0" dateTime={proposal.createdAt}>
-                          {relativeTime(proposal.createdAt)}
-                        </time>
-                        {proposal.latitude && proposal.longitude && (
-                          <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
-                            📍
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                        {proposal.status === "accepted" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                            ✅ 채택됨
-                          </span>
-                        )}
-                        {/* 후보자 답변 뱃지 */}
-                        {proposal.responses && proposal.responses.length > 0 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                            ✅ 후보자 답변 완료
-                          </span>
-                        )}
-                      </div>
-                    </div>
+            {proposals.map((proposal, idx) => {
+              const isExpanded = expandedIds.has(proposal.id);
+              const showCandidateInfo = proposal.candidateId != null && proposal.candidate != null;
 
-                    {/* Content */}
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap line-clamp-5">
-                      {proposal.content}
-                    </p>
-
-                    {/* Actions */}
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        onClick={() => handleLike(proposal)}
-                        disabled={likePending.has(proposal.id)}
-                        aria-label={proposal.hasLiked ? "좋아요 취소" : "좋아요"}
-                        aria-pressed={proposal.hasLiked}
-                        className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
-                          proposal.hasLiked
-                            ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100 scale-105"
-                            : "bg-background text-muted border-border hover:text-foreground hover:bg-border/50"
-                        }`}
+              return (
+                <div
+                  key={proposal.id}
+                  id={proposal.id}
+                  className={`p-4 border rounded-xl bg-surface transition-shadow hover:shadow-sm ${
+                    showRankBadge && idx < 3
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-border"
+                  } ${highlightedId === proposal.id ? "ring-2 ring-primary" : ""}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Rank badge */}
+                    {showRankBadge && (
+                      <div className="pt-0.5 shrink-0">
+                        <RankBadge rank={idx + 1} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      {/* Header — clickable to toggle expand */}
+                      <div
+                        className="flex items-start justify-between gap-2 mb-1.5 cursor-pointer"
+                        onClick={() => toggleExpanded(proposal.id)}
+                        role="button"
+                        aria-expanded={isExpanded}
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(proposal.id); } }}
                       >
-                        <svg
-                          aria-hidden="true"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill={proposal.hasLiked ? "currentColor" : "none"}
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                        <span>{proposal.likeCount ?? 0}</span>
-                      </button>
-                      {/* Popularity score bar (shown in popular sort for top items) */}
-                      {showRankBadge && idx < 10 && (proposal.likeCount ?? 0) > 0 && (
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                            <div
-                              role="progressbar"
-                              aria-valuenow={proposal.likeCount ?? 0}
-                              aria-valuemin={0}
-                              aria-valuemax={proposals[0]?.likeCount ?? 1}
-                              aria-label="인기도"
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, ((proposal.likeCount ?? 0) / Math.max(proposals[0]?.likeCount ?? 1, 1)) * 100)}%`,
-                              }}
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                          {proposal.postType && (
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 inline-block"
+                              style={{ backgroundColor: proposal.postType === "민원" ? "#EF4444" : "#FACC15" }}
+                              title={proposal.postType}
                             />
+                          )}
+                          <span className="text-sm font-semibold text-foreground truncate">
+                            {proposal.title || proposal.content.slice(0, 30)}
+                          </span>
+                          <time className="text-xs text-muted shrink-0" dateTime={proposal.createdAt}>
+                            {relativeTime(proposal.createdAt)}
+                          </time>
+                          {proposal.latitude && proposal.longitude && (
+                            <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                              📍
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                          {proposal.status === "accepted" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                              ✅ 채택됨
+                            </span>
+                          )}
+                          {/* 후보자 답변 뱃지 */}
+                          {proposal.responses && proposal.responses.length > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              ✅ 후보자 답변 완료
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Author row (candidate info) */}
+                      {showCandidateInfo && (
+                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 overflow-hidden shrink-0 flex items-center justify-center">
+                            {proposal.candidate?.profileImage ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={proposal.candidate.profileImage}
+                                alt={proposal.candidate.name}
+                                width={28}
+                                height={28}
+                                className="object-cover w-full h-full"
+                              />
+                            ) : (
+                              <span className="text-lg leading-none">🏛️</span>
+                            )}
                           </div>
-                          <span className="text-[10px] text-muted shrink-0">
-                            {proposal.likeCount}표
+                          <span className="text-xs font-semibold text-blue-600">{proposal.candidate?.name}</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            후보자 작성
                           </span>
                         </div>
                       )}
+
+                      {/* Content — clickable to toggle expand */}
+                      <p
+                        className={`text-sm text-foreground leading-relaxed whitespace-pre-wrap cursor-pointer ${
+                          isExpanded ? "" : "line-clamp-2"
+                        }`}
+                        onClick={() => toggleExpanded(proposal.id)}
+                      >
+                        {proposal.content}
+                      </p>
+
+                      {/* Actions */}
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleLike(proposal); }}
+                          disabled={likePending.has(proposal.id)}
+                          aria-label={proposal.hasLiked ? "좋아요 취소" : "좋아요"}
+                          aria-pressed={proposal.hasLiked}
+                          className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
+                            proposal.hasLiked
+                              ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100 scale-105"
+                              : "bg-background text-muted border-border hover:text-foreground hover:bg-border/50"
+                          }`}
+                        >
+                          <svg
+                            aria-hidden="true"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill={proposal.hasLiked ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                          </svg>
+                          <span>{proposal.likeCount ?? 0}</span>
+                        </button>
+
+                        {/* Share button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleShare(proposal.id); }}
+                          aria-label="공유"
+                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-background text-muted hover:text-foreground hover:bg-border/50 transition-all"
+                        >
+                          <svg
+                            aria-hidden="true"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                            <polyline points="16 6 12 2 8 6"/>
+                            <line x1="12" y1="2" x2="12" y2="15"/>
+                          </svg>
+                          <span>{sharedId === proposal.id ? "복사됨!" : "공유"}</span>
+                        </button>
+
+                        {/* Popularity score bar (shown in popular sort for top items) */}
+                        {showRankBadge && idx < 10 && (proposal.likeCount ?? 0) > 0 && (
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                              <div
+                                role="progressbar"
+                                aria-valuenow={proposal.likeCount ?? 0}
+                                aria-valuemin={0}
+                                aria-valuemax={proposals[0]?.likeCount ?? 1}
+                                aria-label="인기도"
+                                className="h-full bg-primary rounded-full transition-all"
+                                style={{
+                                  width: `${Math.min(100, ((proposal.likeCount ?? 0) / Math.max(proposals[0]?.likeCount ?? 1, 1)) * 100)}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-muted shrink-0">
+                              {proposal.likeCount}표
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expanded sections */}
+                      {isExpanded && (
+                        <>
+                          {/* 민원에 대한 공약 제안 섹션 */}
+                          {proposal.postType === "민원" && (
+                            <PledgeProposalSection
+                              minwonId={proposal.id}
+                              minwonTitle={proposal.title || proposal.content.slice(0, 30)}
+                              isCandidate={isCandidate}
+                              candidateName={candidateName}
+                            />
+                          )}
+
+                          {/* 후보자 답변 섹션 */}
+                          <CandidateResponseSection
+                            proposalId={proposal.id}
+                            initialResponses={proposal.responses}
+                          />
+                        </>
+                      )}
                     </div>
-
-                    {/* 민원에 대한 공약 제안 섹션 */}
-                    {proposal.postType === "민원" && (
-                      <PledgeProposalSection
-                        minwonId={proposal.id}
-                        minwonTitle={proposal.title || proposal.content.slice(0, 30)}
-                        isCandidate={isCandidate}
-                        candidateName={candidateName}
-                      />
-                    )}
-
-                    {/* 후보자 답변 섹션 */}
-                    <CandidateResponseSection
-                      proposalId={proposal.id}
-                      initialResponses={proposal.responses}
-                    />
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {hasMore && (

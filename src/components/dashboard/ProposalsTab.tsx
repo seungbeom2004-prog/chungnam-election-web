@@ -29,6 +29,17 @@ interface PledgeProposalItem {
 interface Props {
   candidateId: string;
   candidateName?: string;
+  pinLat?: number | null;
+  pinLng?: number | null;
+}
+
+// ─── Haversine 거리 계산 ──────────────────────────────────────────────────────
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ─── 상태 설정 ───────────────────────────────────────────────────────────────
@@ -260,6 +271,11 @@ function MinwonCard({
             </span>
             <span className="text-sm font-medium text-foreground">{proposal.authorName}</span>
             <time className="text-xs text-muted">{relativeTime(proposal.createdAt)}</time>
+            {proposal.candidateId === candidateId && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-teal-500">
+                ✏️ 내가 쓴 글
+              </span>
+            )}
             {proposal.status === "accepted" && (
               <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">
                 ✅ 채택됨
@@ -428,6 +444,11 @@ function PledgeProposalCard({
             )}
             <span className="text-sm font-medium text-foreground">{item.authorName}</span>
             <time className="text-xs text-muted">{relativeTime(item.createdAt)}</time>
+            {isMine && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-teal-500">
+                ✏️ 내가 쓴 글
+              </span>
+            )}
             {item.status === "accepted" && (
               <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">
                 ✅ 채택됨
@@ -694,7 +715,7 @@ function CandidateProposalForm({
 // ─── 메인 탭 컴포넌트 ────────────────────────────────────────────────────────
 type TabKey = "minwon" | "visitor-proposal" | "candidate-proposal";
 
-export default function ProposalsTab({ candidateId, candidateName }: Props) {
+export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLng }: Props) {
   const { data: session } = useSession();
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const [activeTab, setActiveTab] = useState<TabKey>("minwon");
@@ -708,6 +729,13 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [replyToMinwon, setReplyToMinwon] = useState<ProposalPost | null>(null);
   const [proposalFormError, setProposalFormError] = useState<string | null>(null);
+
+  // ── 근처 게시물 ────────────────────────────────────────────────────────────
+  const [candidateLat, setCandidateLat] = useState<number | null>(pinLat ?? null);
+  const [candidateLng, setCandidateLng] = useState<number | null>(pinLng ?? null);
+  const [nearbyPosts, setNearbyPosts]   = useState<ProposalPost[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [showNearby, setShowNearby]     = useState(false);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -742,6 +770,45 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
     fetchPledgeProposals();
     fetchPledges();
   }, [fetchProposals, fetchPledgeProposals, fetchPledges]);
+
+  // 후보자 핀 좌표 페치 (props에 없을 경우)
+  useEffect(() => {
+    if (candidateLat != null && candidateLng != null) return;
+    fetch(`/api/candidates/${candidateId}`)
+      .then(r => r.json())
+      .then(json => {
+        const c = json.data ?? json;
+        if (c?.pinLat != null) setCandidateLat(c.pinLat);
+        if (c?.pinLng != null) setCandidateLng(c.pinLng);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateId]);
+
+  // 근처 게시물 페치
+  const fetchNearbyPosts = useCallback(async () => {
+    if (candidateLat == null || candidateLng == null) return;
+    setNearbyLoading(true);
+    try {
+      const res = await fetch(`/api/proposals?limit=50&sort=latest`);
+      const json = await res.json();
+      const all: ProposalPost[] = json.data ?? [];
+      type WithDist = ProposalPost & { _dist: number };
+      const withDist: WithDist[] = all
+        .filter(p => p.latitude != null && p.longitude != null)
+        .map(p => ({ ...p, _dist: distanceKm(candidateLat!, candidateLng!, p.latitude!, p.longitude!) }));
+      const nearby = withDist
+        .filter(p => p._dist <= 10)
+        .sort((a, b) => a._dist - b._dist)
+        .slice(0, 20);
+      setNearbyPosts(nearby);
+    } catch { /* ignore */ }
+    finally { setNearbyLoading(false); }
+  }, [candidateLat, candidateLng]);
+
+  useEffect(() => {
+    if (showNearby) fetchNearbyPosts();
+  }, [showNearby, fetchNearbyPosts]);
 
   const handleProposalAction = async (id: string, action: "accept" | "delete") => {
     if (actionPending.has(id)) return;
@@ -999,6 +1066,74 @@ export default function ProposalsTab({ candidateId, candidateName }: Props) {
                   onRefresh={fetchPledgeProposals}
                 />
               ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── 근처 게시물 섹션 ─────────────────────────────────────────────── */}
+      {candidateLat != null && candidateLng != null && (
+        <section className="border border-border rounded-xl bg-surface overflow-hidden">
+          <button
+            onClick={() => setShowNearby(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-background transition-colors"
+          >
+            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+              🗺️ 내 선거구 근처 게시물 (10km 이내)
+              {!nearbyLoading && nearbyPosts.length > 0 && (
+                <span className="text-[11px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  {nearbyPosts.length}
+                </span>
+              )}
+            </span>
+            <svg
+              className={`w-4 h-4 text-muted transition-transform ${showNearby ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showNearby && (
+            <div className="border-t border-border px-4 py-3">
+              {nearbyLoading ? (
+                <div className="flex justify-center py-6">
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : nearbyPosts.length === 0 ? (
+                <p className="text-sm text-muted text-center py-4">10km 반경 내 게시물이 없습니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  {nearbyPosts.map((p) => {
+                    const dist = p.latitude != null && p.longitude != null
+                      ? distanceKm(candidateLat!, candidateLng!, p.latitude, p.longitude)
+                      : null;
+                    return (
+                      <div key={p.id} className="flex items-start gap-2 p-2.5 rounded-lg border border-border hover:bg-background transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${
+                              p.postType === "민원" ? "bg-red-500" : "bg-blue-500"
+                            }`}>
+                              {p.postType === "민원" ? "📢 민원" : "💡 제안"}
+                            </span>
+                            <span className="text-xs text-muted">{relativeTime(p.createdAt)}</span>
+                          </div>
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {p.title || p.content.slice(0, 40)}
+                          </p>
+                          <p className="text-xs text-muted truncate">{p.authorName}</p>
+                        </div>
+                        {dist != null && (
+                          <span className="shrink-0 text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                            {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </section>

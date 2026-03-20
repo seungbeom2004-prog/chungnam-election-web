@@ -83,6 +83,7 @@ export const updateCandidateSchema = z.object({
   tiktok: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
   kakao: z.string().max(200, "200자 이내여야 합니다").optional().nullable(),
   naverBlog: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
+  donationUrl: z.string().url("올바른 URL을 입력하세요").optional().nullable(),
   contactEmail: z.string().email("올바른 이메일을 입력하세요").optional().nullable(),
   showPhone: z.boolean().optional(),
   showContactEmail: z.boolean().optional(),

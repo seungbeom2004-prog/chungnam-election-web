@@ -211,7 +211,7 @@ export default function DashboardSidebar() {
       </aside>
 
       {/* Mobile Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50">
         <div
           className="flex overflow-x-auto"
           style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}

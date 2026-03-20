@@ -115,6 +115,11 @@ export default function SettingsPage() {
     candidateStatus: "출마예정자" as string,
     caucusStatus: "공천 미확정" as string,
   });
+
+  // Donation URL
+  const [donationUrl, setDonationUrl] = useState("");
+  const [donationSaving, setDonationSaving] = useState(false);
+  const [donationMessage, setDonationMessage] = useState("");
   const [districts, setDistricts] = useState<DistrictOption[]>([]);
   const [elections, setElections] = useState<ElectionOption[]>([]);
   const [infoSaving, setInfoSaving] = useState(false);
@@ -154,6 +159,7 @@ export default function SettingsPage() {
         candidateStatus: data.candidateStatus || "출마예정자",
         caucusStatus: data.caucusStatus || "공천 미확정",
       });
+      setDonationUrl(data.donationUrl || "");
     });
   }, [unlocked, candidateId]);
 
@@ -204,6 +210,27 @@ export default function SettingsPage() {
     } else {
       const json = await res.json().catch(() => ({}));
       setInfoMessage(json.error || "저장에 실패했습니다.");
+    }
+  };
+
+  const handleDonationSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!candidateId) return;
+    setDonationSaving(true);
+    setDonationMessage("");
+
+    const res = await fetch(`/api/candidates/${candidateId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ donationUrl: donationUrl || null }),
+    });
+
+    setDonationSaving(false);
+    if (res.ok) {
+      setDonationMessage("저장되었습니다.");
+    } else {
+      const json = await res.json().catch(() => ({}));
+      setDonationMessage(json.error || "저장에 실패했습니다.");
     }
   };
 
@@ -422,6 +449,35 @@ export default function SettingsPage() {
 
           <Button type="submit" disabled={infoSaving}>
             {infoSaving ? "저장 중..." : "정보 저장"}
+          </Button>
+        </form>
+      </Card>
+
+      {/* Donation URL section */}
+      <Card className="mb-6">
+        <h2 className="text-base font-semibold text-foreground mb-4">후원</h2>
+        <form onSubmit={handleDonationSave} className="space-y-4">
+          <Input
+            label="후원회 링크"
+            value={donationUrl}
+            onChange={(e) => setDonationUrl(e.target.value)}
+            placeholder="https://..."
+          />
+
+          {donationMessage && (
+            <p
+              className={`text-sm px-3 py-2 rounded-lg ${
+                donationMessage.includes("실패") || donationMessage.includes("오류")
+                  ? "text-red-500 bg-red-50"
+                  : "text-green-600 bg-green-50"
+              }`}
+            >
+              {donationMessage}
+            </p>
+          )}
+
+          <Button type="submit" disabled={donationSaving}>
+            {donationSaving ? "저장 중..." : "저장"}
           </Button>
         </form>
       </Card>

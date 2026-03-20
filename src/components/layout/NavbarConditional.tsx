@@ -25,11 +25,13 @@ export function FooterConditional() {
   return <Footer />;
 }
 
-/** Persistent mobile bottom nav on all non-map, non-plain pages. */
+/** Persistent mobile bottom nav on all non-map, non-plain, non-dashboard pages. */
 export function MobileBottomNavConditional() {
   const pathname = usePathname();
   if (MAP_ROUTES.includes(pathname)) return null;
   if (PLAIN_ROUTES.includes(pathname)) return null;
+  // Dashboard and admin have their own mobile tab bar (DashboardSidebar)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
   return <MobileBottomNav />;
 }
 
@@ -41,6 +43,8 @@ export function MobileContentSpacer() {
   const pathname = usePathname();
   if (MAP_ROUTES.includes(pathname)) return null;
   if (PLAIN_ROUTES.includes(pathname)) return null;
+  // Dashboard manages its own bottom padding (pb-20 in layout.tsx)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
   return <div className="md:hidden h-14" aria-hidden="true" />;
 }
 

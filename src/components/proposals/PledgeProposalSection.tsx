@@ -3,6 +3,135 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 
+// ─── 수정 제안 폼 ─────────────────────────────────────────────────────────────
+function RevisionForm({
+  pledgeProposalId,
+  isCandidate,
+  candidateName,
+  originalTitle,
+  originalContent,
+  onSuccess,
+  onCancel,
+}: {
+  pledgeProposalId: string;
+  isCandidate: boolean;
+  candidateName?: string;
+  originalTitle: string;
+  originalContent: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle]               = useState(originalTitle);
+  const [content, setContent]           = useState(originalContent);
+  const [authorName, setAuthorName]     = useState(candidateName ?? "");
+  const [commitMessage, setCommitMessage] = useState("");
+  const [honeypot, setHoneypot]         = useState("");
+  const [submitting, setSubmitting]     = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (honeypot) return;
+    if (title.trim().length < 2) { setError("제목은 2자 이상 입력해주세요."); return; }
+    if (content.trim().length < 10) { setError("내용은 10자 이상 입력해주세요."); return; }
+    if (!isCandidate && authorName.trim().length < 2) { setError("이름은 2자 이상 입력해주세요."); return; }
+
+    let captchaToken: string | null = null;
+    if (!isCandidate && siteKey) {
+      captchaToken = await recaptchaRef.current?.executeAsync() ?? null;
+      recaptchaRef.current?.reset();
+      if (!captchaToken) { setError("보안 문자 인증에 실패했습니다. 다시 시도해주세요."); return; }
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/pledge-proposals/${pledgeProposalId}/revisions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+          authorName: isCandidate ? (candidateName ?? "후보자") : authorName.trim(),
+          commitMessage: commitMessage.trim() || undefined,
+          captchaToken: captchaToken ?? undefined,
+          honeypot,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? json.message ?? "수정 제안 등록에 실패했습니다."); return; }
+      onSuccess();
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 bg-violet-50 border border-violet-200 rounded-xl p-4 mt-2">
+      <input type="text" value={honeypot} onChange={(e) => setHoneypot(e.target.value)}
+        tabIndex={-1} aria-hidden="true" className="absolute opacity-0 pointer-events-none h-0 w-0" autoComplete="off" />
+
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xs font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">✏️ 수정 제안</span>
+      </div>
+
+      {!isCandidate && (
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">이름 <span className="text-red-500">*</span></label>
+          <input type="text" value={authorName} onChange={(e) => setAuthorName(e.target.value)}
+            maxLength={30} required placeholder="작성자 이름"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400" />
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-medium text-foreground mb-1">제목 <span className="text-red-500">*</span></label>
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          maxLength={80} required
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-foreground mb-1">내용 <span className="text-red-500">*</span></label>
+        <textarea value={content} onChange={(e) => setContent(e.target.value)}
+          maxLength={1000} required rows={4}
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400 resize-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-foreground mb-1">수정 이유 (선택)</label>
+        <input type="text" value={commitMessage} onChange={(e) => setCommitMessage(e.target.value)}
+          maxLength={200} placeholder="어떤 점을 수정했는지 간략히 설명해주세요"
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-400" />
+      </div>
+
+      {!isCandidate && siteKey && (
+        <ReCAPTCHA ref={recaptchaRef} size="invisible" sitekey={siteKey} />
+      )}
+
+      {error && (
+        <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+      )}
+
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel}
+          className="px-4 py-2 text-sm text-muted border border-border rounded-lg hover:bg-background transition-colors">
+          취소
+        </button>
+        <button type="submit" disabled={submitting}
+          className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+          {submitting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+          {submitting ? "등록 중..." : "수정 제안 등록"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 interface PledgeProposalItem {
   id: string;
   title: string;
@@ -179,10 +308,11 @@ export default function PledgeProposalSection({
   isCandidate = false,
   candidateName,
 }: Props) {
-  const [proposals, setProposals] = useState<PledgeProposalItem[]>([]);
-  const [loading, setLoading]     = useState(false);
-  const [showForm, setShowForm]   = useState(false);
-  const [expanded, setExpanded]   = useState(false);
+  const [proposals, setProposals]       = useState<PledgeProposalItem[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [showForm, setShowForm]         = useState(false);
+  const [expanded, setExpanded]         = useState(false);
+  const [revisionTargetId, setRevisionTargetId] = useState<string | null>(null);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -270,7 +400,7 @@ export default function PledgeProposalSection({
                 >
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     {pp.authorType === "candidate" ? (
-                      <span className="font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full text-[10px]">🏛️ 후보자</span>
+                      <span className="font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full text-[10px]">🏛️ 후보자의 공약 제안</span>
                     ) : (
                       <span className="font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full text-[10px]">🙋 방문자</span>
                     )}
@@ -286,6 +416,28 @@ export default function PledgeProposalSection({
                   </div>
                   <p className="font-semibold text-foreground mb-0.5">{pp.title}</p>
                   <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-4">{pp.content}</p>
+                  {/* 수정 제안하기 버튼 */}
+                  <button
+                    onClick={() => setRevisionTargetId(pp.id === revisionTargetId ? null : pp.id)}
+                    className="text-[10px] font-medium text-muted hover:text-purple-700 mt-1.5 flex items-center gap-1 transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    수정 제안하기
+                  </button>
+                  {revisionTargetId === pp.id && (
+                    <RevisionForm
+                      pledgeProposalId={pp.id}
+                      isCandidate={isCandidate}
+                      candidateName={candidateName}
+                      originalTitle={pp.title}
+                      originalContent={pp.content}
+                      onSuccess={() => { setRevisionTargetId(null); fetchProposals(); }}
+                      onCancel={() => setRevisionTargetId(null)}
+                    />
+                  )}
                 </div>
               ))}
             </div>

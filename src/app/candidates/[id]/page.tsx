@@ -38,7 +38,7 @@ export default async function CandidateProfilePage({ params }: Props) {
 
   const { data: candidate } = await supabase
     .from("Candidate")
-    .select("id, name, district, profileImage, slogan, bio, party, caucusStatus, candidateStatus, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog, phone, contactEmail, showPhone, showContactEmail")
+    .select("id, name, district, profileImage, slogan, bio, party, caucusStatus, candidateStatus, pinLat, pinLng, youtube, instagram, twitter, facebook, tiktok, kakao, naverBlog, donationUrl, phone, contactEmail, showPhone, showContactEmail")
     .eq("id", id)
     .single();
 
@@ -119,6 +119,7 @@ export default async function CandidateProfilePage({ params }: Props) {
     tiktok: candidate.tiktok ?? null,
     kakao: candidate.kakao ?? null,
     naverBlog: candidate.naverBlog ?? null,
+    donationUrl: (candidate as { donationUrl?: string | null }).donationUrl ?? null,
     articleUrl: (candidate as { articleUrl?: string | null }).articleUrl ?? null,
     articleTitle: (candidate as { articleTitle?: string | null }).articleTitle ?? null,
     phone: (candidate as { phone?: string | null }).phone ?? null,
