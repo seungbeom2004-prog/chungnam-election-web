@@ -4,11 +4,43 @@ import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createProposalSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 import { verifyRecaptcha } from "@/app/api/captcha/route";
 
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "reform-chungnam-salt";
+const DEFAULT_BANNED_REDIRECT = "https://check.junseok.kr/";
+
+/** Fetch banned words config from MapPinSettings (cached per cold-start) */
+let _bannedWordsCache: { words: string[]; redirectUrl: string; cachedAt: number } | null = null;
+const BANNED_CACHE_TTL_MS = 60_000; // 1 minute
+
+async function getBannedWordsConfig(): Promise<{ words: string[]; redirectUrl: string }> {
+  const now = Date.now();
+  if (_bannedWordsCache && now - _bannedWordsCache.cachedAt < BANNED_CACHE_TTL_MS) {
+    return { words: _bannedWordsCache.words, redirectUrl: _bannedWordsCache.redirectUrl };
+  }
+  try {
+    const { data } = await supabaseAdmin
+      .from("MapPinSettings")
+      .select("uiTexts")
+      .eq("id", "default")
+      .single();
+    const stored = (data as { uiTexts?: Record<string, unknown> } | null)?.uiTexts ?? {};
+    const words = Array.isArray(stored._bannedWords)
+      ? (stored._bannedWords as string[]).filter((w) => typeof w === "string" && w.length > 0)
+      : [];
+    const redirectUrl =
+      typeof stored._bannedWordRedirectUrl === "string" && stored._bannedWordRedirectUrl
+        ? (stored._bannedWordRedirectUrl as string)
+        : DEFAULT_BANNED_REDIRECT;
+    _bannedWordsCache = { words, redirectUrl, cachedAt: now };
+    return { words, redirectUrl };
+  } catch {
+    return { words: [], redirectUrl: DEFAULT_BANNED_REDIRECT };
+  }
+}
 
 function hashIp(ip: string): string {
   return crypto.createHash("sha256").update(ip + IP_HASH_SALT).digest("hex");
@@ -153,6 +185,25 @@ export async function POST(request: NextRequest) {
       const lower = validated.authorName.toLowerCase();
       if (RESERVED.some((r) => lower.includes(r.toLowerCase()))) {
         return apiError("사용할 수 없는 이름입니다.", 400);
+      }
+    }
+
+    // Banned word check (guests only — candidates and admins bypass)
+    if (!isAuthenticated) {
+      const { words: bannedWords, redirectUrl: bannedRedirectUrl } = await getBannedWordsConfig();
+      if (bannedWords.length > 0) {
+        const textToCheck = [
+          validated.title ?? "",
+          validated.content ?? "",
+          validated.authorName ?? "",
+        ].join(" ").toLowerCase();
+        const matched = bannedWords.some((w) => textToCheck.includes(w.toLowerCase()));
+        if (matched) {
+          return NextResponse.json(
+            { success: false, error: "이 내용은 등록할 수 없습니다.", redirectUrl: bannedRedirectUrl },
+            { status: 451 }
+          );
+        }
       }
     }
 

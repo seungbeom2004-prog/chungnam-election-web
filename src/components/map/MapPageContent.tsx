@@ -401,9 +401,27 @@ export default function MapPageContent() {
       if (p.title.toLowerCase().includes(q)) return true;
       if ((p.candidate?.name ?? "").toLowerCase().includes(q)) return true;
       if ((p.collaborators ?? []).some((c) => (c.candidate?.name ?? "").toLowerCase().includes(q))) return true;
+      // Also search body text fields
+      if ((p.description ?? "").toLowerCase().includes(q)) return true;
+      if ((p.background ?? "").toLowerCase().includes(q)) return true;
+      if ((p.plan ?? "").toLowerCase().includes(q)) return true;
+      if ((p.expectedEffect ?? "").toLowerCase().includes(q)) return true;
       return false;
     })
     .slice(0, PANEL_PLEDGES_LIMIT);
+
+  // Filtered proposals for panel list + map markers
+  const PANEL_PROPOSALS_LIMIT = 5;
+  const filteredProposals = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return proposals; // no search → show all on map
+    return proposals.filter((p) =>
+      p.title.toLowerCase().includes(q) ||
+      p.content.toLowerCase().includes(q) ||
+      p.authorName.toLowerCase().includes(q)
+    );
+  })();
+  const panelProposals = filteredProposals.slice(0, PANEL_PROPOSALS_LIMIT);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
@@ -848,6 +866,50 @@ export default function MapPageContent() {
                   </div>
                 )}
 
+                {/* ─ Proposals section — shown when search is active ─ */}
+                {searchQuery.trim() && (
+                  <>
+                    <div className="px-4 pt-4 pb-1 flex items-center justify-between sticky top-0 bg-surface/95 backdrop-blur-sm z-10 border-t border-border/50 mt-1">
+                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">불편 제보 / 공약 제안</span>
+                      <a href="/proposals" className="text-[10px] font-semibold hover:underline" style={{ color: primaryColor }}>전체 보기</a>
+                    </div>
+                    {panelProposals.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-muted text-center">검색 결과 없음</p>
+                    ) : (
+                      <div className="divide-y divide-border/40">
+                        {panelProposals.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => handleProposalClick(p)}
+                            className="w-full flex items-start gap-3 px-4 py-3 hover:bg-background/70 transition-colors text-left"
+                          >
+                            <span className="text-base shrink-0 mt-0.5 leading-none">{p.postType === "민원" ? "📢" : "💡"}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{p.title}</p>
+                              <p className="text-[11px] text-muted mt-0.5">
+                                <span className={`font-semibold ${p.postType === "민원" ? "text-red-600" : "text-yellow-700"}`}>
+                                  {p.postType === "민원" ? "불편 제보" : "공약 제안"}
+                                </span>
+                                {" · "}{p.authorName}
+                                {(p.likeCount ?? 0) > 0 && ` · ♥${p.likeCount}`}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                        {filteredProposals.length > PANEL_PROPOSALS_LIMIT && (
+                          <a
+                            href="/proposals"
+                            className="flex items-center justify-center gap-1 py-3 text-xs font-semibold hover:bg-primary/5 transition-colors border-t border-border/30"
+                            style={{ color: primaryColor }}
+                          >
+                            {filteredProposals.length - PANEL_PROPOSALS_LIMIT}건 더 보기 →
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {/* CTA — 민원/제안 유도 */}
                 <div className="mx-3 mb-3 mt-2 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-3">
                   <p className="text-[11px] font-bold text-foreground mb-0.5">혹시 집 앞 문제가 있나요?</p>
@@ -973,7 +1035,7 @@ export default function MapPageContent() {
             onCandidateClick={handleCandidateClick}
             onBylawGroupClick={handleBylawGroupClick}
             bylawGroups={bylawGroups}
-            proposals={proposals}
+            proposals={filteredProposals}
             onProposalClick={handleProposalClick}
             onProposalGroupClick={handleProposalGroupClick}
             isCute={isCute}

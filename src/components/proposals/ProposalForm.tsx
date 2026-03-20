@@ -158,6 +158,14 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
         return;
       }
 
+      // 451: banned word detected — redirect to the configured URL
+      if (res.status === 451) {
+        const json = await res.json().catch(() => ({}));
+        const redirectUrl = json.redirectUrl ?? "https://check.junseok.kr/";
+        window.location.href = redirectUrl;
+        return;
+      }
+
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         setError(json.error ?? "제출에 실패했습니다. 다시 시도해주세요.");

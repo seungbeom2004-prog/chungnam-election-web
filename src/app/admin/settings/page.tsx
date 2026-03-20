@@ -55,10 +55,51 @@ export default function AdminSettingsPage() {
   const [uiTextsSaving, setUITextsSaving] = useState(false);
   const [uiTextsMessage, setUITextsMessage] = useState("");
 
+  // Banned words state
+  const [bannedWords, setBannedWords] = useState<string[]>([]);
+  const [bannedWordInput, setBannedWordInput] = useState("");
+  const [bannedRedirectUrl, setBannedRedirectUrl] = useState("https://check.junseok.kr/");
+  const [bannedLoading, setBannedLoading] = useState(true);
+  const [bannedSaving, setBannedSaving] = useState(false);
+  const [bannedMessage, setBannedMessage] = useState("");
+
   // NEC sync state
   const [syncingDistricts, setSyncingDistricts] = useState(false);
   const [syncingWards, setSyncingWards] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+
+  const handleAddBannedWord = () => {
+    const word = bannedWordInput.trim();
+    if (!word || bannedWords.includes(word)) { setBannedWordInput(""); return; }
+    setBannedWords((prev) => [...prev, word]);
+    setBannedWordInput("");
+  };
+
+  const handleRemoveBannedWord = (word: string) => {
+    setBannedWords((prev) => prev.filter((w) => w !== word));
+  };
+
+  const handleSaveBannedWords = async () => {
+    setBannedMessage("");
+    setBannedSaving(true);
+    try {
+      const res = await fetch("/api/admin/banned-words", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bannedWords, redirectUrl: bannedRedirectUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setBannedMessage(json.error || "저장에 실패했습니다.");
+      } else {
+        setBannedMessage("금지어 설정이 저장되었습니다.");
+        setBannedWords(json.data?.bannedWords ?? bannedWords);
+      }
+    } catch {
+      setBannedMessage("네트워크 오류가 발생했습니다.");
+    }
+    setBannedSaving(false);
+  };
 
   const handleSyncDistricts = async () => {
     setSyncingDistricts(true);
@@ -125,6 +166,18 @@ export default function AdminSettingsPage() {
       .then((json) => { if (json.data) setUITexts(json.data); })
       .catch(() => {})
       .finally(() => setUITextsLoading(false));
+
+    // Fetch banned words config
+    fetch("/api/admin/banned-words")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.data) {
+          setBannedWords(json.data.bannedWords ?? []);
+          setBannedRedirectUrl(json.data.redirectUrl ?? "https://check.junseok.kr/");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setBannedLoading(false));
 
     // Fetch district list for the district picker
     fetch("/api/districts")
@@ -539,6 +592,100 @@ export default function AdminSettingsPage() {
               {uiTextsSaving ? "저장 중..." : "텍스트 설정 저장"}
             </Button>
           </form>
+        )}
+      </Card>
+
+      {/* Banned Words Card */}
+      <Card className="mt-6">
+        <h2 className="text-lg font-semibold text-foreground mb-1">금지어 설정</h2>
+        <p className="text-xs text-muted mb-4">
+          일반 방문자가 이 단어가 포함된 글을 제출하면 등록이 차단되고 지정된 URL로 이동됩니다.
+          후보자·관리자는 금지어 적용에서 제외됩니다.
+        </p>
+
+        {bannedLoading ? (
+          <div className="flex justify-center py-6">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Redirect URL */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                금지어 감지 시 이동 URL
+              </label>
+              <input
+                type="url"
+                value={bannedRedirectUrl}
+                onChange={(e) => setBannedRedirectUrl(e.target.value)}
+                placeholder="https://check.junseok.kr/"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors font-mono"
+              />
+              <p className="text-xs text-muted mt-1">금지어 포함 글 제출 시 이 URL로 즉시 이동됩니다</p>
+            </div>
+
+            {/* Add word input */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">금지어 추가</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={bannedWordInput}
+                  onChange={(e) => setBannedWordInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddBannedWord(); } }}
+                  placeholder="금지어 입력 후 Enter 또는 추가"
+                  className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddBannedWord}
+                  className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
+                >
+                  추가
+                </button>
+              </div>
+            </div>
+
+            {/* Word list */}
+            {bannedWords.length === 0 ? (
+              <p className="text-sm text-muted py-3 text-center border border-dashed border-border rounded-lg">
+                등록된 금지어가 없습니다
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2 p-3 border border-border rounded-lg bg-background min-h-[48px]">
+                {bannedWords.map((word) => (
+                  <span
+                    key={word}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200"
+                  >
+                    🚫 {word}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBannedWord(word)}
+                      className="text-red-400 hover:text-red-700 leading-none font-bold transition-colors"
+                      aria-label={`${word} 삭제`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {bannedMessage && (
+              <p className={`text-sm px-3 py-2 rounded-lg ${
+                bannedMessage.includes("실패") || bannedMessage.includes("오류")
+                  ? "text-red-500 bg-red-50"
+                  : "text-green-600 bg-green-50"
+              }`}>
+                {bannedMessage}
+              </p>
+            )}
+
+            <Button type="button" onClick={handleSaveBannedWords} disabled={bannedSaving}>
+              {bannedSaving ? "저장 중..." : "금지어 설정 저장"}
+            </Button>
+          </div>
         )}
       </Card>
 
