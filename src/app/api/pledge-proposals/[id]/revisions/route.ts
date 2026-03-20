@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const body = await req.json().catch(() => ({})) as {
     title?: string;
     content?: string;
+    authorName?: string;
     commitMessage?: string;
   };
 
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       revisionNumber: nextRevisionNumber,
       title: body.title.trim(),
       content: body.content.trim(),
-      authorName: user?.name ?? "익명",
+      authorName: user?.name ?? body.authorName?.trim() ?? "익명",
       authorType: isCandidate ? "candidate" : "visitor",
       candidateId: isCandidate ? (user?.id ?? null) : null,
       commitMessage: body.commitMessage?.trim() || null,

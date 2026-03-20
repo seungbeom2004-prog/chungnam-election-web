@@ -43,7 +43,7 @@ function RevisionForm({
     if (!isCandidate && siteKey) {
       captchaToken = await recaptchaRef.current?.executeAsync() ?? null;
       recaptchaRef.current?.reset();
-      if (!captchaToken) { setError("보안 문자 인증에 실패했습니다. 다시 시도해주세요."); return; }
+      // captchaToken이 null이어도 서버에서 검증하지 않으므로 계속 진행
     }
 
     setSubmitting(true);

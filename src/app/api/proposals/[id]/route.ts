@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
@@ -12,6 +13,16 @@ async function resolveProposal(proposalId: string) {
     .single();
   if (error || !data) return null;
   return data;
+}
+
+async function resolveProposalWithHash(proposalId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("ProposalPost")
+    .select("id, candidateId, status, passwordHash")
+    .eq("id", proposalId)
+    .single();
+  if (error || !data) return null;
+  return data as { id: string; candidateId: string | null; status: string; passwordHash: string | null };
 }
 
 async function canManage(
@@ -78,24 +89,40 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return apiError("로그인이 필요합니다", 401);
-    }
-
     const { id } = await params;
-    const proposal = await resolveProposal(id);
-    if (!proposal) {
-      return apiError("제안을 찾을 수 없습니다", 404);
-    }
 
-    const user = session.user as { id: string; role?: string };
-    if (!(await canManage({ user }, proposal))) {
-      return apiError("권한이 없습니다", 403);
+    if (session) {
+      // Authenticated: admin or candidate owner can delete
+      const proposal = await resolveProposal(id);
+      if (!proposal) return apiError("제안을 찾을 수 없습니다", 404);
+
+      const user = session.user as { id: string; role?: string };
+      if (!(await canManage({ user }, proposal))) {
+        return apiError("권한이 없습니다", 403);
+      }
+    } else {
+      // Guest: password-based deletion
+      const body = await request.json().catch(() => ({})) as { password?: string };
+      if (!body.password) {
+        return apiError("비밀번호를 입력해주세요", 401);
+      }
+
+      const proposal = await resolveProposalWithHash(id);
+      if (!proposal) return apiError("제안을 찾을 수 없습니다", 404);
+
+      if (!proposal.passwordHash) {
+        return apiError("이 게시글은 비밀번호 삭제를 지원하지 않습니다", 403);
+      }
+
+      const valid = await bcrypt.compare(body.password, proposal.passwordHash);
+      if (!valid) {
+        return apiError("비밀번호가 올바르지 않습니다", 401);
+      }
     }
 
     const now = new Date().toISOString();

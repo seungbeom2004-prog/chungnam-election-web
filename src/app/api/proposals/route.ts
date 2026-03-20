@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -236,13 +237,19 @@ export async function POST(request: NextRequest) {
     const {
       honeypot: _h,
       captchaToken: _ct,
-      password: _pw,
+      password: rawPassword,
       title,
       latitude,
       longitude,
       postType,
       ...baseInsert
     } = validated;
+
+    // Hash password for guest posts so they can delete later
+    const passwordHash =
+      !isAuthenticated && rawPassword && rawPassword.length > 0
+        ? await bcrypt.hash(rawPassword, 10)
+        : null;
 
     // For logged-in users: override authorName and candidateId from session
     if (isAdmin) {
@@ -272,6 +279,7 @@ export async function POST(request: NextRequest) {
       postType: postType ?? "제안",
       ipHash,
       status: "pending",
+      ...(passwordHash ? { passwordHash } : {}),
     };
 
     let { data: proposal, error } = await supabase
