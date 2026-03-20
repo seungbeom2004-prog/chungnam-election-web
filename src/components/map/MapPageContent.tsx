@@ -442,10 +442,10 @@ export default function MapPageContent() {
     fetch("/api/proposals?limit=200&hasLocation=true")
       .then((r) => r.json())
       .then((json) => {
-        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string; createdAt?: string }> = json.data ?? json ?? [];
+        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string; createdAt?: string; candidateId?: string | null; candidate?: { id: string; name: string } | null }> = json.data ?? json ?? [];
         const items: ProposalMapItem[] = data
           .filter((p) => p.latitude != null && p.longitude != null)
-          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType, createdAt: p.createdAt }));
+          .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType, createdAt: p.createdAt, candidateId: p.candidateId ?? null, candidateName: p.candidate?.name ?? null }));
         setProposals(items);
       })
       .catch(console.error);
@@ -979,6 +979,7 @@ export default function MapPageContent() {
             isCute={isCute}
             selectedCategory={selectedCategory}
             selectedPledgeId={selectedPledge?.id ?? null}
+            selectedProposalId={selectedProposal?.id ?? null}
             resizeTrigger={mapResizeTrigger}
           />
         ) : (
@@ -1395,12 +1396,19 @@ export default function MapPageContent() {
                   <span className="text-base">{selectedProposal.postType === "민원" ? "📢" : "💡"}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span
-                    className="text-xs font-bold"
-                    style={{ color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309" }}
-                  >
-                    {selectedProposal.postType === "민원" ? "불편 제보" : "공약 제안"}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className="text-xs font-bold"
+                      style={{ color: selectedProposal.postType === "민원" ? "#EF4444" : "#B45309" }}
+                    >
+                      {selectedProposal.postType === "민원" ? "불편 제보" : "공약 제안"}
+                    </span>
+                    {selectedProposal.candidateId && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        후보자 작성
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm font-bold text-foreground truncate leading-snug mt-0.5">{selectedProposal.title}</p>
                   <p className="text-[11px] text-muted mt-0.5">
                     {selectedProposal.authorName} · ♥ {selectedProposal.likeCount}

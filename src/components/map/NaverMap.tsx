@@ -17,6 +17,8 @@ export interface ProposalMapItem {
   likeCount: number;
   postType?: string;
   createdAt?: string;
+  candidateId?: string | null;
+  candidateName?: string | null;
 }
 
 interface NaverMapProps {
@@ -35,6 +37,8 @@ interface NaverMapProps {
   selectedCategory?: string;
   /** ID of the currently selected pledge — shows a highlight ring on the map. */
   selectedPledgeId?: string | null;
+  /** ID of the currently selected proposal — renders full marker instead of dot. */
+  selectedProposalId?: string | null;
   /**
    * Increment this value whenever the map container's CSS size changes
    * (e.g. sidebar open/close). NaverMap will fire a resize event on the SDK
@@ -352,7 +356,7 @@ function buildBylawMarkerHTML(cityName: string, count: number): string {
 
 // Naver zoom threshold: labels visible only when zoomed in enough
 // Show proposal icon+label only at very high zoom; below this they are dots
-const PROPOSAL_LABEL_ZOOM = 16;
+const PROPOSAL_LABEL_ZOOM = 15;
 // City-center proximity threshold (degrees) for grouping proposals with council pins
 const CITY_CENTER_THRESHOLD = 0.005;
 
@@ -370,19 +374,23 @@ function isAtCityCenter(lat: number, lng: number): string | null {
 function buildProposalDotHTML(postType?: string): string {
   const color = postType === "민원" ? "#EF4444" : "#FACC15";
   return (
-    `<div style="width:10px;height:10px;border-radius:50%;background:${color};` +
+    `<div style="width:20px;height:20px;border-radius:50%;background:${color};` +
     `border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);cursor:pointer;` +
     `animation:markerFadeIn 0.15s ease-out both;"></div>`
   );
 }
 
-function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string): string {
+function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
   const textColor = isMinwon ? "white" : "#111";
   const shadowColor = isMinwon ? "rgba(239,68,68,0.45)" : "rgba(250,204,21,0.55)";
   const truncated = title.length > 8 ? title.slice(0, 8) + "…" : title;
   const likeStr = likeCount > 0 ? ` ♥${likeCount}` : "";
+  const candidateBadge = candidateId
+    ? `<div style="margin-top:2px;background:#3B82F6;color:white;font-size:8px;font-weight:700;` +
+      `padding:1px 5px;border-radius:4px;white-space:nowrap;">후보자 작성</div>`
+    : "";
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
@@ -401,6 +409,7 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     `<div style="margin-top:3px;background:${color};color:${textColor};font-size:9px;font-weight:700;` +
     `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);">` +
     `${escapeHtml(truncated)}${likeStr}</div>` +
+    candidateBadge +
     `</div>`
   );
 }
@@ -451,6 +460,7 @@ export default function NaverMap({
   isCute = false,
   selectedCategory = "all",
   selectedPledgeId = null,
+  selectedProposalId = null,
   resizeTrigger = 0,
 }: NaverMapProps) {
   const mapRef         = useRef<HTMLDivElement>(null);
@@ -963,9 +973,11 @@ export default function NaverMap({
   const proposalsRef            = useRef(proposals);
   const onProposalClickRef      = useRef(onProposalClick);
   const onProposalGroupClickRef = useRef(onProposalGroupClick);
+  const selectedProposalIdRef   = useRef(selectedProposalId);
   useEffect(() => { proposalsRef.current            = proposals;            }, [proposals]);
   useEffect(() => { onProposalClickRef.current      = onProposalClick;      }, [onProposalClick]);
   useEffect(() => { onProposalGroupClickRef.current = onProposalGroupClick; }, [onProposalGroupClick]);
+  useEffect(() => { selectedProposalIdRef.current   = selectedProposalId;   }, [selectedProposalId]);
 
   const addProposalMarkers = useCallback(
     (map: naver.maps.Map) => {
@@ -1020,11 +1032,13 @@ export default function NaverMap({
       }
 
       // ── Render individual proposals (zoom-based: dot vs icon+label) ─────
+      const selectedId = selectedProposalIdRef.current;
       for (const proposal of individualItems) {
-        const markerHtml = showLabel
-          ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType)
+        const isSelected = selectedId === proposal.id;
+        const markerHtml = (showLabel || isSelected)
+          ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId)
           : buildProposalDotHTML(proposal.postType);
-        const anchor = showLabel ? new naver.maps.Point(20, 52) : new naver.maps.Point(5, 5);
+        const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
         const marker = new naver.maps.Marker({
           map,
           position: new naver.maps.LatLng(proposal.latitude, proposal.longitude),
@@ -1306,11 +1320,17 @@ export default function NaverMap({
     addBylawMarkers(mapInstance.current);
   }, [bylawGroups, addBylawMarkers]);
 
-  // Refresh proposal markers when proposals prop changes
+  // Refresh proposal markers when proposals prop or selected proposal changes
   useEffect(() => {
     if (!mapInstance.current) return;
     addProposalMarkers(mapInstance.current);
   }, [proposals, addProposalMarkers]);
+
+  // Re-render proposal markers when selectedProposalId changes (dot→full marker)
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    addProposalMarkersRef.current(mapInstance.current);
+  }, [selectedProposalId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show / update selection highlight ring when selectedPledgeId changes
   useEffect(() => {

@@ -108,18 +108,18 @@ export default function ProposalMapEmbed({ items, onMarkerClick }: Props) {
       const content = isMultiple
         ? // Stack badge for multiple items at same coordinate
           `<div style="position:relative;cursor:pointer;">` +
-          `<div style="width:66px;height:66px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">` +
-          `<span style="font-size:22px;font-weight:800;color:${first.postType === "민원" ? "white" : "#1F2937"};">${group.length}</span>` +
+          `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:1.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">` +
+          `<span style="font-size:9px;font-weight:800;color:${first.postType === "민원" ? "white" : "#1F2937"};">${group.length}</span>` +
           `</div></div>`
         : // Single dot
-          `<div style="width:42px;height:42px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;"></div>`;
+          `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:1.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);cursor:pointer;"></div>`;
 
       const marker = new n.maps.Marker({
         position: new n.maps.LatLng(first.latitude, first.longitude),
         map: mapRef.current,
         icon: {
           content,
-          anchor: new n.maps.Point(isMultiple ? 33 : 21, isMultiple ? 33 : 21),
+          anchor: new n.maps.Point(isMultiple ? 11 : 7, isMultiple ? 11 : 7),
         },
       });
 
