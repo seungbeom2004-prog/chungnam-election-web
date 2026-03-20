@@ -26,6 +26,9 @@ export default async function ProposalsPage() {
     .select("id, name, district")
     .eq("verified", true)
     .eq("role", "candidate")
+    // 공천 확정 + 예비후보자/후보자 상태인 경우만 공개 노출
+    .eq("caucusStatus", "공천 확정")
+    .in("candidateStatus", ["예비후보자", "후보자"])
     .order("name", { ascending: true })
     .limit(500);
 

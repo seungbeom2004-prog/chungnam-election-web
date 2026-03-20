@@ -60,7 +60,7 @@ export default function CityView({ district }: Props) {
   // Fetch candidates for this district
   useEffect(() => {
     fetch(
-      `/api/candidates?limit=200&district=${encodeURIComponent(district.name)}`
+      `/api/candidates?limit=200&eligible=true&district=${encodeURIComponent(district.name)}`
     )
       .then((res) => res.json())
       .then((json) => {

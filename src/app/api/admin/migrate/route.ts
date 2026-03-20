@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Try using pg directly
     const { Client } = await import("pg");
-    const dbUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+    // Prefer DATABASE_URL (pooler) — DIRECT_URL often fails DNS from Vercel serverless
+    const dbUrl = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
     if (!dbUrl) return apiError("DATABASE_URL not set", 500);
 
     const client = new Client({
