@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { ProposalPost } from "@/types";
 import ProposalForm from "./ProposalForm";
 
@@ -412,6 +413,20 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                           </svg>
                           <span>{sharedId === proposal.id ? "복사됨!" : "공유"}</span>
                         </button>
+
+                        {/* Detail page link */}
+                        <Link
+                          href={`/proposals/${proposal.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-background text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
+                        >
+                          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                          </svg>
+                          <span>상세보기</span>
+                        </Link>
 
                         {/* Popularity score bar (shown in popular sort for top items) */}
                         {showRankBadge && idx < 10 && (proposal.likeCount ?? 0) > 0 && (
