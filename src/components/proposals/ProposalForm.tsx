@@ -63,8 +63,9 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       setIssueId(urlIssueId);
       fetch(`/api/issues/${urlIssueId}`)
         .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.title) setIssueName(data.title);
+        .then((json) => {
+          const title = json?.data?.title ?? json?.title;
+          if (title) setIssueName(title);
         })
         .catch(() => {});
     }
