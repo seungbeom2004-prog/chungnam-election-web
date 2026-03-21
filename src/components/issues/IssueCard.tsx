@@ -94,11 +94,11 @@ export default function IssueCard({ issue }: IssueCardProps) {
         <div className="flex items-center justify-between text-xs text-muted mt-auto pt-2 border-t border-border">
           <div className="flex items-center gap-3">
             <span className={`font-semibold ${isHot ? "text-orange-500" : ""}`}>
-              {isHot ? "\uD83D\uDD25" : "\uD83D\uDCE2"} {issue.reportCount}명 제보
+              {isHot ? "🔥" : "📢"} {issue.reportCount}명 제보
             </span>
             {location && (
               <span className="text-muted">
-                \uD83D\uDCCD {location}
+                📍 {location}
               </span>
             )}
           </div>

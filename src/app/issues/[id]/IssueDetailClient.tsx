@@ -162,10 +162,10 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
           </span>
         )}
         {location && (
-          <span className="text-sm text-muted">{"\uD83D\uDCCD"} {location}</span>
+          <span className="text-sm text-muted">📍 {location}</span>
         )}
         <span className="text-sm font-semibold text-orange-500">
-          {"\uD83D\uDD25"} {issue.reportCount}명 제보
+          🔥 {issue.reportCount}명 제보
         </span>
       </div>
 
@@ -254,7 +254,7 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
           href={`/proposals?issueId=${issue.id}`}
           className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-colors shadow-sm"
         >
-          {"\uD83D\uDD25"} 나도 이 문제!
+          🔥 나도 이 문제!
         </Link>
         <p className="text-xs text-muted mt-2">
           같은 문제를 겪고 계신다면, 제보를 남겨주세요

@@ -130,7 +130,7 @@ export default function IssueStatsPage() {
       {/* TOP issues */}
       <section>
         <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          <span className="text-2xl">{"\uD83D\uDD25"}</span> 이번 주 TOP 이슈
+          <span className="text-2xl">🔥</span> 이번 주 TOP 이슈
         </h2>
         <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
           {data.topIssues.map((issue, idx) => {
@@ -169,8 +169,8 @@ export default function IssueStatsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted">
-                    {location && <span>{"\uD83D\uDCCD"} {location}</span>}
-                    <span>{"\uD83D\uDCE2"} {issue.reportCount}명 제보</span>
+                    {location && <span>📍 {location}</span>}
+                    <span>📢 {issue.reportCount}명 제보</span>
                   </div>
                   {/* Bar */}
                   <div className="mt-1.5 h-1.5 bg-background rounded-full overflow-hidden">
@@ -194,7 +194,7 @@ export default function IssueStatsPage() {
       {/* City breakdown */}
       <section>
         <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          <span className="text-2xl">{"\uD83D\uDDFA\uFE0F"}</span> 지역별 이슈 분포
+          <span className="text-2xl">🗺️</span> 지역별 이슈 분포
         </h2>
         <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
           {data.cityBreakdown.map((item) => {
@@ -225,7 +225,7 @@ export default function IssueStatsPage() {
       {/* Category breakdown */}
       <section>
         <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          <span className="text-2xl">{"\uD83D\uDCCA"}</span> 카테고리별 분포
+          <span className="text-2xl">📊</span> 카테고리별 분포
         </h2>
         <div className="bg-surface border border-border rounded-2xl p-5">
           <div className="flex flex-wrap gap-3">
@@ -254,7 +254,7 @@ export default function IssueStatsPage() {
       {/* Recent issues */}
       <section>
         <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          <span className="text-2xl">{"\uD83D\uDD54"}</span> 최근 등록 이슈
+          <span className="text-2xl">🕔</span> 최근 등록 이슈
         </h2>
         <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
           {data.recentIssues.map((issue) => {
@@ -278,7 +278,7 @@ export default function IssueStatsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted shrink-0 ml-3">
-                  {location && <span className="hidden sm:inline">{"\uD83D\uDCCD"} {location}</span>}
+                  {location && <span className="hidden sm:inline">📍 {location}</span>}
                   <span>{getRelativeTime(issue.createdAt)}</span>
                 </div>
               </Link>
