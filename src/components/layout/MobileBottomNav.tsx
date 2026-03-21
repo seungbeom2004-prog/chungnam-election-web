@@ -98,7 +98,7 @@ export default function MobileBottomNav() {
             label="지도"
             active={pathname === "/" || pathname === "/regular" || pathname === "/cute"}
           />
-          <NavItem href="/proposals" icon={<IconBulb />} label="제보/제안" active={pathname.startsWith("/proposals")} />
+          <NavItem href="/proposals" icon={<IconBulb />} label="제보/이슈" active={pathname.startsWith("/proposals") || pathname.startsWith("/issues")} />
           <NavItem href="/pledges" icon={<IconClipboard />} label="공약" active={pathname.startsWith("/pledges")} />
           <NavItem href="/about" icon={<IconUsers />} label="소개" active={pathname.startsWith("/about") || pathname.startsWith("/candidates")} />
           <button

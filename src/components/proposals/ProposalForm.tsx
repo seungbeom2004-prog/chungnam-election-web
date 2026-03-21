@@ -11,6 +11,12 @@ import IssueSimilarSuggestion from "@/components/issues/IssueSimilarSuggestion";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: false });
 
+interface AiSuggestion {
+  issueId: string;
+  title: string;
+  confidence: number;
+}
+
 interface Props {
   candidateId?: string;
   city?: string;
@@ -49,6 +55,10 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  // AI
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
 
   const searchParams = useSearchParams();
 
@@ -426,6 +436,52 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
         />
       </div>
+
+      {/* AI Issue Suggest — shown when content is long enough and no issue selected */}
+      {!issueId && content.length > 20 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              setAiSuggestLoading(true);
+              setAiSuggestions([]);
+              try {
+                const res = await fetch("/api/ai/suggest-issue", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: `${title}\n${content}`, city: selectedCity || undefined }),
+                });
+                if (res.ok) {
+                  const json = await res.json();
+                  setAiSuggestions(json.suggestions ?? []);
+                }
+              } catch { /* silent */ }
+              finally { setAiSuggestLoading(false); }
+            }}
+            disabled={aiSuggestLoading}
+            className="px-3 py-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+          >
+            {aiSuggestLoading ? "AI 분석 중..." : "🤖 AI 이슈 추천"}
+          </button>
+          {aiSuggestions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {aiSuggestions.map((s) => (
+                <button
+                  key={s.issueId}
+                  type="button"
+                  onClick={() => { setIssueId(s.issueId); setIssueName(s.title); setAiSuggestions([]); }}
+                  className="px-2 py-1 text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full hover:bg-indigo-100 transition-colors"
+                >
+                  {s.title} ({s.confidence}%)
+                </button>
+              ))}
+            </div>
+          )}
+          {aiSuggestions.length === 0 && !aiSuggestLoading && aiSuggestLoading === false && content.length > 20 && (
+            <span className="text-[10px] text-muted">내용을 바탕으로 관련 이슈를 AI가 추천합니다</span>
+          )}
+        </div>
+      )}
 
       {/* Detailed location (optional) — only available after city is selected */}
       {selectedCity && (

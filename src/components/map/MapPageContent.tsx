@@ -1067,6 +1067,18 @@ export default function MapPageContent() {
               <IconPerson size={12} />
               <span className="whitespace-nowrap">후보자 {filteredCandidates.length}명</span>
             </button>
+
+            <button
+              onClick={() => setLayerSettingsOpen((o) => !o)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border shadow-sm transition-colors ${
+                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap || showHeatmap
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
+              }`}
+            >
+              <span>🗂️</span>
+              <span>설정</span>
+            </button>
           </div>
         </div>
 
@@ -1340,6 +1352,62 @@ export default function MapPageContent() {
                     {selectedCategory === id && <span className="text-primary text-sm font-bold ml-1">✓</span>}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Mobile Layer Settings Popup ──────────────────────────────── */}
+        {layerSettingsOpen && (
+          <div className="md:hidden fixed inset-0 z-50" onClick={() => setLayerSettingsOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <h2 className="font-bold text-foreground text-lg">🗂️ 지도 설정</h2>
+                <button onClick={() => setLayerSettingsOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-background text-muted text-xl leading-none" aria-label="닫기">×</button>
+              </div>
+              <div className="p-4 space-y-2">
+                <p className="text-xs font-bold text-muted mb-1">핀 표시</p>
+                {[
+                  { key: "minwon", label: "불편 제보", emoji: "📢", color: "#EF4444", value: showMinwon, set: setShowMinwon },
+                  { key: "proposal", label: "공약 제안", emoji: "💡", color: "#FACC15", value: showProposal, set: setShowProposal },
+                  { key: "pledge", label: "정식 공약", emoji: "📌", color: "#FF5A00", value: showPledge, set: setShowPledge },
+                ].map(({ key, label, emoji, color, value, set }) => (
+                  <button
+                    key={key}
+                    onClick={() => set((v: boolean) => !v)}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-colors ${value ? "bg-background" : "opacity-50 bg-background/50"}`}
+                  >
+                    <span className="w-5 h-5 rounded-full border-2 border-white shadow-sm shrink-0" style={{ backgroundColor: value ? color : "#9CA3AF" }} />
+                    <span className="text-base">{emoji}</span>
+                    <span className={`flex-1 text-left font-medium ${value ? "text-foreground" : "text-muted"}`}>{label}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${value ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{value ? "ON" : "OFF"}</span>
+                  </button>
+                ))}
+                <p className="text-xs font-bold text-muted mt-3 mb-1">지도 스타일</p>
+                <button
+                  onClick={() => setDarkMap((v) => !v)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-colors ${darkMap ? "bg-gray-900 text-white" : "bg-background text-foreground"}`}
+                >
+                  <span className="text-base">{darkMap ? "🌙" : "☀️"}</span>
+                  <span className="flex-1 text-left font-medium">{darkMap ? "다크 모드" : "라이트 모드"}</span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${darkMap ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>{darkMap ? "ON" : "OFF"}</span>
+                </button>
+                <button
+                  onClick={() => setShowHeatmap((v) => !v)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-colors ${showHeatmap ? "bg-red-50 text-red-700" : "bg-background text-foreground"}`}
+                >
+                  <span className="text-base">🌡️</span>
+                  <span className="flex-1 text-left font-medium">밀도 히트맵</span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${showHeatmap ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-500"}`}>{showHeatmap ? "ON" : "OFF"}</span>
+                </button>
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <FontSizeCompact horizontal />
+                </div>
               </div>
             </div>
           </div>
