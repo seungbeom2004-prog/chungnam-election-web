@@ -36,14 +36,6 @@ const IconClipboard = () => (
   </svg>
 );
 
-const IconChart = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 20V10" />
-    <path d="M12 20V4" />
-    <path d="M6 20v-6" />
-  </svg>
-);
-
 const IconUsers = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -188,7 +180,7 @@ export default function Navbar() {
 
   // Prefetch main routes on mount for instant navigation
   useEffect(() => {
-    const routes = ["/", "/regular", "/cute", "/proposals", "/issues", "/pledges", "/about"];
+    const routes = ["/", "/regular", "/cute", "/proposals", "/pledges", "/about"];
     routes.forEach((r) => router.prefetch(r));
   }, [router]);
 
@@ -199,8 +191,7 @@ export default function Navbar() {
   };
 
   const isMap = pathname === "/" || pathname === "/regular" || pathname === "/cute";
-  const isProposals = pathname.startsWith("/proposals");
-  const isIssues = pathname.startsWith("/issues");
+  const isProposals = pathname.startsWith("/proposals") || pathname.startsWith("/issues");
   const isPledges = pathname.startsWith("/pledges");
   const isAbout = pathname.startsWith("/about") || pathname.startsWith("/candidates");
 
@@ -223,8 +214,7 @@ export default function Navbar() {
 
         {/* Nav items */}
         <RailNavItem href="/" icon={<IconMapPin />} label="공약지도" active={isMap} />
-        <RailNavItem href="/proposals" icon={<IconBulb />} label="제보/제안" active={isProposals} />
-        <RailNavItem href="/issues" icon={<IconChart />} label="이슈" active={isIssues} />
+        <RailNavItem href="/proposals" icon={<IconBulb />} label="제보/이슈" active={isProposals} />
         <RailNavItem href="/pledges" icon={<IconClipboard />} label="공약" active={isPledges} />
         <RailNavItem href="/about" icon={<IconUsers />} label="후보자" active={isAbout} />
 

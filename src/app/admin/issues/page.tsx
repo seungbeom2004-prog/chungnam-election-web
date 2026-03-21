@@ -14,7 +14,7 @@ interface Issue {
   reportCount: number;
   status: string;
   adminStatus: string | null;
-  assignedPosts?: { id: string; title: string | null; content: string; authorName: string }[];
+  assignedPosts?: { id: string; title: string | null; content: string; authorName: string; postType?: string }[];
   createdAt: string;
 }
 
@@ -23,6 +23,8 @@ interface Post {
   title: string | null;
   content: string;
   authorName: string;
+  postType?: string;
+  issueId?: string | null;
   createdAt: string;
 }
 
@@ -60,9 +62,13 @@ export default function AdminIssuesPage() {
   const [editTarget, setEditTarget] = useState<Issue | null>(null);
   const [editForm, setEditForm] = useState({ title: "", summary: "", category: "", city: "", dong: "", status: "" });
   const [editLoading, setEditLoading] = useState(false);
+  const [editTab, setEditTab] = useState<"info" | "posts">("info");
 
   // Admin status
   const [adminStatusLoading, setAdminStatusLoading] = useState<string | null>(null);
+
+  // Delete
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
   // Assign posts
   const [assignTarget, setAssignTarget] = useState<Issue | null>(null);
@@ -70,6 +76,13 @@ export default function AdminIssuesPage() {
   const [postSearch, setPostSearch] = useState("");
   const [postsLoading, setPostsLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState<string | null>(null);
+
+  // Inline expand for assigned posts
+  const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
+
+  // AI summary
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiCategoryLoading, setAiCategoryLoading] = useState(false);
 
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -82,11 +95,9 @@ export default function AdminIssuesPage() {
       const res = await fetch("/api/admin/issues");
       const json = await res.json();
       let data: Issue[] = json.data ?? json ?? [];
-      // Filter
       if (filter !== "all") {
         data = data.filter((i) => i.status === filter);
       }
-      // Sort by reportCount desc
       data.sort((a, b) => (b.reportCount ?? 0) - (a.reportCount ?? 0));
       setIssues(data);
     } catch {
@@ -104,13 +115,36 @@ export default function AdminIssuesPage() {
   const fetchPosts = async () => {
     setPostsLoading(true);
     try {
-      const res = await fetch("/api/admin/proposals?limit=100");
+      const res = await fetch("/api/admin/proposals?limit=200");
       const json = await res.json();
       setPosts(json.data ?? []);
     } catch {
       showMessage("게시물을 불러오지 못했습니다.");
     } finally {
       setPostsLoading(false);
+    }
+  };
+
+  // ── Delete Issue ────────────────────────────────────────────────
+  const deleteIssue = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm("이 이슈를 삭제(보관)하시겠습니까?\n연결된 게시물의 이슈 배정은 해제됩니다.")) return;
+    setDeleteLoading(id);
+    try {
+      const res = await fetch(`/api/admin/issues/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showMessage("이슈가 삭제(보관)되었습니다.");
+        setEditTarget(null);
+        setAssignTarget(null);
+        fetchIssues();
+      } else {
+        const json = await res.json();
+        showMessage(json.error ?? "삭제에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -160,7 +194,7 @@ export default function AdminIssuesPage() {
       dong: issue.dong ?? "",
       status: issue.status,
     });
-    // Also load assign section
+    setEditTab("info");
     setAssignTarget(issue);
     fetchPosts();
   };
@@ -210,6 +244,7 @@ export default function AdminIssuesPage() {
         const step = ADMIN_STATUS_STEPS.find((s) => s.value === adminStatus);
         showMessage(`처리 단계를 "${step?.label ?? "검토중"}"으로 변경했습니다.`);
         setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, adminStatus } : i)));
+        if (editTarget?.id === id) setEditTarget((prev) => prev ? { ...prev, adminStatus } : prev);
       } else {
         showMessage("단계 변경에 실패했습니다.");
       }
@@ -221,26 +256,31 @@ export default function AdminIssuesPage() {
   };
 
   // ── Assign / Unassign Posts ───────────────────────────────────────
-  const assignPost = async (postId: string) => {
-    if (!assignTarget) return;
+  const refreshAssignTarget = async (issueId: string) => {
+    const issueRes = await fetch("/api/admin/issues");
+    const issueJson = await issueRes.json();
+    const allIssues: Issue[] = issueJson.data ?? issueJson ?? [];
+    const updated = allIssues.find((i) => i.id === issueId);
+    if (updated) {
+      setAssignTarget(updated);
+      setEditTarget((prev) => prev?.id === updated.id ? updated : prev);
+      setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    }
+  };
+
+  const assignPost = async (postId: string, issueId?: string) => {
+    const targetId = issueId ?? assignTarget?.id;
+    if (!targetId) return;
     setAssignLoading(postId);
     try {
-      const res = await fetch(`/api/admin/issues/${assignTarget.id}/assign`, {
+      const res = await fetch(`/api/admin/issues/${targetId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postIds: [postId] }),
       });
       if (res.ok) {
         showMessage("게시물이 배정되었습니다.");
-        // Refresh issue data
-        const issueRes = await fetch("/api/admin/issues");
-        const issueJson = await issueRes.json();
-        const allIssues: Issue[] = issueJson.data ?? issueJson ?? [];
-        const updated = allIssues.find((i) => i.id === assignTarget.id);
-        if (updated) {
-          setAssignTarget(updated);
-          setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-        }
+        await refreshAssignTarget(targetId);
       } else {
         const json = await res.json();
         showMessage(json.error ?? "배정에 실패했습니다.");
@@ -252,25 +292,19 @@ export default function AdminIssuesPage() {
     }
   };
 
-  const unassignPost = async (postId: string) => {
-    if (!assignTarget) return;
+  const unassignPost = async (postId: string, issueId?: string) => {
+    const targetId = issueId ?? assignTarget?.id;
+    if (!targetId) return;
     setAssignLoading(postId);
     try {
-      const res = await fetch(`/api/admin/issues/${assignTarget.id}/assign`, {
+      const res = await fetch(`/api/admin/issues/${targetId}/assign`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postIds: [postId] }),
       });
       if (res.ok) {
         showMessage("배정이 해제되었습니다.");
-        const issueRes = await fetch("/api/admin/issues");
-        const issueJson = await issueRes.json();
-        const allIssues: Issue[] = issueJson.data ?? issueJson ?? [];
-        const updated = allIssues.find((i) => i.id === assignTarget.id);
-        if (updated) {
-          setAssignTarget(updated);
-          setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-        }
+        await refreshAssignTarget(targetId);
       } else {
         const json = await res.json();
         showMessage(json.error ?? "해제에 실패했습니다.");
@@ -293,6 +327,64 @@ export default function AdminIssuesPage() {
       )
     : [];
 
+  // Orphan posts (not assigned to any issue)
+  const orphanPosts = posts.filter((p) => !p.issueId);
+
+  // ── AI Functions ──────────────────────────────────────────────────
+  const generateAiSummary = async () => {
+    if (!editTarget) return;
+    setAiSummaryLoading(true);
+    try {
+      const res = await fetch("/api/ai/summarize-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issueId: editTarget.id }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.summary) {
+          setEditForm((f) => ({ ...f, summary: json.summary }));
+          showMessage("AI 요약이 생성되었습니다.");
+        } else {
+          showMessage("요약을 생성하지 못했습니다.");
+        }
+      } else {
+        showMessage("AI 요약 생성에 실패했습니다.");
+      }
+    } catch {
+      showMessage("AI 요약 생성 중 오류가 발생했습니다.");
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  };
+
+  const suggestAiCategory = async () => {
+    if (!editTarget) return;
+    setAiCategoryLoading(true);
+    try {
+      const postsText = editTarget.assignedPosts?.map((p) => p.content).join("\n") ?? editTarget.title;
+      const res = await fetch("/api/ai/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: `${editTarget.title}\n${editTarget.summary ?? ""}\n${postsText}` }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.category) {
+          setEditForm((f) => ({ ...f, category: json.category }));
+          showMessage(`AI 추천 카테고리: ${json.category}`);
+        }
+      } else {
+        showMessage("AI 카테고리 추천에 실패했습니다.");
+      }
+    } catch {
+      showMessage("AI 카테고리 추천 중 오류가 발생했습니다.");
+    } finally {
+      setAiCategoryLoading(false);
+    }
+  };
+
+  // ── Helper Components ─────────────────────────────────────────────
   const categoryBadge = (category: string | null) => {
     if (!category) return null;
     const color = CATEGORY_COLORS[category] ?? CATEGORY_COLORS["기타"];
@@ -333,6 +425,12 @@ export default function AdminIssuesPage() {
     return null;
   };
 
+  const postTypeBadge = (postType?: string) => {
+    if (postType === "민원") return <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full">민원</span>;
+    if (postType === "제안") return <span className="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded-full">제안</span>;
+    return null;
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -365,7 +463,7 @@ export default function AdminIssuesPage() {
                 : "border-border text-muted hover:text-foreground"
             }`}
           >
-            {s === "all" ? "전체" : s}
+            {s === "all" ? `전체 (${issues.length})` : s}
           </button>
         ))}
       </div>
@@ -381,60 +479,122 @@ export default function AdminIssuesPage() {
       ) : (
         <div className="space-y-3">
           {issues.map((issue) => (
-            <Card
-              key={issue.id}
-              className="p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
-              onClick={() => openEdit(issue)}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    {categoryBadge(issue.category)}
-                    {statusLabel(issue.status)}
-                    {adminStatusBadge(issue.adminStatus)}
-                    {issue.city && (
+            <div key={issue.id}>
+              <Card
+                className="p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+                onClick={() => openEdit(issue)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {categoryBadge(issue.category)}
+                      {statusLabel(issue.status)}
+                      {adminStatusBadge(issue.adminStatus)}
+                      {issue.city && (
+                        <span className="text-xs text-muted">
+                          {issue.city}
+                          {issue.dong ? ` ${issue.dong}` : ""}
+                        </span>
+                      )}
                       <span className="text-xs text-muted">
-                        {issue.city}
-                        {issue.dong ? ` ${issue.dong}` : ""}
+                        {new Date(issue.createdAt).toLocaleDateString("ko-KR")}
                       </span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{issue.title}</p>
+                    {issue.summary && (
+                      <p className="text-sm text-muted mt-1 break-words line-clamp-2">{issue.summary}</p>
                     )}
-                    <span className="text-xs text-muted">
-                      {new Date(issue.createdAt).toLocaleDateString("ko-KR")}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">{issue.title}</p>
-                  {issue.summary && (
-                    <p className="text-sm text-muted mt-1 break-words line-clamp-2">{issue.summary}</p>
-                  )}
 
-                  {/* Admin status step selector */}
-                  <div className="flex items-center gap-1 mt-2 flex-wrap">
-                    <span className="text-[10px] text-muted mr-1">처리 단계:</span>
-                    {ADMIN_STATUS_STEPS.map((step) => (
+                    {/* Admin status step selector */}
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                      <span className="text-[10px] text-muted mr-1">처리 단계:</span>
+                      {ADMIN_STATUS_STEPS.map((step) => (
+                        <button
+                          key={String(step.value)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateAdminStatus(issue.id, step.value);
+                          }}
+                          disabled={adminStatusLoading === issue.id}
+                          className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors disabled:opacity-50 ${
+                            (issue.adminStatus ?? null) === step.value
+                              ? step.color + " font-bold"
+                              : "bg-white border-border text-muted hover:border-gray-400"
+                          }`}
+                        >
+                          {step.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-lg font-bold text-primary">{issue.reportCount ?? 0}</span>
+                    <span className="text-[10px] text-muted">제보 수</span>
+                    {issue.assignedPosts && issue.assignedPosts.length > 0 && (
+                      <span className="text-[10px] text-blue-600 font-medium">{issue.assignedPosts.length}개 배정</span>
+                    )}
+                    {/* Action buttons */}
+                    <div className="flex gap-1 mt-1">
                       <button
-                        key={String(step.value)}
                         onClick={(e) => {
                           e.stopPropagation();
-                          updateAdminStatus(issue.id, step.value);
+                          setExpandedIssueId(expandedIssueId === issue.id ? null : issue.id);
                         }}
-                        disabled={adminStatusLoading === issue.id}
-                        className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors disabled:opacity-50 ${
-                          (issue.adminStatus ?? null) === step.value
-                            ? step.color + " font-bold"
-                            : "bg-white border-border text-muted hover:border-gray-400"
-                        }`}
+                        className="p-1.5 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        title="게시물 보기"
                       >
-                        {step.label}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                       </button>
-                    ))}
+                      <button
+                        onClick={(e) => deleteIssue(issue.id, e)}
+                        disabled={deleteLoading === issue.id}
+                        className="p-1.5 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                        title="삭제(보관)"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="text-lg font-bold text-primary">{issue.reportCount ?? 0}</span>
-                  <span className="text-[10px] text-muted">제보 수</span>
+              </Card>
+
+              {/* Inline expanded assigned posts */}
+              {expandedIssueId === issue.id && (
+                <div className="ml-4 mt-1 mb-2 p-3 border border-border rounded-lg bg-surface/50">
+                  <p className="text-xs font-semibold text-muted mb-2">
+                    배정된 게시물 ({issue.assignedPosts?.length ?? 0}개)
+                  </p>
+                  {(!issue.assignedPosts || issue.assignedPosts.length === 0) ? (
+                    <p className="text-xs text-muted">배정된 게시물이 없습니다.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {issue.assignedPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-background"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {postTypeBadge(post.postType)}
+                            <p className="text-xs font-medium text-foreground line-clamp-1">
+                              {post.title || post.content.slice(0, 50)}
+                            </p>
+                            <p className="text-[10px] text-muted shrink-0">{post.authorName}</p>
+                          </div>
+                          <button
+                            onClick={() => unassignPost(post.id, issue.id)}
+                            disabled={assignLoading === post.id}
+                            className="px-2 py-1 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 shrink-0"
+                          >
+                            {assignLoading === post.id ? "..." : "해제"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </Card>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -479,9 +639,7 @@ export default function AdminIssuesPage() {
                 >
                   <option value="">선택 안 함</option>
                   {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
@@ -494,9 +652,7 @@ export default function AdminIssuesPage() {
                 >
                   <option value="">선택 안 함</option>
                   {CHUNGNAM_DISTRICTS.map((d) => (
-                    <option key={d.code} value={d.name}>
-                      {d.name}
-                    </option>
+                    <option key={d.code} value={d.name}>{d.name}</option>
                   ))}
                 </select>
               </div>
@@ -546,127 +702,167 @@ export default function AdminIssuesPage() {
                 &times;
               </button>
             </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-border">
+              <button
+                onClick={() => setEditTab("info")}
+                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  editTab === "info"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                이슈 정보
+              </button>
+              <button
+                onClick={() => setEditTab("posts")}
+                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  editTab === "posts"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                게시물 관리 ({assignTarget?.assignedPosts?.length ?? 0})
+              </button>
+            </div>
+
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {/* Edit fields */}
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted block mb-1">제목 *</label>
-                  <input
-                    type="text"
-                    value={editForm.title}
-                    onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted block mb-1">요약</label>
-                  <textarea
-                    value={editForm.summary}
-                    onChange={(e) => setEditForm((f) => ({ ...f, summary: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg resize-y bg-background text-foreground"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+              {editTab === "info" ? (
+                /* ── Info Tab ──────────────────────────────────────────── */
+                <div className="space-y-3">
                   <div>
-                    <label className="text-xs font-medium text-muted block mb-1">카테고리</label>
-                    <select
-                      value={editForm.category}
-                      onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="">선택 안 함</option>
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted block mb-1">상태</label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="active">active</option>
-                      <option value="resolved">resolved</option>
-                      <option value="archived">archived</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted block mb-1">시/군</label>
-                    <select
-                      value={editForm.city}
-                      onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="">선택 안 함</option>
-                      {CHUNGNAM_DISTRICTS.map((d) => (
-                        <option key={d.code} value={d.name}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted block mb-1">동/읍/면</label>
+                    <label className="text-xs font-medium text-muted block mb-1">제목 *</label>
                     <input
                       type="text"
-                      value={editForm.dong}
-                      onChange={(e) => setEditForm((f) => ({ ...f, dong: e.target.value }))}
+                      value={editForm.title}
+                      onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
                       className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
                     />
                   </div>
-                </div>
-
-                {/* Admin status stepper */}
-                <div>
-                  <label className="text-xs font-medium text-muted block mb-2">처리 단계</label>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {ADMIN_STATUS_STEPS.map((step) => (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-muted">요약</label>
                       <button
-                        key={String(step.value)}
-                        onClick={() => updateAdminStatus(editTarget.id, step.value)}
-                        disabled={adminStatusLoading === editTarget.id}
-                        className={`px-2 py-1 text-xs rounded-full border transition-colors disabled:opacity-50 ${
-                          (editTarget.adminStatus ?? null) === step.value
-                            ? step.color + " font-bold"
-                            : "bg-white border-border text-muted hover:border-gray-400"
-                        }`}
+                        onClick={generateAiSummary}
+                        disabled={aiSummaryLoading}
+                        className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full hover:bg-purple-100 transition-colors disabled:opacity-50"
                       >
-                        {step.label}
+                        {aiSummaryLoading ? "생성 중..." : "AI 요약 생성"}
                       </button>
-                    ))}
+                    </div>
+                    <textarea
+                      value={editForm.summary}
+                      onChange={(e) => setEditForm((f) => ({ ...f, summary: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg resize-y bg-background text-foreground"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-muted">카테고리</label>
+                        <button
+                          onClick={suggestAiCategory}
+                          disabled={aiCategoryLoading}
+                          className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full hover:bg-purple-100 transition-colors disabled:opacity-50"
+                        >
+                          {aiCategoryLoading ? "..." : "AI 추천"}
+                        </button>
+                      </div>
+                      <select
+                        value={editForm.category}
+                        onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                      >
+                        <option value="">선택 안 함</option>
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted block mb-1">상태</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                      >
+                        <option value="active">active</option>
+                        <option value="resolved">resolved</option>
+                        <option value="archived">archived</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted block mb-1">시/군</label>
+                      <select
+                        value={editForm.city}
+                        onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                      >
+                        <option value="">선택 안 함</option>
+                        {CHUNGNAM_DISTRICTS.map((d) => (
+                          <option key={d.code} value={d.name}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted block mb-1">동/읍/면</label>
+                      <input
+                        type="text"
+                        value={editForm.dong}
+                        onChange={(e) => setEditForm((f) => ({ ...f, dong: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Admin status stepper */}
+                  <div>
+                    <label className="text-xs font-medium text-muted block mb-2">처리 단계</label>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {ADMIN_STATUS_STEPS.map((step) => (
+                        <button
+                          key={String(step.value)}
+                          onClick={() => updateAdminStatus(editTarget.id, step.value)}
+                          disabled={adminStatusLoading === editTarget.id}
+                          className={`px-2 py-1 text-xs rounded-full border transition-colors disabled:opacity-50 ${
+                            (editTarget.adminStatus ?? null) === step.value
+                              ? step.color + " font-bold"
+                              : "bg-white border-border text-muted hover:border-gray-400"
+                          }`}
+                        >
+                          {step.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* ── Assign Posts Section ────────────────────────────────────── */}
-              {assignTarget && (
-                <div className="border-t border-border pt-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3">게시물 배정</h3>
-
+              ) : (
+                /* ── Posts Tab ─────────────────────────────────────────── */
+                <div className="space-y-4">
                   {/* Currently assigned posts */}
-                  {assignTarget.assignedPosts && assignTarget.assignedPosts.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs text-muted mb-2">
-                        배정된 게시물 ({assignTarget.assignedPosts.length}개)
-                      </p>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground mb-2">
+                      배정된 게시물 ({assignTarget?.assignedPosts?.length ?? 0}개)
+                    </p>
+                    {assignTarget?.assignedPosts && assignTarget.assignedPosts.length > 0 ? (
                       <div className="space-y-1">
                         {assignTarget.assignedPosts.map((post) => (
                           <div
                             key={post.id}
                             className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface"
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-foreground line-clamp-1">
-                                {post.title || post.content.slice(0, 50)}
-                              </p>
-                              <p className="text-[10px] text-muted">{post.authorName}</p>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {postTypeBadge(post.postType)}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground line-clamp-1">
+                                  {post.title || post.content.slice(0, 50)}
+                                </p>
+                                <p className="text-[10px] text-muted">{post.authorName}</p>
+                              </div>
                             </div>
                             <button
                               onClick={() => unassignPost(post.id)}
@@ -678,11 +874,14 @@ export default function AdminIssuesPage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="text-xs text-muted py-2">배정된 게시물이 없습니다.</p>
+                    )}
+                  </div>
 
                   {/* Search posts to assign */}
                   <div>
+                    <p className="text-xs font-semibold text-foreground mb-2">게시물 검색 & 배정</p>
                     <input
                       type="text"
                       placeholder="제목 또는 내용으로 게시물 검색..."
@@ -694,9 +893,7 @@ export default function AdminIssuesPage() {
                     {postSearch && (
                       <div className="space-y-1 mt-2 max-h-48 overflow-y-auto">
                         {filteredPosts.length === 0 ? (
-                          <p className="text-xs text-muted text-center py-3">
-                            {postSearch ? "일치하는 게시물이 없습니다" : "검색어를 입력하세요"}
-                          </p>
+                          <p className="text-xs text-muted text-center py-3">일치하는 게시물이 없습니다</p>
                         ) : (
                           filteredPosts.slice(0, 20).map((p) => (
                             <button
@@ -705,9 +902,12 @@ export default function AdminIssuesPage() {
                               disabled={assignLoading === p.id}
                               className="w-full text-left px-3 py-2 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
                             >
-                              <p className="text-xs font-medium text-foreground line-clamp-1">
-                                {p.title || p.content.slice(0, 50)}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                {postTypeBadge(p.postType)}
+                                <p className="text-xs font-medium text-foreground line-clamp-1 flex-1">
+                                  {p.title || p.content.slice(0, 50)}
+                                </p>
+                              </div>
                               <p className="text-[10px] text-muted mt-0.5">
                                 {p.authorName} &middot;{" "}
                                 {new Date(p.createdAt).toLocaleDateString("ko-KR")}
@@ -718,14 +918,56 @@ export default function AdminIssuesPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Orphan posts (not assigned to any issue) */}
+                  <div>
+                    <p className="text-xs font-semibold text-foreground mb-2">
+                      미배정 게시물 ({orphanPosts.length}개)
+                    </p>
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                      {orphanPosts.length === 0 ? (
+                        <p className="text-xs text-muted py-2">모든 게시물이 배정되었습니다.</p>
+                      ) : (
+                        orphanPosts.slice(0, 30).map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => assignPost(p.id)}
+                            disabled={assignLoading === p.id}
+                            className="w-full text-left px-3 py-2 rounded-lg border border-amber-200 bg-amber-50/50 hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
+                          >
+                            <div className="flex items-center gap-2">
+                              {postTypeBadge(p.postType)}
+                              <p className="text-xs font-medium text-foreground line-clamp-1 flex-1">
+                                {p.title || p.content.slice(0, 50)}
+                              </p>
+                            </div>
+                            <p className="text-[10px] text-muted mt-0.5">
+                              {p.authorName} &middot;{" "}
+                              {new Date(p.createdAt).toLocaleDateString("ko-KR")}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-border">
+
+            {/* Footer */}
+            <div className="flex items-center gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => deleteIssue(editTarget.id)}
+                disabled={deleteLoading === editTarget.id}
+                className="px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                {deleteLoading === editTarget.id ? "삭제 중..." : "삭제(보관)"}
+              </button>
+              <div className="flex-1" />
               <button
                 onClick={submitEdit}
                 disabled={editLoading}
-                className="flex-1 px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg disabled:opacity-50"
               >
                 {editLoading ? "저장 중..." : "저장"}
               </button>
