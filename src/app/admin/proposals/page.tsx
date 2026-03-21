@@ -20,6 +20,7 @@ interface Proposal {
   candidateId: string | null;
   adminStatus: string | null;
   parentId: string | null;
+  issueId: string | null;
   createdAt: string;
   candidate?: { id: string; name: string; district: string } | null;
 }
@@ -72,6 +73,11 @@ export default function AdminProposalsPage() {
   const [linkSearch, setLinkSearch] = useState("");
   const [linkLoading, setLinkLoading] = useState(false);
 
+  // Issue assignment state
+  const [issues, setIssues] = useState<{id: string; title: string; category: string | null; reportCount: number}[]>([]);
+  const [issueModalTarget, setIssueModalTarget] = useState<Proposal | null>(null);
+  const [issueAssignLoading, setIssueAssignLoading] = useState(false);
+
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     try {
@@ -90,6 +96,10 @@ export default function AdminProposalsPage() {
   useEffect(() => {
     fetchProposals();
   }, [fetchProposals]);
+
+  useEffect(() => {
+    fetch("/api/admin/issues").then(r => r.json()).then(json => setIssues(json.data ?? [])).catch(() => {});
+  }, []);
 
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -427,6 +437,11 @@ export default function AdminProposalsPage() {
                           🔗 연결됨
                         </span>
                       )}
+                      {p.issueId && (
+                        <span className="px-1.5 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+                          🏷️ {issues.find(i => i.id === p.issueId)?.title ?? "이슈"}
+                        </span>
+                      )}
                       <span className="text-xs text-muted">
                         {p.candidate ? `→ ${p.candidate.name} (${p.candidate.district})` : ""}
                       </span>
@@ -479,6 +494,16 @@ export default function AdminProposalsPage() {
                     }`}
                   >
                     {p.parentId ? "🔗 연결됨" : "🔗 연결"}
+                  </button>
+                  <button
+                    onClick={() => setIssueModalTarget(p)}
+                    className={`px-2.5 py-1 text-xs border rounded-lg transition-colors ${
+                      p.issueId
+                        ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    {p.issueId ? "🏷️ 이슈" : "🏷️ 이슈 배정"}
                   </button>
 
                   {p.status !== "deleted" && (
@@ -782,6 +807,80 @@ export default function AdminProposalsPage() {
               >
                 닫기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Issue Assignment Modal ─────────────────────────────────── */}
+      {issueModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-bold text-foreground">이슈 배정</h2>
+              <button onClick={() => setIssueModalTarget(null)} className="text-muted text-xl leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-muted">게시물: <strong>{issueModalTarget.title || issueModalTarget.content.slice(0, 30)}</strong></p>
+              {issueModalTarget.issueId && (
+                <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                  <span className="text-xs text-amber-700">현재 이슈: {issues.find(i => i.id === issueModalTarget.issueId)?.title ?? issueModalTarget.issueId}</span>
+                  <button
+                    onClick={async () => {
+                      setIssueAssignLoading(true);
+                      try {
+                        await fetch(`/api/admin/issues/${issueModalTarget.issueId}/assign`, {
+                          method: "DELETE",
+                          headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify({ postIds: [issueModalTarget.id] })
+                        });
+                        showMessage("이슈 배정이 해제되었습니다.");
+                        setIssueModalTarget(null);
+                        fetchProposals();
+                        fetch("/api/admin/issues").then(r => r.json()).then(json => setIssues(json.data ?? []));
+                      } catch { showMessage("오류가 발생했습니다."); }
+                      finally { setIssueAssignLoading(false); }
+                    }}
+                    disabled={issueAssignLoading}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    해제
+                  </button>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {issues.map(issue => (
+                  <button
+                    key={issue.id}
+                    onClick={async () => {
+                      setIssueAssignLoading(true);
+                      try {
+                        await fetch(`/api/admin/issues/${issue.id}/assign`, {
+                          method: "POST",
+                          headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify({ postIds: [issueModalTarget.id] })
+                        });
+                        showMessage(`"${issue.title}" 이슈에 배정되었습니다.`);
+                        setIssueModalTarget(null);
+                        fetchProposals();
+                        fetch("/api/admin/issues").then(r => r.json()).then(json => setIssues(json.data ?? []));
+                      } catch { showMessage("오류가 발생했습니다."); }
+                      finally { setIssueAssignLoading(false); }
+                    }}
+                    disabled={issueAssignLoading}
+                    className={`w-full text-left p-2.5 rounded-lg border transition-colors hover:bg-gray-50 ${
+                      issueModalTarget.issueId === issue.id ? "border-amber-400 bg-amber-50" : "border-border"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{issue.title}</span>
+                      <span className="text-xs text-muted">{issue.reportCount}건</span>
+                    </div>
+                    {issue.category && <span className="text-[10px] text-muted">{issue.category}</span>}
+                  </button>
+                ))}
+                {issues.length === 0 && <p className="text-xs text-muted text-center py-4">등록된 이슈가 없습니다. 이슈 관리에서 먼저 이슈를 만들어주세요.</p>}
+              </div>
             </div>
           </div>
         </div>

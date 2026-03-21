@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import ReCAPTCHA from "react-google-recaptcha";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { CHUNGNAM_DISTRICTS } from "@/lib/districts";
 import { trackProposalSubmit } from "@/lib/analytics";
+import IssueSimilarSuggestion from "@/components/issues/IssueSimilarSuggestion";
 
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), { ssr: false });
 
@@ -41,14 +43,32 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [relatedPostInput, setRelatedPostInput] = useState("");
+  const [issueId, setIssueId] = useState<string | null>(null);
+  const [issueName, setIssueName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
+  const searchParams = useSearchParams();
+
   const MAX_CONTENT = 500;
   const MAX_TITLE = 50;
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
+  // Read issueId from URL params on mount
+  useEffect(() => {
+    const urlIssueId = searchParams.get("issueId");
+    if (urlIssueId) {
+      setIssueId(urlIssueId);
+      fetch(`/api/issues/${urlIssueId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.title) setIssueName(data.title);
+        })
+        .catch(() => {});
+    }
+  }, [searchParams]);
 
   // Set default authorName for admin
   useEffect(() => {
@@ -137,6 +157,7 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       if (resolvedLat != null) body.latitude = resolvedLat;
       if (resolvedLng != null) body.longitude = resolvedLng;
       if (candidateId) body.candidateId = candidateId;
+      if (issueId) body.issueId = issueId;
 
       // Parse parentId from raw input (accepts ID string or full URL)
       if (relatedPostInput.trim()) {
@@ -191,6 +212,8 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       setLongitude(null);
       setUseDetailedLocation(false);
       setRelatedPostInput("");
+      setIssueId(null);
+      setIssueName(null);
       recaptchaRef.current?.reset();
       onSuccess?.();
     } catch {
@@ -294,6 +317,32 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
           className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
         />
       </div>
+
+      {/* Issue suggestion / badge */}
+      {!issueId && title.length > 3 && (
+        <IssueSimilarSuggestion
+          query={title}
+          onSelectIssue={(id: string, name: string) => {
+            setIssueId(id);
+            setIssueName(name);
+          }}
+        />
+      )}
+      {issueId && issueName && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <span className="text-xs text-indigo-700 font-medium truncate">
+            🏷️ 이슈: {issueName}
+          </span>
+          <button
+            type="button"
+            onClick={() => { setIssueId(null); setIssueName(null); }}
+            className="ml-auto text-indigo-400 hover:text-indigo-700 text-sm leading-none"
+            aria-label="이슈 연결 해제"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 작성자명 + Password — hidden for logged-in candidates and admin */}
       {!isCandidate && !isAdmin && (

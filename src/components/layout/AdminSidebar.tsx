@@ -105,6 +105,23 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/issues",
+    label: "이슈 관리",
+    shortLabel: "이슈",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M3 4h14M3 8h10M3 12h14M3 16h7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <circle cx="16" cy="14" r="3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M16 13v1.5l1 .5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/security",
     label: "보안 리포트",
     shortLabel: "보안",

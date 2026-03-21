@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json();
-  const { status, postType, title, content, city, latitude, longitude, categoryId, adminStatus, parentId, anonymize } = body;
+  const { status, postType, title, content, city, latitude, longitude, categoryId, adminStatus, parentId, issueId, anonymize } = body;
 
   // Anonymize: remove candidateId and set authorName to "익명"
   if (anonymize === true) {
@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (
     title !== undefined || content !== undefined || city !== undefined ||
     latitude !== undefined || longitude !== undefined || categoryId !== undefined ||
-    adminStatus !== undefined || parentId !== undefined
+    adminStatus !== undefined || parentId !== undefined || issueId !== undefined
   ) {
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (adminStatus !== undefined) updateData.adminStatus = adminStatus; // null clears the field
     if (parentId !== undefined) updateData.parentId = parentId; // null to unlink
+    if (issueId !== undefined) updateData.issueId = issueId; // null to unlink
     const { error } = await supabaseAdmin.from("ProposalPost").update(updateData).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

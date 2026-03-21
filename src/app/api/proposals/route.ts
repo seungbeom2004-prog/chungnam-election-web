@@ -246,6 +246,7 @@ export async function POST(request: NextRequest) {
       latitude,
       longitude,
       postType,
+      issueId,
       ...baseInsert
     } = validated;
 
@@ -284,6 +285,7 @@ export async function POST(request: NextRequest) {
       ipHash,
       status: "pending",
       ...(passwordHash ? { passwordHash } : {}),
+      ...(issueId ? { issueId } : {}),
     };
 
     let { data: proposal, error } = await supabase

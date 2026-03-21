@@ -204,6 +204,7 @@ export const createProposalSchema = z.object({
   captchaToken: z.string().optional().nullable(), // optional for logged-in candidates
   postType: z.enum(["민원", "제안"]).default("제안"),
   parentId: z.string().optional().nullable(), // optional link to related post
+  issueId: z.string().optional().nullable(), // optional link to an issue
 });
 
 // ── Pledge Comment Schemas ────────────────────────────────────

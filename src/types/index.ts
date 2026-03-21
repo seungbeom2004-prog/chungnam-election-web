@@ -183,6 +183,8 @@ export interface ProposalPost {
   parentId?: string | null;
   dong?: string | null;
   adminStatus?: string | null;
+  issueId?: string | null;
+  issue?: Issue | null;
   linkedCount?: number;
   candidate?: { id: string; name: string; district: string; profileImage?: string | null; role?: string | null } | null;
   responses?: ProposalResponse[];
@@ -239,6 +241,20 @@ export interface BylawGroup {
   councilLng: number;
   /** All bylaw (+ bylawTagged) pledges in this city, from any candidate. */
   pledges: Pledge[];
+}
+
+export interface Issue {
+  id: string;
+  title: string;
+  summary: string | null;
+  category: string | null;
+  dong: string | null;
+  city: string | null;
+  status: string; // "active" | "resolved" | "archived"
+  reportCount: number;
+  adminStatus: string | null; // null (검토중) | "planned" (공약제안) | "adopted" (공약반영완료)
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PledgeProposalRevision {
