@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Card from "@/components/ui/Card";
+
+const LocationPickerMap = dynamic(() => import("@/components/proposals/LocationPickerMap"), { ssr: false });
 
 interface Proposal {
   id: string;
@@ -426,27 +429,29 @@ export default function AdminProposalsPage() {
                   className="w-full px-3 py-2 text-sm border border-border rounded-lg"
                 />
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-medium text-muted block mb-1">위도</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editForm.latitude}
-                    onChange={(e) => setEditForm((f) => ({ ...f, latitude: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs font-medium text-muted block mb-1">경도</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editForm.longitude}
-                    onChange={(e) => setEditForm((f) => ({ ...f, longitude: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg"
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-medium text-muted block mb-1">
+                  위치 📍 <span className="font-normal text-muted">(지도 클릭으로 선택)</span>
+                </label>
+                <LocationPickerMap
+                  lat={editForm.latitude !== "" ? Number(editForm.latitude) : null}
+                  lng={editForm.longitude !== "" ? Number(editForm.longitude) : null}
+                  onChange={(lat, lng) => setEditForm((f) => ({ ...f, latitude: String(lat), longitude: String(lng) }))}
+                />
+                {editForm.latitude && editForm.longitude ? (
+                  <p className="text-[11px] text-muted mt-1 flex items-center gap-1">
+                    위도 {Number(editForm.latitude).toFixed(6)}, 경도 {Number(editForm.longitude).toFixed(6)}
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((f) => ({ ...f, latitude: "", longitude: "" }))}
+                      className="ml-1 text-red-500 hover:underline"
+                    >
+                      위치 삭제
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted mt-1">위치가 설정되지 않았습니다.</p>
+                )}
               </div>
               <div>
                 <label className="text-xs font-medium text-muted block mb-1">카테고리 ID</label>
