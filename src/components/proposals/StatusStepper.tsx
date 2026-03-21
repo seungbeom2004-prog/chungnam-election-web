@@ -1,31 +1,27 @@
 "use client";
 
-type StepKey = "reported" | "reviewed" | "planned" | "adopted";
+type StepKey = "reviewing" | "proposed" | "adopted";
 
 const STEPS: { key: StepKey; label: string; emoji: string }[] = [
-  { key: "reported", label: "접수됨", emoji: "📥" },
-  { key: "reviewed", label: "검토 중", emoji: "🔍" },
-  { key: "planned", label: "반영 예정", emoji: "📋" },
-  { key: "adopted", label: "반영 완료", emoji: "✅" },
+  { key: "reviewing", label: "검토중", emoji: "🔍" },
+  { key: "proposed", label: "공약 제안", emoji: "📋" },
+  { key: "adopted", label: "공약 반영 완료", emoji: "✅" },
 ];
-
-function responseStatusToStep(status: string): number {
-  switch (status) {
-    case "접수됨": return 0;
-    case "검토 중": return 1;
-    case "공약 반영 예정": return 2;
-    case "공약 반영 완료": return 3;
-    case "반영 불가": return -1;
-    default: return 0;
-  }
-}
 
 function adminStatusToStep(adminStatus: string | null | undefined): number {
   switch (adminStatus) {
-    case "reviewed": return 1;
-    case "planned": return 2;
-    case "adopted": return 3;
+    case "planned": return 1;
+    case "adopted": return 2;
     case "rejected": return -1;
+    default: return 0; // null, "reviewed", etc. → 검토중
+  }
+}
+
+function responseStatusToStep(status: string): number {
+  switch (status) {
+    case "공약 반영 예정": return 1;
+    case "공약 반영 완료": return 2;
+    case "반영 불가": return -1;
     default: return 0;
   }
 }
@@ -55,7 +51,7 @@ export default function StatusStepper({ adminStatus, bestResponseStatus, classNa
   }
 
   return (
-    <div className={`${className}`}>
+    <div className={className}>
       <div className="flex items-center">
         {STEPS.map((step, idx) => {
           const done = idx < currentStep;

@@ -18,6 +18,8 @@ interface Proposal {
   status: string;
   postType: string | null;
   candidateId: string | null;
+  adminStatus: string | null;
+  parentId: string | null;
   createdAt: string;
   candidate?: { id: string; name: string; district: string } | null;
 }
@@ -30,6 +32,12 @@ interface EditForm {
   longitude: string;
   categoryId: string;
 }
+
+const ADMIN_STATUS_STEPS = [
+  { value: null, label: "검토중", color: "bg-gray-100 text-gray-600 border-gray-300" },
+  { value: "planned", label: "공약 제안", color: "bg-blue-100 text-blue-700 border-blue-300" },
+  { value: "adopted", label: "공약 반영 완료", color: "bg-green-100 text-green-700 border-green-300" },
+];
 
 export default function AdminProposalsPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -53,6 +61,17 @@ export default function AdminProposalsPage() {
   const [mergeSelected, setMergeSelected] = useState<Set<string>>(new Set());
   const [mergeLoading, setMergeLoading] = useState(false);
 
+  // Admin status state
+  const [adminStatusLoading, setAdminStatusLoading] = useState<string | null>(null);
+
+  // Anonymize state
+  const [anonymizeLoading, setAnonymizeLoading] = useState<string | null>(null);
+
+  // Link modal state
+  const [linkTarget, setLinkTarget] = useState<Proposal | null>(null);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     try {
@@ -72,6 +91,11 @@ export default function AdminProposalsPage() {
     fetchProposals();
   }, [fetchProposals]);
 
+  const showMessage = (msg: string) => {
+    setMessage(msg);
+    setTimeout(() => setMessage(""), 4000);
+  };
+
   const updateStatus = async (id: string, status: string) => {
     setActionLoading(id);
     try {
@@ -81,13 +105,13 @@ export default function AdminProposalsPage() {
         body: JSON.stringify({ status }),
       });
       if (res.ok) {
-        setMessage(status === "deleted" ? "삭제되었습니다." : status === "hidden" ? "숨김 처리되었습니다." : "복원되었습니다.");
+        showMessage(status === "deleted" ? "삭제되었습니다." : status === "hidden" ? "숨김 처리되었습니다." : "복원되었습니다.");
         fetchProposals();
       } else {
-        setMessage("처리에 실패했습니다.");
+        showMessage("처리에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      showMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setActionLoading(null);
     }
@@ -102,15 +126,81 @@ export default function AdminProposalsPage() {
         body: JSON.stringify({ postType: newType }),
       });
       if (res.ok) {
-        setMessage(`종류를 "${newType === "민원" ? "불편 제보" : "공약 제안"}"으로 변경했습니다.`);
+        showMessage(`종류를 "${newType === "민원" ? "불편 제보" : "공약 제안"}"으로 변경했습니다.`);
         fetchProposals();
       } else {
-        setMessage("종류 변경에 실패했습니다.");
+        showMessage("종류 변경에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      showMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setTypeLoading(null);
+    }
+  };
+
+  const updateAdminStatus = async (id: string, adminStatus: string | null) => {
+    setAdminStatusLoading(id);
+    try {
+      const res = await fetch(`/api/admin/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminStatus }),
+      });
+      if (res.ok) {
+        const step = ADMIN_STATUS_STEPS.find(s => s.value === adminStatus);
+        showMessage(`처리 단계를 "${step?.label ?? "검토중"}"으로 변경했습니다.`);
+        setProposals(prev => prev.map(p => p.id === id ? { ...p, adminStatus } : p));
+      } else {
+        showMessage("단계 변경에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAdminStatusLoading(null);
+    }
+  };
+
+  const anonymizePost = async (id: string) => {
+    setAnonymizeLoading(id);
+    try {
+      const res = await fetch(`/api/admin/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymize: true }),
+      });
+      if (res.ok) {
+        showMessage("익명으로 변환되었습니다.");
+        fetchProposals();
+      } else {
+        showMessage("익명 변환에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAnonymizeLoading(null);
+    }
+  };
+
+  const submitLink = async (postId: string, targetParentId: string | null) => {
+    setLinkLoading(true);
+    try {
+      const res = await fetch(`/api/admin/proposals/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentId: targetParentId }),
+      });
+      if (res.ok) {
+        showMessage(targetParentId ? "연결되었습니다." : "연결이 해제되었습니다.");
+        setLinkTarget(null);
+        fetchProposals();
+      } else {
+        const json = await res.json();
+        showMessage(json.error ?? "연결에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setLinkLoading(false);
     }
   };
 
@@ -143,14 +233,14 @@ export default function AdminProposalsPage() {
         }),
       });
       if (res.ok) {
-        setMessage("수정되었습니다.");
+        showMessage("수정되었습니다.");
         setEditTarget(null);
         fetchProposals();
       } else {
-        setMessage("수정에 실패했습니다.");
+        showMessage("수정에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      showMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setEditLoading(false);
     }
@@ -172,14 +262,14 @@ export default function AdminProposalsPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        setMessage(`분할 완료: ${json.created}개 생성됨`);
+        showMessage(`분할 완료: ${json.created}개 생성됨`);
         setSplitTarget(null);
         fetchProposals();
       } else {
-        setMessage(json.error ?? "분할에 실패했습니다.");
+        showMessage(json.error ?? "분할에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      showMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setSplitLoading(false);
     }
@@ -204,14 +294,14 @@ export default function AdminProposalsPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        setMessage(`병합 완료: ${json.mergedInto} 에 통합됨`);
+        showMessage(`병합 완료: ${json.mergedInto} 에 통합됨`);
         setMergeSelected(new Set());
         fetchProposals();
       } else {
-        setMessage(json.error ?? "병합에 실패했습니다.");
+        showMessage(json.error ?? "병합에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      showMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setMergeLoading(false);
     }
@@ -235,6 +325,27 @@ export default function AdminProposalsPage() {
       default: return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">{status}</span>;
     }
   };
+
+  const adminStatusBadge = (adminStatus: string | null) => {
+    if (!adminStatus || adminStatus === "reviewed") return null;
+    if (adminStatus === "planned") return <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded-full border border-blue-200">📋 공약 제안</span>;
+    if (adminStatus === "adopted") return <span className="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full border border-green-200">✅ 공약 반영 완료</span>;
+    if (adminStatus === "rejected") return <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-full border border-red-200">🚫 반영 불가</span>;
+    return null;
+  };
+
+  // Filter proposals for link modal (exclude current and same-parent links)
+  const linkableProposals = linkTarget
+    ? proposals.filter(p => p.id !== linkTarget.id && p.status !== "deleted")
+    : [];
+
+  const filteredLinkable = linkSearch
+    ? linkableProposals.filter(p =>
+        (p.title ?? "").toLowerCase().includes(linkSearch.toLowerCase()) ||
+        p.content.toLowerCase().includes(linkSearch.toLowerCase()) ||
+        p.authorName.toLowerCase().includes(linkSearch.toLowerCase())
+      )
+    : linkableProposals;
 
   return (
     <div>
@@ -310,6 +421,12 @@ export default function AdminProposalsPage() {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {postTypeBadge(p.postType)}
                       {statusLabel(p.status)}
+                      {adminStatusBadge(p.adminStatus)}
+                      {p.parentId && (
+                        <span className="px-1.5 py-0.5 text-[10px] bg-teal-50 text-teal-700 rounded-full border border-teal-200">
+                          🔗 연결됨
+                        </span>
+                      )}
                       <span className="text-xs text-muted">
                         {p.candidate ? `→ ${p.candidate.name} (${p.candidate.district})` : ""}
                       </span>
@@ -318,10 +435,29 @@ export default function AdminProposalsPage() {
                     <p className="text-sm font-semibold text-foreground">{p.title || p.authorName}</p>
                     {p.title && <p className="text-xs text-muted">작성자: {p.authorName}</p>}
                     <p className="text-sm text-muted mt-1 break-words line-clamp-3">{p.content}</p>
+
+                    {/* Admin status step selector */}
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                      <span className="text-[10px] text-muted mr-1">처리 단계:</span>
+                      {ADMIN_STATUS_STEPS.map((step) => (
+                        <button
+                          key={String(step.value)}
+                          onClick={() => updateAdminStatus(p.id, step.value)}
+                          disabled={adminStatusLoading === p.id}
+                          className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors disabled:opacity-50 ${
+                            (p.adminStatus ?? null) === step.value
+                              ? step.color + " font-bold"
+                              : "bg-white border-border text-muted hover:border-gray-400"
+                          }`}
+                        >
+                          {step.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
-                  {/* Edit + Split buttons */}
+                  {/* Edit + Split + Link buttons */}
                   <button
                     onClick={() => openEdit(p)}
                     className="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -334,9 +470,30 @@ export default function AdminProposalsPage() {
                   >
                     ✂️ 분할
                   </button>
+                  <button
+                    onClick={() => { setLinkTarget(p); setLinkSearch(""); }}
+                    className={`px-2.5 py-1 text-xs border rounded-lg transition-colors ${
+                      p.parentId
+                        ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    {p.parentId ? "🔗 연결됨" : "🔗 연결"}
+                  </button>
 
                   {p.status !== "deleted" && (
                     <>
+                      {/* 익명 변환 (후보자 게시글만) */}
+                      {p.candidateId && (
+                        <button
+                          onClick={() => { if (confirm("후보자 정보를 삭제하고 익명으로 변환하시겠습니까?")) anonymizePost(p.id); }}
+                          disabled={anonymizeLoading === p.id}
+                          className="px-2.5 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+                        >
+                          {anonymizeLoading === p.id ? "..." : "👤 익명"}
+                        </button>
+                      )}
+
                       {/* 종류 변경 — 후보자가 단 공약 제안(candidateId 있는 제안)은 삭제만 */}
                       {!(p.postType === "제안" && p.candidateId) && (
                         <button
@@ -505,7 +662,7 @@ export default function AdminProposalsPage() {
                           : "border-border hover:border-orange-300 hover:bg-orange-50/50"
                     }`}
                     onClick={() => {
-                      if (idx === 0) return; // first paragraph cannot be a split point
+                      if (idx === 0) return;
                       setSplitIndices((prev) => {
                         const next = new Set(prev);
                         if (next.has(idx)) next.delete(idx); else next.add(idx);
@@ -541,6 +698,89 @@ export default function AdminProposalsPage() {
                 className="px-4 py-2 text-sm border border-border rounded-lg"
               >
                 취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Modal ─────────────────────────────────────────────────── */}
+      {linkTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-bold text-foreground">게시물 연결</h2>
+              <button onClick={() => setLinkTarget(null)} className="text-muted text-xl leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-3 flex-1 overflow-y-auto">
+              {/* Target post info */}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-[10px] text-muted mb-0.5">연결 설정할 게시물</p>
+                <p className="text-xs font-semibold text-foreground line-clamp-2">{linkTarget.title || linkTarget.content.slice(0, 60)}</p>
+                {linkTarget.parentId && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[10px] text-muted">현재 연결:</span>
+                    <code className="text-[10px] bg-white border border-border px-1.5 py-0.5 rounded font-mono">{linkTarget.parentId.slice(0, 12)}…</code>
+                    <button
+                      onClick={() => submitLink(linkTarget.id, null)}
+                      disabled={linkLoading}
+                      className="text-[10px] text-red-500 hover:underline disabled:opacity-50"
+                    >
+                      연결 해제
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-muted">이 게시물을 연결할 부모 게시물을 선택하세요.</p>
+
+              <input
+                type="text"
+                placeholder="제목, 내용, 작성자 검색..."
+                value={linkSearch}
+                onChange={(e) => setLinkSearch(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg"
+                autoFocus
+              />
+
+              <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                {filteredLinkable.length === 0 ? (
+                  <p className="text-xs text-muted text-center py-4">게시물이 없습니다</p>
+                ) : (
+                  filteredLinkable.slice(0, 30).map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => submitLink(linkTarget.id, p.id)}
+                      disabled={linkLoading}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors disabled:opacity-50 ${
+                        linkTarget.parentId === p.id
+                          ? "border-teal-400 bg-teal-50"
+                          : "border-border hover:border-primary hover:bg-primary/5"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`shrink-0 mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${p.postType === "민원" ? "bg-red-500" : "bg-amber-500"}`}>
+                          {p.postType === "민원" ? "제보" : "제안"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground line-clamp-1">{p.title || p.content.slice(0, 50)}</p>
+                          <p className="text-[10px] text-muted mt-0.5">{p.authorName} · {new Date(p.createdAt).toLocaleDateString("ko-KR")}</p>
+                        </div>
+                        {linkTarget.parentId === p.id && (
+                          <span className="text-[10px] text-teal-600 font-semibold shrink-0">현재 연결</span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t">
+              <button
+                onClick={() => setLinkTarget(null)}
+                className="w-full px-4 py-2 text-sm border border-border rounded-lg text-muted hover:text-foreground"
+              >
+                닫기
               </button>
             </div>
           </div>

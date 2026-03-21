@@ -40,6 +40,7 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const [useDetailedLocation, setUseDetailedLocation] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [relatedPostInput, setRelatedPostInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,13 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       if (resolvedLng != null) body.longitude = resolvedLng;
       if (candidateId) body.candidateId = candidateId;
 
+      // Parse parentId from raw input (accepts ID string or full URL)
+      if (relatedPostInput.trim()) {
+        const trimmed = relatedPostInput.trim();
+        const urlMatch = trimmed.match(/\/proposals\/([^/?#]+)/);
+        body.parentId = urlMatch ? urlMatch[1] : trimmed;
+      }
+
       if (isAdmin) {
         body.authorName = authorName.trim() || "익명";
       } else if (!isCandidate) {
@@ -182,6 +190,7 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
       setLatitude(null);
       setLongitude(null);
       setUseDetailedLocation(false);
+      setRelatedPostInput("");
       recaptchaRef.current?.reset();
       onSuccess?.();
     } catch {
@@ -410,6 +419,23 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
           )}
         </div>
       )}
+
+      {/* Related post link (optional) */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          🔗 관련 게시물 연결 <span className="text-xs text-muted font-normal">(선택)</span>
+        </label>
+        <input
+          type="text"
+          value={relatedPostInput}
+          onChange={(e) => setRelatedPostInput(e.target.value)}
+          placeholder="관련 게시물 URL 또는 ID를 붙여넣으세요"
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+        />
+        <p className="text-[11px] text-muted mt-1">
+          비슷한 내용의 기존 게시물과 연결하려면 해당 페이지 URL을 붙여넣으세요.
+        </p>
+      </div>
 
       {/* reCAPTCHA — guests only (not candidate, not admin) */}
       {!isCandidate && !isAdmin && siteKey && (

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const first = posts[0]!;
-  const mergedContent = posts.map((p) => p.content).join("\n\n");
+  const mergedContent = posts.map((p) => p.content ?? "").join("\n\n");
   const now = new Date().toISOString();
 
   // Update the first post with merged content
@@ -36,15 +36,18 @@ export async function POST(req: NextRequest) {
     .from("ProposalPost")
     .update({ content: mergedContent })
     .eq("id", first.id);
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr) return NextResponse.json({ error: `병합 내용 저장 실패: ${updateErr.message}` }, { status: 500 });
 
-  // Delete the rest
-  const restIds = ids.filter((id) => id !== first.id);
+  // Delete the rest — use posts array (not original ids) to avoid stale references
+  const restIds = posts.slice(1).map((p) => p.id);
+  if (restIds.length === 0) {
+    return NextResponse.json({ error: "삭제할 게시물이 없습니다" }, { status: 400 });
+  }
   const { error: delErr } = await supabaseAdmin
     .from("ProposalPost")
     .update({ status: "deleted", deletedAt: now })
     .in("id", restIds);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (delErr) return NextResponse.json({ error: `나머지 게시물 삭제 실패: ${delErr.message}` }, { status: 500 });
 
   return NextResponse.json({ success: true, mergedInto: first.id });
 }

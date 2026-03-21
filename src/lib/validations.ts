@@ -203,6 +203,7 @@ export const createProposalSchema = z.object({
   honeypot: z.string().max(0, "Bot detected").optional(), // anti-bot
   captchaToken: z.string().optional().nullable(), // optional for logged-in candidates
   postType: z.enum(["민원", "제안"]).default("제안"),
+  parentId: z.string().optional().nullable(), // optional link to related post
 });
 
 // ── Pledge Comment Schemas ────────────────────────────────────
