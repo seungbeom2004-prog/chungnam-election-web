@@ -17,6 +17,7 @@ import ThemeColorMeta from "@/components/layout/ThemeColorMeta";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.reform-chungnam.kr"),
   title: "개혁 충남 | 우리 동네 변화 플랫폼",
   description:
     "2026 충남 지방선거 개혁신당 후보자들의 공약을 지도에서 투명하게 확인하세요. 우리 동네에 어떤 변화가 올지 직접 살펴보고 공약을 제안하세요.",
@@ -30,11 +31,17 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1200,
-        height: 630,
+        width: 3923,
+        height: 1943,
         alt: "개혁 충남 | 우리 동네 공약 지도",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "개혁 충남 | 우리 동네 변화 플랫폼",
+    description: "2026 충남 지방선거 후보자들의 공약을 지도에서 투명하게 확인하세요.",
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "https://www.reform-chungnam.kr",
