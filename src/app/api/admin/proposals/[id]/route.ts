@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   // Edit update (title/content/city/latitude/longitude/categoryId)
   if (title !== undefined || content !== undefined || city !== undefined || latitude !== undefined || longitude !== undefined || categoryId !== undefined) {
-    const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
     if (city !== undefined) updateData.city = city;

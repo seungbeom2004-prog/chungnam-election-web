@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import StatusStepper from "@/components/proposals/StatusStepper";
+
+const MeTooSection = dynamic(
+  () => import("@/components/proposals/MeTooSection"),
+  { ssr: false }
+);
 
 const PledgeProposalSection = dynamic(
   () => import("@/components/proposals/PledgeProposalSection"),
@@ -24,6 +30,9 @@ interface Post {
   latitude: number | null;
   longitude: number | null;
   candidateId: string | null;
+  parentId?: string | null;
+  dong?: string | null;
+  adminStatus?: string | null;
   candidate: { id: string; name: string; district: string; profileImage: string | null; role?: string | null } | null;
 }
 
@@ -213,6 +222,14 @@ export default function ProposalDetailClient({ post }: Props) {
           </time>
         </div>
       </div>
+
+      {/* Progress stepper — only for 민원 type */}
+      {post.postType === "민원" && (
+        <StatusStepper
+          adminStatus={post.adminStatus}
+          className="pt-1"
+        />
+      )}
 
       {/* Divider */}
       <hr className="border-border" />
@@ -454,6 +471,15 @@ export default function ProposalDetailClient({ post }: Props) {
 
       {/* Candidate Response Section */}
       <CandidateResponseSection proposalId={post.id} />
+
+      {/* Me Too Section — for 민원 with location */}
+      {post.postType === "민원" && (
+        <MeTooSection
+          parentId={post.id}
+          isChild={!!post.parentId}
+          originalPostId={post.parentId ?? null}
+        />
+      )}
     </article>
   );
 }

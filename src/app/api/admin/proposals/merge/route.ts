@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   // Update the first post with merged content
   const { error: updateErr } = await supabaseAdmin
     .from("ProposalPost")
-    .update({ content: mergedContent, updatedAt: now })
+    .update({ content: mergedContent })
     .eq("id", first.id);
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 

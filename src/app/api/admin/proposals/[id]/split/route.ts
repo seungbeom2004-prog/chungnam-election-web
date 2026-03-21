@@ -59,7 +59,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     longitude: original.longitude ?? null,
     categoryId: original.categoryId ?? null,
     createdAt: now,
-    updatedAt: now,
   }));
 
   // Insert new posts

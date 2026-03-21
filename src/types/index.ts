@@ -180,6 +180,10 @@ export interface ProposalPost {
   categoryId?: string | null;
   category?: ProposalCategory | null;
   hashtags?: PostHashtag[];
+  parentId?: string | null;
+  dong?: string | null;
+  adminStatus?: string | null;
+  linkedCount?: number;
   candidate?: { id: string; name: string; district: string; profileImage?: string | null; role?: string | null } | null;
   responses?: ProposalResponse[];
 }

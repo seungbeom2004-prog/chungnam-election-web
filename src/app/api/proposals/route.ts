@@ -50,7 +50,7 @@ function hashIp(ip: string): string {
 /** Columns guaranteed to exist in the current schema */
 const SAFE_SELECT = "id, content, authorName, city, candidateId, status, createdAt";
 /** Columns added in migration v10 */
-const V10_SELECT = "title, latitude, longitude, acceptedAt";
+const V10_SELECT = "title, latitude, longitude, acceptedAt, parentId, dong, adminStatus";
 /** Columns added in migration v11 */
 const V11_SELECT = "postType";
 /** ProposalResponse join (migration v12) */
@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 500);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
     const since = searchParams.get("since"); // ISO date string for filtering createdAt >= since
+    const parentId = searchParams.get("parentId");
 
     const buildQuery = (selectStr: string) => {
       let q = supabase
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
       // postType filter only applied when v11 migration is present
       if (postType && (selectStr.includes("postType"))) q = q.eq("postType", postType);
       if (since) q = q.gte("createdAt", since);
+      if (parentId !== null) q = q.eq("parentId", parentId as string);
       // hasLocation only works after v10 migration
       return q;
     };

@@ -350,6 +350,8 @@ export default function MapPageContent() {
   const [showProposal, setShowProposal] = useState(true);
   const [showPledge, setShowPledge] = useState(true);
   const [darkMap, setDarkMap] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapData, setHeatmapData] = useState<{ city: string; total: number }[]>([]);
   const layerSettingsRef = useRef<HTMLDivElement>(null);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
@@ -591,6 +593,17 @@ export default function MapPageContent() {
   useEffect(() => {
     setMapResizeTrigger((n) => n + 1);
   }, [panelOpen]);
+
+  // Fetch heatmap data when showHeatmap becomes true
+  useEffect(() => {
+    if (!showHeatmap) return;
+    fetch("/api/proposals/neighborhood")
+      .then((r) => r.json())
+      .then((json) => {
+        if (Array.isArray(json.byCity)) setHeatmapData(json.byCity);
+      })
+      .catch(() => {});
+  }, [showHeatmap]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -1079,6 +1092,8 @@ export default function MapPageContent() {
             selectedProposalId={selectedProposal?.id ?? null}
             resizeTrigger={mapResizeTrigger}
             showPledges={showPledge}
+            showHeatmap={showHeatmap}
+            heatmapData={heatmapData}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">
@@ -1195,7 +1210,7 @@ export default function MapPageContent() {
             <button
               onClick={() => setLayerSettingsOpen((o) => !o)}
               className={`flex items-center gap-2 px-3.5 py-2.5 bg-white/97 backdrop-blur-sm rounded-xl border shadow-md text-sm font-semibold transition-colors ${
-                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap
+                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap || showHeatmap
                   ? "border-primary/50 text-primary bg-primary/5"
                   : "border-border/50 text-foreground hover:bg-white"
               }`}
@@ -1241,6 +1256,16 @@ export default function MapPageContent() {
                     <span className="flex-1 text-left font-medium">{darkMap ? "다크 모드" : "라이트 모드"}</span>
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${darkMap ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
                       {darkMap ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowHeatmap((v) => !v)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${showHeatmap ? "bg-red-50 text-red-700" : "bg-background text-foreground"}`}
+                  >
+                    <span className="text-base">🌡️</span>
+                    <span className="flex-1 text-left font-medium">밀도 히트맵</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${showHeatmap ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-500"}`}>
+                      {showHeatmap ? "ON" : "OFF"}
                     </span>
                   </button>
                 </div>

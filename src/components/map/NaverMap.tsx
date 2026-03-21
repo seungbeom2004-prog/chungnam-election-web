@@ -47,6 +47,10 @@ interface NaverMapProps {
   resizeTrigger?: number;
   /** When false, pledge pins are hidden (layer toggle). Defaults to true. */
   showPledges?: boolean;
+  /** When true, renders density heatmap circles per city. */
+  showHeatmap?: boolean;
+  /** Neighborhood density data for heatmap. */
+  heatmapData?: { city: string; total: number }[];
 }
 
 interface PinSettings {
@@ -465,6 +469,8 @@ export default function NaverMap({
   selectedProposalId = null,
   resizeTrigger = 0,
   showPledges = true,
+  showHeatmap = false,
+  heatmapData = [],
 }: NaverMapProps) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstance    = useRef<naver.maps.Map | null>(null);
@@ -1138,6 +1144,60 @@ export default function NaverMap({
     if (!mapInstance.current) return;
     renderClustersRef.current(mapInstance.current);
   }, [showPledges]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Heatmap circles ──────────────────────────────────────────────────────
+  const heatmapCirclesRef = useRef<naver.maps.Circle[]>([]);
+
+  useEffect(() => {
+    // Clean up existing circles
+    heatmapCirclesRef.current.forEach((c) => c.setMap(null));
+    heatmapCirclesRef.current = [];
+
+    if (!showHeatmap || !mapInstance.current || !heatmapData.length) return;
+
+    const DISTRICTS: Record<string, { lat: number; lng: number }> = {
+      "천안시": { lat: 36.815, lng: 127.114 },
+      "공주시": { lat: 36.4465, lng: 127.119 },
+      "보령시": { lat: 36.3334, lng: 126.613 },
+      "아산시": { lat: 36.7898, lng: 127.0018 },
+      "서산시": { lat: 36.7845, lng: 126.4503 },
+      "태안군": { lat: 36.7457, lng: 126.298 },
+      "금산군": { lat: 36.1087, lng: 127.488 },
+      "논산시": { lat: 36.1872, lng: 127.0987 },
+      "계룡시": { lat: 36.2744, lng: 127.2487 },
+      "당진시": { lat: 36.8897, lng: 126.6298 },
+      "부여군": { lat: 36.2758, lng: 126.9098 },
+      "서천군": { lat: 36.0801, lng: 126.6918 },
+      "홍성군": { lat: 36.601, lng: 126.6608 },
+      "청양군": { lat: 36.4592, lng: 126.8022 },
+      "예산군": { lat: 36.6828, lng: 126.8448 },
+    };
+
+    const maxCount = Math.max(...heatmapData.map((d) => d.total), 1);
+
+    heatmapData.forEach(({ city, total }) => {
+      const coords = Object.entries(DISTRICTS).find(([k]) => city.startsWith(k))?.[1];
+      if (!coords) return;
+
+      const ratio = total / maxCount;
+      const alpha = Math.max(0.1, ratio * 0.55);
+      const radius = Math.max(4000, ratio * 25000);
+
+      const circle = new window.naver.maps.Circle({
+        map: mapInstance.current!,
+        center: { lat: coords.lat, lng: coords.lng },
+        radius,
+        strokeColor: "#EF4444",
+        strokeOpacity: 0.3,
+        strokeWeight: 1,
+        fillColor: "#EF4444",
+        fillOpacity: alpha,
+      });
+
+      heatmapCirclesRef.current.push(circle);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHeatmap, heatmapData, resizeTrigger]);
 
   // ── Initialise map ────────────────────────────────────────────────────────
   //
