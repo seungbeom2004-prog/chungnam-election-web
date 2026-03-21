@@ -96,16 +96,21 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const { data, error } = await supabaseAdmin
+  // Unlink all posts from this issue first
+  await supabaseAdmin
+    .from("ProposalPost")
+    .update({ issueId: null })
+    .eq("issueId", id);
+
+  // Hard delete the issue
+  const { error } = await supabaseAdmin
     .from("Issue")
-    .update({ status: "archived", updatedAt: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
+    .delete()
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ success: true });
 }

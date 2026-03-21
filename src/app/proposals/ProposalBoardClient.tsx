@@ -191,6 +191,12 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const hotIssues = issues.filter((i) => i.reportCount >= 5);
   const regularIssues = issues.filter((i) => i.reportCount < 5);
 
+  // Only show cities that have at least one issue
+  const citiesWithIssues = new Set(issues.map((i) => i.city).filter(Boolean));
+  const visibleCityFilters = CITY_FILTERS.filter(
+    (city) => city === "전체" || citiesWithIssues.has(city)
+  );
+
   return (
     <div>
       {/* Header */}
@@ -336,7 +342,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           {/* City filter tabs */}
           <div className="overflow-x-auto">
             <div className="flex gap-2 pb-2 min-w-max">
-              {CITY_FILTERS.map((city) => (
+              {visibleCityFilters.map((city) => (
                 <button
                   key={city}
                   onClick={() => setIssueCityFilter(city)}

@@ -60,6 +60,10 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
   const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
 
+  // Similar posts
+  const [similarPosts, setSimilarPosts] = useState<{ id: string; title: string; content: string }[]>([]);
+  const [showNoSimilar, setShowNoSimilar] = useState(false);
+
   const searchParams = useSearchParams();
 
   const MAX_CONTENT = 500;
@@ -526,22 +530,69 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
         </div>
       )}
 
-      {/* Related post link (optional) */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          🔗 관련 게시물 연결 <span className="text-xs text-muted font-normal">(선택)</span>
-        </label>
-        <input
-          type="text"
-          value={relatedPostInput}
-          onChange={(e) => setRelatedPostInput(e.target.value)}
-          placeholder="관련 게시물 URL 또는 ID를 붙여넣으세요"
-          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-        />
-        <p className="text-[11px] text-muted mt-1">
-          비슷한 내용의 기존 게시물과 연결하려면 해당 페이지 URL을 붙여넣으세요.
-        </p>
-      </div>
+      {/* Similar posts — AI-powered smart linking */}
+      {content.length > 20 && !relatedPostInput && (
+        <div className="border border-dashed border-blue-200 bg-blue-50/30 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-blue-700">💡 비슷한 기존 게시물이 있나요?</p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/proposals?limit=5&search=${encodeURIComponent(title || content.slice(0, 30))}`);
+                  if (res.ok) {
+                    const json = await res.json();
+                    const results = (json.data ?? []) as { id: string; title: string; content: string }[];
+                    if (results.length > 0) {
+                      setSimilarPosts(results);
+                    } else {
+                      setSimilarPosts([]);
+                      setShowNoSimilar(true);
+                      setTimeout(() => setShowNoSimilar(false), 3000);
+                    }
+                  }
+                } catch { /* silent */ }
+              }}
+              className="px-2 py-1 text-[10px] bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors"
+            >
+              🔍 비슷한 글 찾기
+            </button>
+          </div>
+          {showNoSimilar && (
+            <p className="text-[10px] text-blue-500">비슷한 게시물을 찾지 못했습니다.</p>
+          )}
+          {similarPosts.length > 0 && (
+            <div className="space-y-1.5">
+              {similarPosts.map((sp) => (
+                <button
+                  key={sp.id}
+                  type="button"
+                  onClick={() => { setRelatedPostInput(sp.id); setSimilarPosts([]); }}
+                  className="w-full text-left px-3 py-2 bg-white rounded-lg border border-blue-100 hover:border-blue-300 transition-colors"
+                >
+                  <p className="text-xs font-medium text-foreground line-clamp-1">{sp.title}</p>
+                  <p className="text-[10px] text-muted line-clamp-1">{sp.content.slice(0, 80)}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-muted">
+            같은 내용의 글이 이미 있다면 연결하면 관리자가 이슈로 묶기 쉬워져요.
+          </p>
+        </div>
+      )}
+      {relatedPostInput && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-xs text-blue-700 font-medium">🔗 관련 게시물 연결됨</span>
+          <button
+            type="button"
+            onClick={() => setRelatedPostInput("")}
+            className="ml-auto text-blue-400 hover:text-blue-700 text-sm leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* reCAPTCHA — guests only (not candidate, not admin) */}
       {!isCandidate && !isAdmin && siteKey && (

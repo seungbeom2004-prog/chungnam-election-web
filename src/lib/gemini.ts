@@ -123,3 +123,46 @@ ${postTexts}
 
   return await callGemini(prompt);
 }
+
+/**
+ * Analyze unassigned posts and suggest new issues to create (clustering).
+ */
+export async function suggestNewIssues(
+  posts: { id: string; title: string; content: string; city: string | null }[]
+): Promise<{ title: string; summary: string; category: string; city: string | null; postIds: string[] }[]> {
+  if (posts.length === 0) return [];
+
+  const postTexts = posts
+    .slice(0, 30)
+    .map((p, i) => `${i + 1}. [${p.id}] ${p.city ?? "미지정"} | ${p.title}: ${p.content.slice(0, 120)}`)
+    .join("\n");
+
+  const prompt = `다음은 아직 이슈에 배정되지 않은 시민 제보/제안 글 목록입니다. 비슷한 주제의 글들을 묶어서 새로운 이슈를 제안해주세요.
+
+규칙:
+- 2개 이상의 글이 묶일 수 있는 경우에만 이슈를 제안하세요
+- 각 이슈에는 제목, 1줄 요약, 카테고리(교통/안전/교육/복지/경제/환경/문화/기타), 도시명, 해당하는 글 ID 목록을 포함하세요
+- 최대 5개의 이슈를 제안하세요
+- 글이 1개만 남는 경우 억지로 이슈를 만들지 마세요
+
+글 목록:
+${postTexts}
+
+답변 형식 (JSON 배열만 답하세요, 다른 설명 없이):
+[{"title":"이슈 제목","summary":"1줄 요약","category":"카테고리","city":"도시명 또는 null","postIds":["id1","id2"]}]`;
+
+  const result = await callGemini(prompt);
+  if (!result) return [];
+
+  try {
+    const match = result.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    // Validate structure
+    return (parsed as Array<{ title: string; summary: string; category: string; city: string | null; postIds: string[] }>)
+      .filter((item) => item.title && item.postIds?.length >= 2)
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}

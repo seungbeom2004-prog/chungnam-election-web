@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
     const since = searchParams.get("since"); // ISO date string for filtering createdAt >= since
     const parentId = searchParams.get("parentId");
+    const search = searchParams.get("search");
 
     const buildQuery = (selectStr: string) => {
       let q = supabase
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
       if (postType && (selectStr.includes("postType"))) q = q.eq("postType", postType);
       if (since) q = q.gte("createdAt", since);
       if (parentId !== null) q = q.eq("parentId", parentId as string);
+      if (search) q = q.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
       // hasLocation only works after v10 migration
       return q;
     };

@@ -50,7 +50,7 @@ const ADMIN_STATUS_STEPS = [
 export default function AdminIssuesPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "active" | "resolved" | "archived">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "resolved">("all");
   const [message, setMessage] = useState("");
 
   // Create modal
@@ -83,6 +83,13 @@ export default function AdminIssuesPage() {
   // AI summary
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
   const [aiCategoryLoading, setAiCategoryLoading] = useState(false);
+
+  // AI suggest new issues
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{
+    title: string; summary: string; category: string; city: string | null; postIds: string[];
+  }[]>([]);
+  const [aiCreateLoading, setAiCreateLoading] = useState<number | null>(null);
 
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -128,12 +135,12 @@ export default function AdminIssuesPage() {
   // ── Delete Issue ────────────────────────────────────────────────
   const deleteIssue = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!window.confirm("이 이슈를 삭제(보관)하시겠습니까?\n연결된 게시물의 이슈 배정은 해제됩니다.")) return;
+    if (!window.confirm("이 이슈를 완전히 삭제하시겠습니까?\n연결된 게시물의 이슈 배정은 자동으로 해제됩니다.")) return;
     setDeleteLoading(id);
     try {
       const res = await fetch(`/api/admin/issues/${id}`, { method: "DELETE" });
       if (res.ok) {
-        showMessage("이슈가 삭제(보관)되었습니다.");
+        showMessage("이슈가 삭제되었습니다.");
         setEditTarget(null);
         setAssignTarget(null);
         fetchIssues();
@@ -384,6 +391,70 @@ export default function AdminIssuesPage() {
     }
   };
 
+  // ── AI Suggest New Issues ────────────────────────────────────────
+  const fetchAiSuggestions = async () => {
+    setAiSuggestLoading(true);
+    setAiSuggestions([]);
+    try {
+      const res = await fetch("/api/ai/suggest-new-issues", { method: "POST" });
+      if (res.ok) {
+        const json = await res.json();
+        setAiSuggestions(json.suggestions ?? []);
+        if ((json.suggestions ?? []).length === 0) {
+          showMessage(json.message || "AI가 새 이슈를 추천하지 못했습니다. 미배정 게시물이 부족할 수 있습니다.");
+        }
+      } else {
+        showMessage("AI 이슈 추천에 실패했습니다.");
+      }
+    } catch {
+      showMessage("AI 이슈 추천 중 오류가 발생했습니다.");
+    } finally {
+      setAiSuggestLoading(false);
+    }
+  };
+
+  const createFromAiSuggestion = async (idx: number) => {
+    const suggestion = aiSuggestions[idx];
+    if (!suggestion) return;
+    setAiCreateLoading(idx);
+    try {
+      // 1. Create the issue
+      const createRes = await fetch("/api/admin/issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: suggestion.title,
+          summary: suggestion.summary,
+          category: suggestion.category,
+          city: suggestion.city,
+        }),
+      });
+      if (!createRes.ok) {
+        showMessage("이슈 생성에 실패했습니다.");
+        return;
+      }
+      const { data: newIssue } = await createRes.json();
+      if (!newIssue?.id) { showMessage("이슈 ID를 받지 못했습니다."); return; }
+
+      // 2. Assign posts
+      if (suggestion.postIds.length > 0) {
+        await fetch(`/api/admin/issues/${newIssue.id}/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postIds: suggestion.postIds }),
+        });
+      }
+
+      showMessage(`"${suggestion.title}" 이슈가 생성되고 ${suggestion.postIds.length}개 게시물이 배정되었습니다.`);
+      setAiSuggestions((prev) => prev.filter((_, i) => i !== idx));
+      fetchIssues();
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAiCreateLoading(null);
+    }
+  };
+
   // ── Helper Components ─────────────────────────────────────────────
   const categoryBadge = (category: string | null) => {
     if (!category) return null;
@@ -402,7 +473,7 @@ export default function AdminIssuesPage() {
       case "resolved":
         return <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">resolved</span>;
       case "archived":
-        return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">archived</span>;
+        return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">보관됨</span>;
       default:
         return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">{status}</span>;
     }
@@ -453,7 +524,7 @@ export default function AdminIssuesPage() {
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {(["all", "active", "resolved", "archived"] as const).map((s) => (
+        {(["all", "active", "resolved"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -466,6 +537,56 @@ export default function AdminIssuesPage() {
             {s === "all" ? `전체 (${issues.length})` : s}
           </button>
         ))}
+      </div>
+
+      {/* AI Suggest New Issues */}
+      <div className="mb-4">
+        <button
+          onClick={fetchAiSuggestions}
+          disabled={aiSuggestLoading}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+        >
+          {aiSuggestLoading ? (
+            <><span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" /> AI 분석 중...</>
+          ) : (
+            <>🤖 AI 이슈 자동 추천</>
+          )}
+        </button>
+        {aiSuggestions.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-semibold text-purple-700">AI 추천 이슈 ({aiSuggestions.length}개)</p>
+            {aiSuggestions.map((s, idx) => (
+              <Card key={idx} className="p-3 border-purple-200 bg-purple-50/50">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {categoryBadge(s.category)}
+                      {s.city && <span className="text-xs text-muted">{s.city}</span>}
+                      <span className="text-[10px] text-purple-500">{s.postIds.length}개 게시물 포함</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{s.title}</p>
+                    <p className="text-xs text-muted mt-0.5">{s.summary}</p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => createFromAiSuggestion(idx)}
+                      disabled={aiCreateLoading === idx}
+                      className="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {aiCreateLoading === idx ? "생성 중..." : "이슈 생성"}
+                    </button>
+                    <button
+                      onClick={() => setAiSuggestions((prev) => prev.filter((_, i) => i !== idx))}
+                      className="px-2 py-1.5 text-xs text-muted border border-border rounded-lg hover:bg-background"
+                    >
+                      무시
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {message && (
@@ -550,7 +671,7 @@ export default function AdminIssuesPage() {
                         onClick={(e) => deleteIssue(issue.id, e)}
                         disabled={deleteLoading === issue.id}
                         className="p-1.5 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-                        title="삭제(보관)"
+                        title="삭제"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
