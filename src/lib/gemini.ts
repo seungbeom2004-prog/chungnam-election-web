@@ -1,5 +1,14 @@
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+
+// Use flash-lite for higher free-tier rate limits (30 RPM vs 15 RPM)
+const MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+] as const;
+
+function apiUrl(model: string) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 const CATEGORIES = ["교통", "안전", "교육", "복지", "경제", "환경", "문화", "기타"] as const;
 
@@ -7,36 +16,55 @@ interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
 }
 
-async function callGemini(prompt: string): Promise<string | null> {
+async function callGemini(prompt: string, maxTokens = 500): Promise<string | null> {
   if (!GEMINI_API_KEY) {
     console.warn("[Gemini] API key not configured");
     return null;
   }
 
-  try {
-    const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 500,
-        },
-      }),
-    });
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: maxTokens,
+    },
+  });
 
-    if (!res.ok) {
-      console.error("[Gemini] API error:", res.status, await res.text().catch(() => ""));
-      return null;
+  // Try each model; on 429, wait and retry once
+  for (const model of MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(`${apiUrl(model)}?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+
+        if (res.status === 429) {
+          console.warn(`[Gemini] 429 rate limit on ${model}, attempt ${attempt + 1}`);
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 3000)); // wait 3s and retry
+            continue;
+          }
+          break; // try next model
+        }
+
+        if (!res.ok) {
+          console.error(`[Gemini] API error (${model}):`, res.status, await res.text().catch(() => ""));
+          break; // try next model
+        }
+
+        const json: GeminiResponse = await res.json();
+        return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+      } catch (err) {
+        console.error(`[Gemini] Request failed (${model}):`, err);
+        break; // try next model
+      }
     }
-
-    const json: GeminiResponse = await res.json();
-    return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
-  } catch (err) {
-    console.error("[Gemini] Request failed:", err);
-    return null;
   }
+
+  console.error("[Gemini] All models exhausted");
+  return null;
 }
 
 /**
@@ -151,7 +179,7 @@ ${postTexts}
 답변 형식 (JSON 배열만 답하세요, 다른 설명 없이):
 [{"title":"이슈 제목","summary":"1줄 요약","category":"카테고리","city":"도시명 또는 null","postIds":["id1","id2"]}]`;
 
-  const result = await callGemini(prompt);
+  const result = await callGemini(prompt, 1500);
   if (!result) return [];
 
   try {
