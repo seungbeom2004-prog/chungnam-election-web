@@ -66,7 +66,8 @@ export async function GET() {
       recentIssues: recentIssues ?? [],
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[GET /api/issues/stats] Error:", err);
+    const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
