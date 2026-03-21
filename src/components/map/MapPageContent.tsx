@@ -345,6 +345,12 @@ export default function MapPageContent() {
   }>>([]);
   const [otherProvincesLoading, setOtherProvincesLoading] = useState(false);
   const [sharedProposalId, setSharedProposalId] = useState<string | null>(null);
+  const [layerSettingsOpen, setLayerSettingsOpen] = useState(false);
+  const [showMinwon, setShowMinwon] = useState(true);
+  const [showProposal, setShowProposal] = useState(true);
+  const [showPledge, setShowPledge] = useState(true);
+  const [darkMap, setDarkMap] = useState(false);
+  const layerSettingsRef = useRef<HTMLDivElement>(null);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
   const categoryLegendRef = useRef<HTMLDivElement>(null);
@@ -429,8 +435,13 @@ export default function MapPageContent() {
   const PANEL_PROPOSALS_LIMIT = 5;
   const filteredProposals = (() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return proposals; // no search → show all on map
-    return proposals.filter((p) =>
+    let list = proposals.filter((p) => {
+      if (p.postType === "민원" && !showMinwon) return false;
+      if (p.postType !== "민원" && !showProposal) return false;
+      return true;
+    });
+    if (!q) return list;
+    return list.filter((p) =>
       p.title.toLowerCase().includes(q) ||
       p.content.toLowerCase().includes(q) ||
       p.authorName.toLowerCase().includes(q)
@@ -566,6 +577,15 @@ export default function MapPageContent() {
     if (categoryLegendOpen) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [categoryLegendOpen]);
+
+  // Close layer settings on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (layerSettingsRef.current && !layerSettingsRef.current.contains(e.target as Node)) setLayerSettingsOpen(false);
+    };
+    if (layerSettingsOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [layerSettingsOpen]);
 
   // Trigger map resize when sidebar panel opens/closes
   useEffect(() => {
@@ -1038,7 +1058,7 @@ export default function MapPageContent() {
         </div>
 
         {/* Map canvas wrapper — flex-1 fills remaining height */}
-        <div className="flex-1 relative min-w-0 overflow-hidden min-h-0">
+        <div className="flex-1 relative min-w-0 overflow-hidden min-h-0" style={darkMap ? { filter: "invert(0.93) hue-rotate(180deg) saturate(0.9)" } : undefined}>
 
         {/* Map rendering */}
         {mapReady && !mapError ? (
@@ -1058,6 +1078,7 @@ export default function MapPageContent() {
             selectedPledgeId={selectedPledge?.id ?? null}
             selectedProposalId={selectedProposal?.id ?? null}
             resizeTrigger={mapResizeTrigger}
+            showPledges={showPledge}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">
@@ -1164,6 +1185,64 @@ export default function MapPageContent() {
                       {selectedCategory === id && <span className="text-primary text-xs ml-1">✓</span>}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Layer settings button + panel */}
+          <div ref={layerSettingsRef} className="relative">
+            <button
+              onClick={() => setLayerSettingsOpen((o) => !o)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 bg-white/97 backdrop-blur-sm rounded-xl border shadow-md text-sm font-semibold transition-colors ${
+                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap
+                  ? "border-primary/50 text-primary bg-primary/5"
+                  : "border-border/50 text-foreground hover:bg-white"
+              }`}
+            >
+              <span>🗂️</span>
+              <span>지도설정</span>
+            </button>
+            {layerSettingsOpen && (
+              <div className="absolute top-full left-0 mt-1.5 bg-white/98 border border-border rounded-2xl shadow-2xl overflow-hidden min-w-[220px] z-50">
+                <div className="px-4 py-3 border-b border-border/50">
+                  <p className="text-xs font-bold text-foreground">핀 표시 설정</p>
+                </div>
+                <div className="p-3 space-y-1">
+                  {[
+                    { key: "minwon", label: "불편 제보", emoji: "📢", color: "#EF4444", value: showMinwon, set: setShowMinwon },
+                    { key: "proposal", label: "공약 제안", emoji: "💡", color: "#FACC15", value: showProposal, set: setShowProposal },
+                    { key: "pledge", label: "정식 공약", emoji: "📌", color: "#FF5A00", value: showPledge, set: setShowPledge },
+                  ].map(({ key, label, emoji, color, value, set }) => (
+                    <button
+                      key={key}
+                      onClick={() => set((v) => !v)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${value ? "bg-background" : "opacity-50 bg-background/50"}`}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full border-2 border-white shadow-sm shrink-0"
+                        style={{ backgroundColor: value ? color : "#9CA3AF" }}
+                      />
+                      <span className="text-base">{emoji}</span>
+                      <span className={`flex-1 text-left font-medium ${value ? "text-foreground" : "text-muted"}`}>{label}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${value ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {value ? "ON" : "OFF"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="px-4 py-3 border-t border-border/50 space-y-1">
+                  <p className="text-xs font-bold text-foreground mb-2">지도 스타일</p>
+                  <button
+                    onClick={() => setDarkMap((v) => !v)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${darkMap ? "bg-gray-900 text-white" : "bg-background text-foreground"}`}
+                  >
+                    <span className="text-base">{darkMap ? "🌙" : "☀️"}</span>
+                    <span className="flex-1 text-left font-medium">{darkMap ? "다크 모드" : "라이트 모드"}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${darkMap ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
+                      {darkMap ? "ON" : "OFF"}
+                    </span>
+                  </button>
                 </div>
               </div>
             )}

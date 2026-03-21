@@ -11,7 +11,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json();
-  const { status, postType } = body;
+  const { status, postType, title, content, city, latitude, longitude, categoryId } = body;
+
+  // Edit update (title/content/city/latitude/longitude/categoryId)
+  if (title !== undefined || content !== undefined || city !== undefined || latitude !== undefined || longitude !== undefined || categoryId !== undefined) {
+    const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (city !== undefined) updateData.city = city;
+    if (latitude !== undefined) updateData.latitude = latitude;
+    if (longitude !== undefined) updateData.longitude = longitude;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    const { error } = await supabaseAdmin.from("ProposalPost").update(updateData).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
 
   // postType-only update (종류 변경)
   if (postType !== undefined && status === undefined) {

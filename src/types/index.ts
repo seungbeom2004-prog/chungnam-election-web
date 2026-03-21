@@ -127,6 +127,24 @@ export interface Category {
   updatedAt: string;
 }
 
+export interface ProposalCategory {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string;
+  description: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PostHashtag {
+  id: string;
+  postId: string;
+  tag: string;
+  createdAt: string;
+}
+
 export interface ProposalResponse {
   id: string;
   proposalId: string | null;
@@ -159,6 +177,9 @@ export interface ProposalPost {
   postType?: string;  // "민원" | "제안"
   hasLiked?: boolean;
   authorType?: string | null;
+  categoryId?: string | null;
+  category?: ProposalCategory | null;
+  hashtags?: PostHashtag[];
   candidate?: { id: string; name: string; district: string; profileImage?: string | null; role?: string | null } | null;
   responses?: ProposalResponse[];
 }

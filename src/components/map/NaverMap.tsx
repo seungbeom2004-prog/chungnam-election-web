@@ -45,6 +45,8 @@ interface NaverMapProps {
    * and re-render all markers so pins don't disappear in the newly exposed area.
    */
   resizeTrigger?: number;
+  /** When false, pledge pins are hidden (layer toggle). Defaults to true. */
+  showPledges?: boolean;
 }
 
 interface PinSettings {
@@ -462,6 +464,7 @@ export default function NaverMap({
   selectedPledgeId = null,
   selectedProposalId = null,
   resizeTrigger = 0,
+  showPledges = true,
 }: NaverMapProps) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstance    = useRef<naver.maps.Map | null>(null);
@@ -505,6 +508,10 @@ export default function NaverMap({
   const onBylawGroupClickRef = useRef<((group: BylawGroup) => void) | undefined>(onBylawGroupClick);
   useEffect(() => { bylawGroupsRef.current = bylawGroups; }, [bylawGroups]);
   useEffect(() => { onBylawGroupClickRef.current = onBylawGroupClick; }, [onBylawGroupClick]);
+
+  // showPledges ref for use inside stable callbacks
+  const showPledgesRef = useRef(showPledges);
+  useEffect(() => { showPledgesRef.current = showPledges; }, [showPledges]);
 
   const { center, zoomLevel, setCenter, setZoomLevel, setSelectedDistrict } = useMapStore();
 
@@ -624,6 +631,12 @@ export default function NaverMap({
   //
   const renderPledgeClusters = useCallback(
     (map: naver.maps.Map) => {
+      if (!showPledgesRef.current) {
+        clearClusterMarkers();
+        clearPledgeMarkers();
+        clearSpiderfy();
+        return;
+      }
       clearClusterMarkers();
       clearPledgeMarkers();
       clearSpiderfy();
@@ -1119,6 +1132,12 @@ export default function NaverMap({
     if (!mapInstance.current) return;
     renderPledgeClusters(mapInstance.current);
   }, [renderPledgeClusters]);
+
+  // Re-render clusters when showPledges changes (layer toggle)
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    renderClustersRef.current(mapInstance.current);
+  }, [showPledges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Initialise map ────────────────────────────────────────────────────────
   //
