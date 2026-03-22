@@ -47,6 +47,8 @@ export default function AdminProposalsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [typeLoading, setTypeLoading] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedProposal = proposals.find((p) => p.id === selectedId) ?? null;
 
   // Edit modal state
   const [editTarget, setEditTarget] = useState<Proposal | null>(null);
@@ -414,164 +416,122 @@ export default function AdminProposalsPage() {
       ) : proposals.length === 0 ? (
         <p className="text-muted text-sm">게시물이 없습니다.</p>
       ) : (
-        <div className="space-y-3">
-          {proposals.map((p) => (
-            <Card key={p.id} className={`p-4 ${mergeSelected.has(p.id) ? "ring-2 ring-blue-400" : ""}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                  {/* Merge checkbox */}
+        <div className="flex gap-4" style={{ minHeight: "calc(100vh - 220px)" }}>
+          {/* ── Left: Compact List ──────────────────────────── */}
+          <div className="w-[420px] shrink-0 overflow-y-auto border border-border rounded-xl bg-white" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            {proposals.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedId(p.id)}
+                className={`w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors hover:bg-primary/5 ${
+                  selectedId === p.id ? "bg-primary/10 border-l-2 border-l-primary" : ""
+                } ${mergeSelected.has(p.id) ? "ring-1 ring-inset ring-blue-400" : ""}`}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
                   <input
                     type="checkbox"
                     checked={mergeSelected.has(p.id)}
-                    onChange={() => toggleMergeSelect(p.id)}
-                    className="mt-1 shrink-0"
+                    onChange={(e) => { e.stopPropagation(); toggleMergeSelect(p.id); }}
+                    className="shrink-0"
                     title="병합 선택"
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {postTypeBadge(p.postType)}
-                      {statusLabel(p.status)}
-                      {adminStatusBadge(p.adminStatus)}
-                      {p.parentId && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-teal-50 text-teal-700 rounded-full border border-teal-200">
-                          🔗 연결됨
-                        </span>
-                      )}
-                      {p.issueId && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded-full border border-amber-200">
-                          🏷️ {issues.find(i => i.id === p.issueId)?.title ?? "이슈"}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted">
-                        {p.candidate ? `→ ${p.candidate.name} (${p.candidate.district})` : ""}
-                      </span>
-                      <span className="text-xs text-muted">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-foreground">{p.title || p.authorName}</p>
-                    {p.title && <p className="text-xs text-muted">작성자: {p.authorName}</p>}
-                    <p className="text-sm text-muted mt-1 break-words line-clamp-3">{p.content}</p>
-
-                    {/* Admin status step selector */}
-                    <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      <span className="text-[10px] text-muted mr-1">처리 단계:</span>
-                      {ADMIN_STATUS_STEPS.map((step) => (
-                        <button
-                          key={String(step.value)}
-                          onClick={() => updateAdminStatus(p.id, step.value)}
-                          disabled={adminStatusLoading === p.id}
-                          className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors disabled:opacity-50 ${
-                            (p.adminStatus ?? null) === step.value
-                              ? step.color + " font-bold"
-                              : "bg-white border-border text-muted hover:border-gray-400"
-                          }`}
-                        >
-                          {step.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {postTypeBadge(p.postType)}
+                  {statusLabel(p.status)}
+                  <span className="text-[10px] text-muted ml-auto">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
                 </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
-                  {/* Edit + Split + Link buttons */}
-                  <button
-                    onClick={() => openEdit(p)}
-                    className="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
-                  >
-                    ✏️ 수정
-                  </button>
-                  <button
-                    onClick={() => openSplit(p)}
-                    className="px-2.5 py-1 text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
-                  >
-                    ✂️ 분할
-                  </button>
-                  <button
-                    onClick={() => { setLinkTarget(p); setLinkSearch(""); }}
-                    className={`px-2.5 py-1 text-xs border rounded-lg transition-colors ${
-                      p.parentId
-                        ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100"
-                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    {p.parentId ? "🔗 연결됨" : "🔗 연결"}
-                  </button>
-                  <button
-                    onClick={() => setIssueModalTarget(p)}
-                    className={`px-2.5 py-1 text-xs border rounded-lg transition-colors ${
-                      p.issueId
-                        ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    {p.issueId ? "🏷️ 이슈" : "🏷️ 이슈 배정"}
-                  </button>
+                <p className="text-sm font-medium text-foreground truncate">{p.title || p.content.slice(0, 40)}</p>
+                <p className="text-[11px] text-muted truncate">{p.authorName} · {p.city ?? "미지정"}</p>
+              </button>
+            ))}
+          </div>
 
-                  {p.status !== "deleted" && (
-                    <>
-                      {/* 익명 변환 (후보자 게시글만) */}
-                      {p.candidateId && (
-                        <button
-                          onClick={() => { if (confirm("후보자 정보를 삭제하고 익명으로 변환하시겠습니까?")) anonymizePost(p.id); }}
-                          disabled={anonymizeLoading === p.id}
-                          className="px-2.5 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
-                        >
-                          {anonymizeLoading === p.id ? "..." : "👤 익명"}
-                        </button>
-                      )}
-
-                      {/* 종류 변경 — 후보자가 단 공약 제안(candidateId 있는 제안)은 삭제만 */}
-                      {!(p.postType === "제안" && p.candidateId) && (
-                        <button
-                          onClick={() => changePostType(p.id, p.postType === "민원" ? "제안" : "민원")}
-                          disabled={typeLoading === p.id}
-                          className="px-2.5 py-1 text-xs border rounded-lg hover:opacity-80 transition-colors disabled:opacity-50"
-                          style={p.postType === "민원"
-                            ? { backgroundColor: "#FEF9C3", color: "#B45309", borderColor: "#FDE68A" }
-                            : { backgroundColor: "#FEF2F2", color: "#EF4444", borderColor: "#FCA5A5" }
-                          }
-                        >
-                          {typeLoading === p.id ? "변경 중..." : p.postType === "민원" ? "→ 공약 제안" : "→ 불편 제보"}
-                        </button>
-                      )}
-                      {p.status === "hidden" ? (
-                        <button
-                          onClick={() => updateStatus(p.id, "pending")}
-                          disabled={actionLoading === p.id}
-                          className="px-2.5 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
-                        >
-                          복원
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => updateStatus(p.id, "hidden")}
-                          disabled={actionLoading === p.id}
-                          className="px-2.5 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-                        >
-                          숨김
-                        </button>
-                      )}
-                      {p.status === "pending" && !(p.postType === "제안" && p.candidateId) && (
-                        <button
-                          onClick={() => updateStatus(p.id, "accepted")}
-                          disabled={actionLoading === p.id}
-                          className="px-2.5 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
-                        >
-                          채택
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { if (confirm("정말 삭제하시겠습니까?")) updateStatus(p.id, "deleted"); }}
-                        disabled={actionLoading === p.id}
-                        className="px-2.5 py-1 text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-                      >
-                        삭제
-                      </button>
-                    </>
+          {/* ── Right: Detail Panel ────────────────────────── */}
+          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            {selectedProposal ? (
+              <Card className="p-5 sticky top-0">
+                {/* Header badges */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {postTypeBadge(selectedProposal.postType)}
+                  {statusLabel(selectedProposal.status)}
+                  {adminStatusBadge(selectedProposal.adminStatus)}
+                  {selectedProposal.issueId && (
+                    <span className="px-1.5 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+                      🏷️ {issues.find(i => i.id === selectedProposal.issueId)?.title ?? "이슈"}
+                    </span>
+                  )}
+                  {selectedProposal.parentId && (
+                    <span className="px-1.5 py-0.5 text-[10px] bg-teal-50 text-teal-700 rounded-full border border-teal-200">🔗 연결됨</span>
                   )}
                 </div>
+
+                {/* Title + Author */}
+                <h2 className="text-lg font-bold text-foreground mb-1">{selectedProposal.title || "제목 없음"}</h2>
+                <p className="text-xs text-muted mb-3">
+                  작성자: {selectedProposal.authorName} · {selectedProposal.city ?? "미지정"} · {new Date(selectedProposal.createdAt).toLocaleDateString("ko-KR")}
+                  {selectedProposal.candidate && ` · → ${selectedProposal.candidate.name}`}
+                </p>
+
+                {/* Content */}
+                <div className="bg-background rounded-lg p-4 mb-4 border border-border/50">
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedProposal.content}</p>
+                </div>
+
+                {/* Admin Status */}
+                <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                  <span className="text-xs text-muted mr-1">처리 단계:</span>
+                  {ADMIN_STATUS_STEPS.map((step) => (
+                    <button
+                      key={String(step.value)}
+                      onClick={() => updateAdminStatus(selectedProposal.id, step.value)}
+                      disabled={adminStatusLoading === selectedProposal.id}
+                      className={`px-2 py-1 text-xs rounded-lg border transition-colors disabled:opacity-50 ${
+                        (selectedProposal.adminStatus ?? null) === step.value
+                          ? step.color + " font-bold"
+                          : "bg-white border-border text-muted hover:border-gray-400"
+                      }`}
+                    >
+                      {step.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Action Buttons Grid */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button onClick={() => openEdit(selectedProposal)} className="px-3 py-2 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-center">✏️ 수정</button>
+                  <button onClick={() => openSplit(selectedProposal)} className="px-3 py-2 text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors text-center">✂️ 분할</button>
+                  <button onClick={() => { setLinkTarget(selectedProposal); setLinkSearch(""); }} className="px-3 py-2 text-xs bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors text-center">🔗 연결</button>
+                  <button onClick={() => setIssueModalTarget(selectedProposal)} className="px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-center">🏷️ 이슈</button>
+                  {selectedProposal.candidateId && (
+                    <button onClick={() => { if (confirm("익명으로 변환?")) anonymizePost(selectedProposal.id); }} disabled={anonymizeLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors text-center disabled:opacity-50">👤 익명</button>
+                  )}
+                  {!(selectedProposal.postType === "제안" && selectedProposal.candidateId) && (
+                    <button onClick={() => changePostType(selectedProposal.id, selectedProposal.postType === "민원" ? "제안" : "민원")} disabled={typeLoading === selectedProposal.id} className="px-3 py-2 text-xs border rounded-lg hover:opacity-80 transition-colors text-center disabled:opacity-50" style={selectedProposal.postType === "민원" ? { backgroundColor: "#FEF9C3", color: "#B45309", borderColor: "#FDE68A" } : { backgroundColor: "#FEF2F2", color: "#EF4444", borderColor: "#FCA5A5" }}>
+                      {typeLoading === selectedProposal.id ? "..." : selectedProposal.postType === "민원" ? "→ 공약 제안" : "→ 불편 제보"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Status Actions */}
+                {selectedProposal.status !== "deleted" && (
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedProposal.status === "hidden" ? (
+                      <button onClick={() => updateStatus(selectedProposal.id, "pending")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 flex-1 text-center">복원</button>
+                    ) : (
+                      <button onClick={() => updateStatus(selectedProposal.id, "hidden")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 flex-1 text-center">숨김</button>
+                    )}
+                    {selectedProposal.status === "pending" && !(selectedProposal.postType === "제안" && selectedProposal.candidateId) && (
+                      <button onClick={() => updateStatus(selectedProposal.id, "accepted")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 flex-1 text-center">채택</button>
+                    )}
+                    <button onClick={() => { if (confirm("정말 삭제하시겠습니까?")) updateStatus(selectedProposal.id, "deleted"); }} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 flex-1 text-center">삭제</button>
+                  </div>
+                )}
+              </Card>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted text-sm">
+                <p>← 왼쪽 목록에서 게시물을 선택하세요</p>
               </div>
-            </Card>
-          ))}
+            )}
+          </div>
         </div>
       )}
 

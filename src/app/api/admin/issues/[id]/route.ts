@@ -31,7 +31,8 @@ export async function GET(
     .neq("status", "deleted")
     .order("createdAt", { ascending: false });
 
-  return NextResponse.json({ data: { ...issue, posts: posts ?? [] } });
+  const linkedPosts = posts ?? [];
+  return NextResponse.json({ data: { ...issue, reportCount: linkedPosts.length, posts: linkedPosts } });
 }
 
 export async function PATCH(

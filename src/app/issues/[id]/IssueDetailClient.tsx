@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Card from "@/components/ui/Card";
-import StatusStepper from "@/components/proposals/StatusStepper";
+// StatusStepper removed — issues contain mixed post types
 
 const IssueLocationMap = dynamic(() => import("./IssueLocationMap"), {
   ssr: false,
@@ -169,10 +169,21 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
         </span>
       </div>
 
-      {/* Status Stepper */}
+      {/* Post Type Breakdown */}
       <Card className="p-4 mb-6">
-        <p className="text-xs font-semibold text-muted mb-2">처리 현황</p>
-        <StatusStepper adminStatus={issue.adminStatus} />
+        <div className="flex gap-3 flex-wrap">
+          {(() => {
+            const minwon = issue.posts.filter((p) => p.postType === "민원").length;
+            const proposal = issue.posts.filter((p) => p.postType === "제안").length;
+            return (
+              <>
+                {minwon > 0 && <span className="text-xs px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full font-medium">📢 불편 제보 {minwon}건</span>}
+                {proposal > 0 && <span className="text-xs px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-medium">💡 공약 제안 {proposal}건</span>}
+                <span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-600 border border-gray-200 rounded-full font-medium">총 {issue.posts.length}건</span>
+              </>
+            );
+          })()}
+        </div>
       </Card>
 
       {/* Summary */}

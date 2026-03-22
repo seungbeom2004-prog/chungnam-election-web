@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
   const result = (issues ?? []).map((issue) => ({
     ...issue,
+    reportCount: postCounts[issue.id] || 0,
     postCount: postCounts[issue.id] || 0,
   }));
 

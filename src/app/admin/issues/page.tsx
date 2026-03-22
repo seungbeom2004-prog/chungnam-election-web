@@ -12,6 +12,7 @@ interface Issue {
   city: string | null;
   dong: string | null;
   reportCount: number;
+  postCount?: number;
   status: string;
   adminStatus: string | null;
   assignedPosts?: { id: string; title: string | null; content: string; authorName: string; postType?: string }[];
@@ -626,35 +627,19 @@ export default function AdminIssuesPage() {
                       <p className="text-sm text-muted mt-1 break-words line-clamp-2">{issue.summary}</p>
                     )}
 
-                    {/* Admin status step selector */}
-                    <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      <span className="text-[10px] text-muted mr-1">처리 단계:</span>
-                      {ADMIN_STATUS_STEPS.map((step) => (
-                        <button
-                          key={String(step.value)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateAdminStatus(issue.id, step.value);
-                          }}
-                          disabled={adminStatusLoading === issue.id}
-                          className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors disabled:opacity-50 ${
-                            (issue.adminStatus ?? null) === step.value
-                              ? step.color + " font-bold"
-                              : "bg-white border-border text-muted hover:border-gray-400"
-                          }`}
-                        >
-                          {step.label}
-                        </button>
-                      ))}
+                    {/* Status badge */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className={`px-1.5 py-0.5 text-[10px] rounded-full border font-medium ${
+                        issue.status === "active" ? "bg-green-50 text-green-700 border-green-200" :
+                        issue.status === "resolved" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        "bg-gray-50 text-gray-500 border-gray-200"
+                      }`}>{issue.status}</span>
                     </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="text-lg font-bold text-primary">{issue.reportCount ?? 0}</span>
-                    <span className="text-[10px] text-muted">제보 수</span>
-                    {issue.assignedPosts && issue.assignedPosts.length > 0 && (
-                      <span className="text-[10px] text-blue-600 font-medium">{issue.assignedPosts.length}개 배정</span>
-                    )}
+                    <span className="text-lg font-bold text-primary">{issue.postCount ?? issue.reportCount ?? 0}</span>
+                    <span className="text-[10px] text-muted">게시물 수</span>
                     {/* Action buttons */}
                     <div className="flex gap-1 mt-1">
                       <button
