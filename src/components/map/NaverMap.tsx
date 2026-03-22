@@ -420,6 +420,27 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
   );
 }
 
+/** Proposal cluster pin — groups nearby 불편제보 + 공약제안 */
+function buildProposalClusterHTML(totalCount: number, minwonCount: number, proposalCount: number): string {
+  const hasMinwon = minwonCount > 0;
+  const hasProposal = proposalCount > 0;
+  const bg = hasMinwon && hasProposal
+    ? "linear-gradient(135deg,#EF4444 50%,#FACC15 50%)"
+    : hasMinwon ? "#EF4444" : "#FACC15";
+  const textColor = hasMinwon && !hasProposal ? "white" : "#111";
+  const size = totalCount >= 10 ? 44 : 38;
+  return (
+    `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
+    `animation:markerFadeIn 0.15s ease-out both;">` +
+    `<div style="width:${size}px;height:${size}px;background:${bg};border-radius:50%;` +
+    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
+    `box-shadow:0 2px 8px rgba(0,0,0,0.3);">` +
+    `<span style="font-size:${totalCount >= 10 ? 14 : 13}px;font-weight:800;color:${textColor};">${totalCount}</span>` +
+    `</div>` +
+    `</div>`
+  );
+}
+
 /** City-wide proposal group pin — shown south-east of the council pin */
 function buildCityProposalGroupHTML(cityName: string, minwonCount: number, proposalCount: number): string {
   const total = minwonCount + proposalCount;
@@ -1050,25 +1071,75 @@ export default function NaverMap({
         proposalListenersRef.current.push(listener);
       }
 
-      // ── Render individual proposals (zoom-based: dot vs icon+label) ─────
+      // ── Cluster individual proposals using Supercluster ─────────────────
       const selectedId = selectedProposalIdRef.current;
-      for (const proposal of individualItems) {
-        const isSelected = selectedId === proposal.id;
-        const markerHtml = (showLabel || isSelected)
-          ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId)
-          : buildProposalDotHTML(proposal.postType);
-        const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
-        const marker = new naver.maps.Marker({
-          map,
-          position: new naver.maps.LatLng(proposal.latitude, proposal.longitude),
-          icon: { content: markerHtml, anchor },
-          zIndex: 6,
-        });
-        const listener = naver.maps.Event.addListener(marker, "click", () => {
-          onClick?.(proposal);
-        });
-        proposalMarkersRef.current.push(marker);
-        proposalListenersRef.current.push(listener);
+      if (individualItems.length === 0) return;
+
+      const geoFeatures = individualItems
+        .filter((p) => p.latitude && p.longitude)
+        .map((p) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [p.longitude, p.latitude] as [number, number] },
+          properties: { proposal: p },
+        }));
+
+      const proposalCluster = new Supercluster({ radius: 50, maxZoom: 15, minZoom: 1 });
+      proposalCluster.load(geoFeatures);
+
+      // Convert Naver zoom to Supercluster zoom (Naver is ~1 higher)
+      const scZoom = Math.max(1, Math.min(currentZoom - 1, 20));
+      const bounds = map.getBounds() as unknown as { _sw: { _lat: number; _lng: number }; _ne: { _lat: number; _lng: number }; getSW?: () => { lat: () => number; lng: () => number }; getNE?: () => { lat: () => number; lng: () => number } };
+      const swLat = bounds.getSW ? bounds.getSW().lat() : bounds._sw._lat;
+      const swLng = bounds.getSW ? bounds.getSW().lng() : bounds._sw._lng;
+      const neLat = bounds.getNE ? bounds.getNE().lat() : bounds._ne._lat;
+      const neLng = bounds.getNE ? bounds.getNE().lng() : bounds._ne._lng;
+      const clusters = proposalCluster.getClusters([swLng, swLat, neLng, neLat], scZoom);
+
+      for (const cluster of clusters) {
+        const [lng, lat] = cluster.geometry.coordinates;
+        const position = new naver.maps.LatLng(lat, lng);
+
+        if (cluster.properties.cluster) {
+          // It's a cluster — count minwon vs proposal
+          const leaves = proposalCluster.getLeaves(cluster.properties.cluster_id, Infinity);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const minwonCount = leaves.filter((l: any) => l.properties?.proposal?.postType === "민원").length;
+          const proposalCount = leaves.length - minwonCount;
+          const clusterHtml = buildProposalClusterHTML(leaves.length, minwonCount, proposalCount);
+          const marker = new naver.maps.Marker({
+            map,
+            position,
+            icon: { content: clusterHtml, anchor: new naver.maps.Point(22, 22) },
+            zIndex: 7,
+          });
+          const listener = naver.maps.Event.addListener(marker, "click", () => {
+            // Zoom into the cluster
+            const expansionZoom = Math.min(proposalCluster.getClusterExpansionZoom(cluster.properties.cluster_id), 18);
+            map.setCenter(position);
+            map.setZoom(expansionZoom + 1); // +1 for Naver offset
+          });
+          proposalMarkersRef.current.push(marker);
+          proposalListenersRef.current.push(listener);
+        } else {
+          // Individual marker
+          const proposal = cluster.properties.proposal;
+          const isSelected = selectedId === proposal.id;
+          const markerHtml = (showLabel || isSelected)
+            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId)
+            : buildProposalDotHTML(proposal.postType);
+          const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
+          const marker = new naver.maps.Marker({
+            map,
+            position,
+            icon: { content: markerHtml, anchor },
+            zIndex: 6,
+          });
+          const listener = naver.maps.Event.addListener(marker, "click", () => {
+            onClick?.(proposal);
+          });
+          proposalMarkersRef.current.push(marker);
+          proposalListenersRef.current.push(listener);
+        }
       }
     },
     [clearProposalMarkers, isCute]
