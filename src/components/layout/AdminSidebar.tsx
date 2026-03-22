@@ -144,6 +144,28 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/cta",
+    label: "CTA 배너",
+    shortLabel: "CTA",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M18 3H2a1 1 0 00-1 1v8a1 1 0 001 1h7v2H7v1h6v-1h-2v-2h7a1 1 0 001-1V4a1 1 0 00-1-1z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6 8h8M6 11h4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/notifications",
     label: "알림 관리",
     shortLabel: "알림",

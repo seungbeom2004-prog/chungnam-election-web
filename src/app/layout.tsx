@@ -12,6 +12,7 @@ import {
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
 import PageTracker from "@/components/layout/PageTracker";
+import CtaBanner from "@/components/cta/CtaBanner";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/layout/JsonLd";
 import ThemeColorMeta from "@/components/layout/ThemeColorMeta";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -133,6 +134,7 @@ export default function RootLayout({
               <MobileContentSpacer />
             </MainContentWrapper>
             <MobileBottomNavConditional />
+            <CtaBanner />
           </ThemeProvider>
         </AuthProvider>
       </body>
