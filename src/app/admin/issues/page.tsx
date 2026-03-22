@@ -611,7 +611,7 @@ export default function AdminIssuesPage() {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {categoryBadge(issue.category)}
                       {statusLabel(issue.status)}
-                      {adminStatusBadge(issue.adminStatus)}
+                      {/* adminStatusBadge removed */}
                       {issue.city && (
                         <span className="text-xs text-muted">
                           {issue.city}
@@ -925,26 +925,7 @@ export default function AdminIssuesPage() {
                     </div>
                   </div>
 
-                  {/* Admin status stepper */}
-                  <div>
-                    <label className="text-xs font-medium text-muted block mb-2">처리 단계</label>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {ADMIN_STATUS_STEPS.map((step) => (
-                        <button
-                          key={String(step.value)}
-                          onClick={() => updateAdminStatus(editTarget.id, step.value)}
-                          disabled={adminStatusLoading === editTarget.id}
-                          className={`px-2 py-1 text-xs rounded-full border transition-colors disabled:opacity-50 ${
-                            (editTarget.adminStatus ?? null) === step.value
-                              ? step.color + " font-bold"
-                              : "bg-white border-border text-muted hover:border-gray-400"
-                          }`}
-                        >
-                          {step.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Admin status stepper removed — issues now contain mixed post types */}
                 </div>
               ) : (
                 /* ── Posts Tab ─────────────────────────────────────────── */

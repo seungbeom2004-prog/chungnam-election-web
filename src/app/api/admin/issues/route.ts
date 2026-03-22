@@ -19,31 +19,42 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Get post counts for each issue
+  // Get assigned posts for each issue
   const issueIds = (issues ?? []).map((i) => i.id);
-  let postCounts: Record<string, number> = {};
+  const postsByIssue: Record<string, { id: string; title: string | null; content: string; authorName: string; postType?: string }[]> = {};
 
   if (issueIds.length > 0) {
-    const { data: counts, error: countError } = await supabaseAdmin
+    const { data: posts, error: postError } = await supabaseAdmin
       .from("ProposalPost")
-      .select("issueId")
+      .select("id, title, content, authorName, postType, issueId")
       .in("issueId", issueIds)
       .neq("status", "deleted");
 
-    if (!countError && counts) {
-      for (const row of counts) {
+    if (!postError && posts) {
+      for (const row of posts) {
         if (row.issueId) {
-          postCounts[row.issueId] = (postCounts[row.issueId] || 0) + 1;
+          if (!postsByIssue[row.issueId]) postsByIssue[row.issueId] = [];
+          postsByIssue[row.issueId].push({
+            id: row.id,
+            title: row.title,
+            content: row.content,
+            authorName: row.authorName,
+            postType: row.postType ?? undefined,
+          });
         }
       }
     }
   }
 
-  const result = (issues ?? []).map((issue) => ({
-    ...issue,
-    reportCount: postCounts[issue.id] || 0,
-    postCount: postCounts[issue.id] || 0,
-  }));
+  const result = (issues ?? []).map((issue) => {
+    const assignedPosts = postsByIssue[issue.id] || [];
+    return {
+      ...issue,
+      reportCount: assignedPosts.length,
+      postCount: assignedPosts.length,
+      assignedPosts,
+    };
+  });
 
   return NextResponse.json({ data: result });
 }
