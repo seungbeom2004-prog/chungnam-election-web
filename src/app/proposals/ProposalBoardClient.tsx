@@ -230,6 +230,9 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
                 오늘 +{(todayMinwonCount ?? 0) + (todayProposalCount ?? 0)}
               </span>
             )}
+            <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline">
+              📊 주간 현황판 →
+            </Link>
           </div>
         </div>
         <button
