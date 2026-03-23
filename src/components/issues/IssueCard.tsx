@@ -58,58 +58,70 @@ export default function IssueCard({ issue }: IssueCardProps) {
   const proposalCount = issue.proposalCount ?? 0;
 
   return (
-    <Link href={`/issues/${issue.id}`}>
-      <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group h-full flex flex-col">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            {issue.category && (
-              <span
-                className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${categoryColor.bg} ${categoryColor.text}`}
-              >
-                {issue.category}
-              </span>
-            )}
-            {issue.adminStatus && ADMIN_STATUS_LABEL[issue.adminStatus] && (
-              <span
-                className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
-                  issue.adminStatus === "adopted"
-                    ? "bg-green-100 text-green-700"
-                    : issue.adminStatus === "planned"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-500"
-                }`}
-              >
-                {ADMIN_STATUS_LABEL[issue.adminStatus]}
-              </span>
-            )}
+    <div className="relative group">
+      <Link href={`/issues/${issue.id}`}>
+        <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group h-full flex flex-col pb-12">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {issue.category && (
+                <span
+                  className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${categoryColor.bg} ${categoryColor.text}`}
+                >
+                  {issue.category}
+                </span>
+              )}
+              {issue.adminStatus && ADMIN_STATUS_LABEL[issue.adminStatus] && (
+                <span
+                  className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    issue.adminStatus === "adopted"
+                      ? "bg-green-100 text-green-700"
+                      : issue.adminStatus === "planned"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {ADMIN_STATUS_LABEL[issue.adminStatus]}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1 flex-1">
-          {issue.title}
-        </h3>
+          <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1 flex-1">
+            {issue.title}
+          </h3>
 
-        {issue.summary && (
-          <p className="text-sm text-muted line-clamp-2 mb-3">{issue.summary}</p>
-        )}
+          {issue.summary && (
+            <p className="text-sm text-muted line-clamp-2 mb-3">{issue.summary}</p>
+          )}
 
-        <div className="flex items-center justify-between text-xs text-muted mt-auto pt-2 border-t border-border">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-semibold ${isHot ? "text-orange-500" : "text-muted"}`}>
-              {isHot ? "🔥" : "📢"} {issue.reportCount}건 제보
-            </span>
-            {proposalCount > 0 && (
-              <span className="font-semibold text-amber-600">
-                💡 {proposalCount}건 제안
+          <div className="flex items-center justify-between text-xs text-muted mt-auto pt-2 border-t border-border">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`font-semibold ${isHot ? "text-orange-500" : "text-muted"}`}>
+                {isHot ? "🔥" : "📢"} {issue.reportCount}건 제보
               </span>
-            )}
-            {location && (
-              <span className="text-muted hidden sm:inline">📍 {location}</span>
-            )}
+              {proposalCount > 0 && (
+                <span className="font-semibold text-amber-600">
+                  💡 {proposalCount}건 제안
+                </span>
+              )}
+              {location && (
+                <span className="text-muted hidden sm:inline">📍 {location}</span>
+              )}
+            </div>
+            <span className="shrink-0">{getRelativeTime(issue.createdAt)}</span>
           </div>
-          <span className="shrink-0">{getRelativeTime(issue.createdAt)}</span>
-        </div>
-      </Card>
-    </Link>
+        </Card>
+      </Link>
+
+      {/* "나도 제보하기" CTA — sits at bottom of card, above the link */}
+      <Link
+        href={`/proposals?issueId=${issue.id}&type=민원`}
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-2 left-2 right-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors shadow-sm"
+        aria-label={`${issue.title} 이슈에 나도 제보하기`}
+      >
+        📢 나도 제보하기
+      </Link>
+    </div>
   );
 }

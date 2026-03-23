@@ -166,6 +166,14 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           {selectedCity && <button onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }} className="text-xs text-muted hover:text-foreground">✕</button>}
         </div>
       </div>
+
+      {/* CTA */}
+      <button
+        onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors shadow-sm"
+      >
+        📢 나도 불편 제보하기
+      </button>
       <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(1); listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
       <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="민원" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} />
     </div>
@@ -187,6 +195,14 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
           </select>
         </div>
       </div>
+
+      {/* CTA */}
+      <button
+        onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-gray-900 text-sm font-bold transition-colors shadow-sm"
+      >
+        💡 나도 제안하기
+      </button>
       <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(2); }} />
       <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="제안" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} />
     </div>
