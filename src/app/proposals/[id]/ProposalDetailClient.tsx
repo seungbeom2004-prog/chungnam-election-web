@@ -19,6 +19,18 @@ const CandidateResponseSection = dynamic(
   { ssr: false }
 );
 
+const PostLocationMap = dynamic(
+  () => import("@/app/issues/[id]/IssueLocationMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full bg-surface rounded-xl border border-border flex items-center justify-center" style={{ height: 180 }}>
+        <span className="text-muted text-xs">지도를 불러오는 중...</span>
+      </div>
+    ),
+  }
+);
+
 interface Post {
   id: string;
   title: string;
@@ -233,6 +245,20 @@ export default function ProposalDetailClient({ post }: Props) {
 
       {/* Divider */}
       <hr className="border-border" />
+
+      {/* Small location map */}
+      {post.latitude != null && post.longitude != null && (
+        <div>
+          <p className="text-xs font-semibold text-muted mb-1.5 flex items-center gap-1">
+            <span>📍</span> 제보 위치
+          </p>
+          <div style={{ height: 180 }} className="rounded-xl overflow-hidden border border-border">
+            <PostLocationMap
+              markers={[{ lat: post.latitude, lng: post.longitude, title: post.title || "제보 위치" }]}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
