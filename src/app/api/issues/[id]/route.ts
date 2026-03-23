@@ -18,12 +18,10 @@ export async function GET(
     return NextResponse.json({ error: "Issue not found" }, { status: 404 });
   }
 
-  // Get linked posts
+  // ── Linked posts (both 민원 and 제안) ──────────────────────────────────────
   const { data: posts } = await supabaseAdmin
     .from("ProposalPost")
-    .select(
-      "id, title, content, authorName, postType, createdAt, latitude, longitude, dong, adminStatus"
-    )
+    .select("id, title, content, authorName, postType, createdAt, latitude, longitude, dong, adminStatus")
     .eq("issueId", id)
     .neq("status", "deleted")
     .order("createdAt", { ascending: false })
@@ -31,34 +29,68 @@ export async function GET(
 
   const linkedPosts = posts ?? [];
 
-  // Compute aggregate stats
-  const totalPostCount = linkedPosts.length;
+  // ── Related pledges by city / candidate district ──────────────────────────
+  type RelatedPledge = { id: string; title: string; candidateName: string; district: string; category?: string };
+  let relatedPledges: RelatedPledge[] = [];
 
-  const cityBreakdown: Record<string, number> = {};
-  const dongBreakdown: Record<string, number> = {};
+  try {
+    // Try to find pledges from candidates in the same city
+    const cityKeyword = issue.city ? issue.city.replace(/시$|군$/, "") : null;
 
-  for (const post of linkedPosts) {
-    const postDong = post.dong;
-    if (postDong) {
-      dongBreakdown[postDong] = (dongBreakdown[postDong] || 0) + 1;
+    let pledgeQuery = supabaseAdmin
+      .from("Pledge")
+      .select("id, title, candidate:Candidate!candidateId(id, name, district), category:Category!categoryId(name)")
+      .eq("visible", true)
+      .order("createdAt", { ascending: false })
+      .limit(5);
+
+    if (cityKeyword) {
+      const { data: cityPledges } = await pledgeQuery;
+      const filtered = (cityPledges ?? []).filter(p => {
+        const cand = p.candidate as { district?: string } | null;
+        return cand?.district?.includes(cityKeyword);
+      });
+      if (filtered.length > 0) {
+        relatedPledges = filtered.map(p => {
+          const cand = p.candidate as unknown as { id: string; name: string; district: string } | null;
+          const cat = p.category as unknown as { name: string } | null;
+          return { id: p.id, title: p.title, candidateName: cand?.name ?? "후보자", district: cand?.district ?? "", category: cat?.name };
+        });
+      }
     }
+
+    // Fallback: recent pledges
+    if (relatedPledges.length === 0) {
+      const { data: recentPledges } = await supabaseAdmin
+        .from("Pledge")
+        .select("id, title, candidate:Candidate!candidateId(id, name, district)")
+        .eq("visible", true)
+        .order("createdAt", { ascending: false })
+        .limit(3);
+      relatedPledges = (recentPledges ?? []).map(p => {
+        const cand = p.candidate as unknown as { name: string; district: string } | null;
+        return { id: p.id, title: p.title, candidateName: cand?.name ?? "후보자", district: cand?.district ?? "" };
+      });
+    }
+  } catch {
+    relatedPledges = [];
   }
 
-  // City breakdown from the issue's city or from posts (use issue city)
-  if (issue.city) {
-    cityBreakdown[issue.city] = totalPostCount;
+  // ── Aggregate stats ───────────────────────────────────────────────────────
+  const dongBreakdown: Record<string, number> = {};
+  for (const post of linkedPosts) {
+    if (post.dong) dongBreakdown[post.dong] = (dongBreakdown[post.dong] || 0) + 1;
   }
+  const cityBreakdown: Record<string, number> = {};
+  if (issue.city) cityBreakdown[issue.city] = linkedPosts.length;
 
   return NextResponse.json({
     data: {
       ...issue,
-      reportCount: totalPostCount,
+      reportCount: linkedPosts.filter(p => p.postType === "민원").length,
       posts: linkedPosts,
-      stats: {
-        totalPostCount,
-        cityBreakdown,
-        dongBreakdown,
-      },
+      relatedPledges,
+      stats: { totalPostCount: linkedPosts.length, cityBreakdown, dongBreakdown },
     },
   });
 }

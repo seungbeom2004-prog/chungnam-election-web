@@ -12,6 +12,7 @@ interface IssueCardProps {
     dong: string | null;
     city: string | null;
     reportCount: number;
+    proposalCount?: number;
     status: string;
     adminStatus: string | null;
     createdAt: string;
@@ -54,10 +55,11 @@ export default function IssueCard({ issue }: IssueCardProps) {
   const categoryColor = CATEGORY_COLORS[issue.category ?? "기타"] ?? CATEGORY_COLORS["기타"];
   const isHot = issue.reportCount > 10;
   const location = [issue.city, issue.dong].filter(Boolean).join(" ");
+  const proposalCount = issue.proposalCount ?? 0;
 
   return (
     <Link href={`/issues/${issue.id}`}>
-      <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
+      <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer group h-full flex flex-col">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 flex-wrap">
             {issue.category && (
@@ -83,7 +85,7 @@ export default function IssueCard({ issue }: IssueCardProps) {
           </div>
         </div>
 
-        <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1">
+        <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1 flex-1">
           {issue.title}
         </h3>
 
@@ -92,17 +94,20 @@ export default function IssueCard({ issue }: IssueCardProps) {
         )}
 
         <div className="flex items-center justify-between text-xs text-muted mt-auto pt-2 border-t border-border">
-          <div className="flex items-center gap-3">
-            <span className={`font-semibold ${isHot ? "text-orange-500" : ""}`}>
-              {isHot ? "🔥" : "📢"} {issue.reportCount}명 제보
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`font-semibold ${isHot ? "text-orange-500" : "text-muted"}`}>
+              {isHot ? "🔥" : "📢"} {issue.reportCount}건 제보
             </span>
-            {location && (
-              <span className="text-muted">
-                📍 {location}
+            {proposalCount > 0 && (
+              <span className="font-semibold text-amber-600">
+                💡 {proposalCount}건 제안
               </span>
             )}
+            {location && (
+              <span className="text-muted hidden sm:inline">📍 {location}</span>
+            )}
           </div>
-          <span>{getRelativeTime(issue.createdAt)}</span>
+          <span className="shrink-0">{getRelativeTime(issue.createdAt)}</span>
         </div>
       </Card>
     </Link>
