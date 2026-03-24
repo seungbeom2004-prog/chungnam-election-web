@@ -28,7 +28,8 @@ declare global {
 interface NaverMapInst {
   destroy: () => void;
   getCenter: () => NaverLatLng;
-  panTo: (pos: NaverLatLng) => void;
+  setCenter: (pos: NaverLatLng) => void;
+  panTo?: (pos: NaverLatLng) => void;
 }
 interface NaverLatLng {
   lat: () => number;
@@ -75,13 +76,16 @@ export default function LocationPickerMap({
     const s = document.createElement("script");
     s.id = NAVER_SCRIPT_ID;
     s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
-    s.onload = () => setSdkReady(true);
+    // Poll after load to ensure SDK is fully initialized (not just script tag parsed)
+    s.onload = () => {
+      const t = setInterval(() => { if (isSdkReady()) { setSdkReady(true); clearInterval(t); } }, 50);
+    };
     document.head.appendChild(s);
   }, []);
 
   // Init map once SDK is ready
   useEffect(() => {
-    if (!sdkReady || !containerRef.current || !window.naver) return;
+    if (!sdkReady || !containerRef.current || !window.naver?.maps) return;
     const maps = window.naver.maps;
 
     const initLat = lat ?? cityCenter?.lat ?? DEFAULT_CENTER.lat;
@@ -112,14 +116,14 @@ export default function LocationPickerMap({
     } else {
       // Pin-in-center drag mode: update coords on map idle
       maps.Event.addListener(map, "idle", () => {
-        if (!mapRef.current || !window.naver) return;
+        if (!mapRef.current || !window.naver?.maps) return;
         const center = mapRef.current.getCenter();
         onChange?.(center.lat(), center.lng());
       });
     }
 
     return () => {
-      map.destroy();
+      try { map.destroy(); } catch { /* ignore SDK cleanup errors */ }
       mapRef.current = null;
       markerRef.current = null;
     };
@@ -128,9 +132,17 @@ export default function LocationPickerMap({
 
   // Pan to city center when city changes (interactive mode only)
   useEffect(() => {
-    if (!sdkReady || !mapRef.current || !window.naver || !cityCenter || readOnly) return;
-    const pos = new window.naver.maps.LatLng(cityCenter.lat, cityCenter.lng);
-    mapRef.current.panTo(pos);
+    const nMaps = window.naver?.maps;
+    if (!sdkReady || !mapRef.current || !nMaps?.LatLng || !cityCenter || readOnly) return;
+    try {
+      const pos = new nMaps.LatLng(cityCenter.lat, cityCenter.lng);
+      // panTo is optional in some SDK versions; fall back to setCenter
+      if (mapRef.current.panTo) {
+        mapRef.current.panTo(pos);
+      } else {
+        mapRef.current.setCenter(pos);
+      }
+    } catch { /* SDK not fully ready — ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityCenter?.lat, cityCenter?.lng, sdkReady, readOnly]);
 
