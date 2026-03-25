@@ -38,7 +38,7 @@ export default function ProposalForm({ candidateId, city: propCity, onSuccess }:
   const isCandidate = (session?.user as { role?: string })?.role === "candidate";
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
-  const [postType, setPostType] = useState<"민원" | "제안">("제안");
+  const [postType, setPostType] = useState<"민원" | "제안">("민원");
   const [selectedCity, setSelectedCity] = useState<string>(propCity ?? "");
   const [cityCenter, setCityCenter] = useState<{ lat: number; lng: number } | null>(() => {
     const d = CHUNGNAM_DISTRICTS.find((d) => d.name === (propCity ?? ""));

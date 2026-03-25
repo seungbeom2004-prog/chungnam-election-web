@@ -32,6 +32,10 @@ export default function ProposalRanking({ refreshKey, postType, onSelect }: Prop
     params.set("limit", String(TOP_N));
     params.set("offset", "0");
     if (postType) params.set("postType", postType);
+    // Daily ranking: only posts from today (midnight KST)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    params.set("since", todayStart.toISOString());
     fetch(`/api/proposals?${params.toString()}`)
       .then((r) => r.json())
       .then((json) => {
@@ -48,9 +52,10 @@ export default function ProposalRanking({ refreshKey, postType, onSelect }: Prop
       {/* Header */}
       <div className={`px-4 py-3 border-b border-border ${postType === "민원" ? "bg-gradient-to-r from-red-50 to-rose-50" : "bg-gradient-to-r from-yellow-50 to-amber-50"}`}>
         <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-          {postType === "민원" ? "📢 인기 불편 제보 랭킹" : "🔥 인기 공약 제안 랭킹"}
+          {postType === "민원" ? "📢 오늘의 불편 제보 랭킹" : "🔥 오늘의 공약 제안 랭킹"}
+          <span className="ml-auto text-[10px] font-normal text-muted bg-white/60 px-1.5 py-0.5 rounded-full">일간</span>
         </h2>
-        <p className="text-[11px] text-muted mt-0.5">좋아요를 많이 받은 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 채택 될 수 있습니다</p>
+        <p className="text-[11px] text-muted mt-0.5">오늘 좋아요를 많이 받은 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 채택 될 수 있습니다</p>
       </div>
 
       <div className="p-3 space-y-2">
