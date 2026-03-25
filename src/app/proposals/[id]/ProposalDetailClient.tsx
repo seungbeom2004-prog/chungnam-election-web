@@ -45,6 +45,7 @@ interface Post {
   parentId?: string | null;
   dong?: string | null;
   adminStatus?: string | null;
+  viewCount?: number | null;
   candidate: { id: string; name: string; district: string; profileImage: string | null; role?: string | null } | null;
 }
 
@@ -64,6 +65,7 @@ export default function ProposalDetailClient({ post }: Props) {
   const searchParams = useSearchParams();
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [hasLiked, setHasLiked] = useState(false);
+  const [viewCount, setViewCount] = useState<number | null>(post.viewCount ?? null);
   const [likePending, setLikePending] = useState(false);
   const [shared, setShared] = useState(false);
 
@@ -82,6 +84,15 @@ export default function ProposalDetailClient({ post }: Props) {
   const [revisionSuccess, setRevisionSuccess] = useState(false);
   const [revisions, setRevisions] = useState<{ id: string; candidateName: string; content: string; createdAt: string }[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
+
+  // Increment view count on mount
+  useEffect(() => {
+    fetch(`/api/proposals/${post.id}/view`, { method: "POST" })
+      .then(r => r.json())
+      .then(j => { if (typeof j.viewCount === "number") setViewCount(j.viewCount); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
 
   // Fetch revisions on mount (for 제안 type)
   useEffect(() => {
@@ -229,9 +240,19 @@ export default function ProposalDetailClient({ post }: Props) {
           ) : (
             <span className="text-sm font-medium text-muted">{post.authorName}</span>
           )}
-          <time className="text-xs text-muted ml-auto" dateTime={post.createdAt}>
-            {relativeTime(post.createdAt)}
-          </time>
+          <div className="flex items-center gap-2 ml-auto">
+            <time className="text-xs text-muted" dateTime={post.createdAt}>
+              {relativeTime(post.createdAt)}
+            </time>
+            {viewCount != null && viewCount > 0 && (
+              <span className="flex items-center gap-1 text-xs text-muted">
+                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                {viewCount}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

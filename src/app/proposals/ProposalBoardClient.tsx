@@ -62,6 +62,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [proposalCount, setProposalCount] = useState<number | null>(null);
   const [todayMinwonCount, setTodayMinwonCount] = useState<number | null>(null);
   const [todayProposalCount, setTodayProposalCount] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
 
   const [mapPosts, setMapPosts] = useState<MapPost[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -71,11 +72,14 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    // Use local midnight (KST) for today's count
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todaySince = todayStart.toISOString();
     fetch("/api/proposals?limit=1&postType=민원").then(r => r.json()).then(j => { if (typeof j.total === "number") setMinwonCount(j.total); }).catch(() => {});
     fetch("/api/proposals?limit=1&postType=제안").then(r => r.json()).then(j => { if (typeof j.total === "number") setProposalCount(j.total); }).catch(() => {});
-    fetch(`/api/proposals?limit=1&postType=민원&since=${today}T00:00:00.000Z`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayMinwonCount(j.total); }).catch(() => {});
-    fetch(`/api/proposals?limit=1&postType=제안&since=${today}T00:00:00.000Z`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayProposalCount(j.total); }).catch(() => {});
+    fetch(`/api/proposals?limit=1&postType=민원&since=${todaySince}`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayMinwonCount(j.total); }).catch(() => {});
+    fetch(`/api/proposals?limit=1&postType=제안&since=${todaySince}`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayProposalCount(j.total); }).catch(() => {});
   }, [rankingRefreshKey]);
 
   useEffect(() => {
@@ -175,7 +179,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         📢 나도 불편 제보하기
       </button>
       <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(1); listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
-      <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="민원" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} />
+      <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="민원" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} search={search || undefined} />
     </div>
   );
 
@@ -204,7 +208,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         💡 나도 제안하기
       </button>
       <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(2); }} />
-      <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="제안" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} />
+      <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="제안" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} search={search || undefined} />
     </div>
   );
 
@@ -230,8 +234,11 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
                 오늘 +{(todayMinwonCount ?? 0) + (todayProposalCount ?? 0)}
               </span>
             )}
-            <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline">
-              📊 주간 현황판 →
+            <Link href="/proposals/daily-stats" className="text-[10px] text-primary font-semibold hover:underline">
+              📊 일간 현황판 →
+            </Link>
+            <Link href="/issues/stats" className="text-[10px] text-muted font-semibold hover:underline">
+              📈 주간 현황판 →
             </Link>
           </div>
         </div>
@@ -293,6 +300,27 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Search bar ── */}
+      <div className="mb-4">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="제보/제안 검색..."
+            className="w-full pl-8 pr-8 py-2 text-sm border border-border rounded-xl bg-surface text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground" aria-label="검색 초기화">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Mobile: 3-tab bar ── */}

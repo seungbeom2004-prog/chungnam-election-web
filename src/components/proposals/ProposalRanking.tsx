@@ -25,17 +25,25 @@ interface Props {
 export default function ProposalRanking({ refreshKey, postType, onSelect }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<"daily" | "weekly">("daily");
 
   useEffect(() => {
+    setLoading(true);
     const params = new URLSearchParams();
     params.set("sort", "popular");
     params.set("limit", String(TOP_N));
     params.set("offset", "0");
     if (postType) params.set("postType", postType);
-    // Daily ranking: only posts from today (midnight KST)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    params.set("since", todayStart.toISOString());
+    // Period filter
+    const since = new Date();
+    if (period === "daily") {
+      since.setHours(0, 0, 0, 0);
+    } else {
+      // Weekly: last 7 days
+      since.setDate(since.getDate() - 7);
+      since.setHours(0, 0, 0, 0);
+    }
+    params.set("since", since.toISOString());
     fetch(`/api/proposals?${params.toString()}`)
       .then((r) => r.json())
       .then((json) => {
@@ -43,7 +51,7 @@ export default function ProposalRanking({ refreshKey, postType, onSelect }: Prop
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [refreshKey, postType]);
+  }, [refreshKey, postType, period]);
 
   const maxLikes = proposals[0]?.likeCount ?? 1;
 
@@ -51,11 +59,22 @@ export default function ProposalRanking({ refreshKey, postType, onSelect }: Prop
     <div className="border border-border rounded-xl bg-surface overflow-hidden">
       {/* Header */}
       <div className={`px-4 py-3 border-b border-border ${postType === "민원" ? "bg-gradient-to-r from-red-50 to-rose-50" : "bg-gradient-to-r from-yellow-50 to-amber-50"}`}>
-        <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-          {postType === "민원" ? "📢 오늘의 불편 제보 랭킹" : "🔥 오늘의 공약 제안 랭킹"}
-          <span className="ml-auto text-[10px] font-normal text-muted bg-white/60 px-1.5 py-0.5 rounded-full">일간</span>
-        </h2>
-        <p className="text-[11px] text-muted mt-0.5">오늘 좋아요를 많이 받은 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 채택 될 수 있습니다</p>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-foreground">
+            {postType === "민원" ? "📢 불편 제보 랭킹" : "🔥 공약 제안 랭킹"}
+          </h2>
+          <div className="flex items-center bg-white/50 rounded-full p-0.5 gap-0.5">
+            <button
+              onClick={() => setPeriod("daily")}
+              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full transition-colors ${period === "daily" ? "bg-white shadow-sm text-foreground" : "text-muted hover:text-foreground"}`}
+            >일간</button>
+            <button
+              onClick={() => setPeriod("weekly")}
+              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full transition-colors ${period === "weekly" ? "bg-white shadow-sm text-foreground" : "text-muted hover:text-foreground"}`}
+            >주간</button>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted mt-0.5">{period === "daily" ? "오늘" : "이번 주"} 좋아요를 많이 받은 {postType === "민원" ? "불편 제보가" : "공약 제안이"} 채택 될 수 있습니다</p>
       </div>
 
       <div className="p-3 space-y-2">

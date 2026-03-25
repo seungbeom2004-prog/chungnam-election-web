@@ -53,8 +53,15 @@ const SAFE_SELECT = "id, content, authorName, city, candidateId, status, created
 const V10_SELECT = "title, latitude, longitude, acceptedAt, parentId, dong, adminStatus";
 /** Columns added in migration v11 */
 const V11_SELECT = "postType";
+/** Columns added in migration v13 (viewCount) */
+const V13_SELECT = "viewCount";
 /** ProposalResponse join (migration v12) */
 const RESPONSE_JOIN = "responses:ProposalResponse(id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt)";
+/** Full select with viewCount + ProposalLike join + responses (latest) */
+const FULL_SELECT_V13 = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT}, ${V13_SELECT},
+  candidate:Candidate!candidateId(id, name, district, profileImage, role),
+  likes:ProposalLike(count),
+  ${RESPONSE_JOIN}`;
 /** Full select with ProposalLike join + responses */
 const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
   candidate:Candidate!candidateId(id, name, district, profileImage, role),
@@ -83,6 +90,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 500);
     const offset = parseInt(searchParams.get("offset") ?? "0", 10);
     const since = searchParams.get("since"); // ISO date string for filtering createdAt >= since
+    const until = searchParams.get("until"); // ISO date string for filtering createdAt < until
     const parentId = searchParams.get("parentId");
     const search = searchParams.get("search");
 
@@ -99,6 +107,7 @@ export async function GET(request: NextRequest) {
       // postType filter only applied when v11 migration is present
       if (postType && (selectStr.includes("postType"))) q = q.eq("postType", postType);
       if (since) q = q.gte("createdAt", since);
+      if (until) q = q.lt("createdAt", until);
       if (parentId !== null) q = q.eq("parentId", parentId as string);
       if (search) q = q.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
       // hasLocation only works after v10 migration
@@ -106,9 +115,13 @@ export async function GET(request: NextRequest) {
     };
 
     const MIGRATION_ERRORS = ["42703", "42P01", "PGRST204", "PGRST200"];
-    // Try full query first (v10 + v11 + responses)
-    let { data: proposals, count, error } = await buildQuery(FULL_SELECT);
+    // Try full query first (v13: with viewCount)
+    let { data: proposals, count, error } = await buildQuery(FULL_SELECT_V13);
 
+    if (error && MIGRATION_ERRORS.includes(error.code)) {
+      // viewCount column not yet created — fall back to v12
+      ({ data: proposals, count, error } = await buildQuery(FULL_SELECT));
+    }
     if (error && MIGRATION_ERRORS.includes(error.code)) {
       // ProposalResponse table not yet created — try without it
       ({ data: proposals, count, error } = await buildQuery(FULL_SELECT_NO_RESP));
@@ -131,9 +144,10 @@ export async function GET(request: NextRequest) {
       const row = p as unknown as Record<string, unknown>;
       const likes = row.likes as Array<{ count: number }> | null;
       const likeCount = likes?.[0]?.count ?? 0;
+      const viewCount = (row.viewCount as number | null) ?? 0;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { likes: _likes, ...rest } = row;
-      return { ...rest, likeCount };
+      return { ...rest, likeCount, viewCount };
     });
 
     if (sort === "popular") {

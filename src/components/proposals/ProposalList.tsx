@@ -42,16 +42,17 @@ interface Props {
   isCandidate?: boolean;
   candidateName?: string;
   highlightedId?: string;
+  search?: string;
 }
 
-export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh, isCandidate, candidateName, highlightedId }: Props) {
+export default function ProposalList({ candidateId, city, postType, showForm, onRankingRefresh, isCandidate, candidateName, highlightedId, search }: Props) {
   const [proposals, setProposals] = useState<ProposalPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<"latest" | "popular">("popular");
+  const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [autoOpenFormIds, setAutoOpenFormIds] = useState<Set<string>>(new Set());
   const [sharedId, setSharedId] = useState<string | null>(null);
@@ -62,12 +63,13 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
       if (candidateId) params.set("candidateId", candidateId);
       if (city) params.set("city", city);
       if (postType) params.set("postType", postType);
+      if (search) params.set("search", search);
       params.set("sort", sortMode);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String((p - 1) * PAGE_SIZE));
       return `/api/proposals?${params.toString()}`;
     },
-    [candidateId, city, sort, postType]
+    [candidateId, city, sort, postType, search]
   );
 
   const fetchProposals = useCallback(
@@ -97,7 +99,7 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
   useEffect(() => {
     fetchProposals(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidateId, city, sort, postType]);
+  }, [candidateId, city, sort, postType, search]);
 
   const handleSortChange = (newSort: "latest" | "popular") => {
     setSort(newSort);
@@ -420,6 +422,16 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                           </svg>
                           <span>{sharedId === proposal.id ? "복사됨!" : "공유"}</span>
                         </button>
+
+                        {/* View count */}
+                        {(proposal.viewCount ?? 0) > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-muted px-1.5">
+                            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            {proposal.viewCount}
+                          </span>
+                        )}
 
                         {/* Detail page link */}
                         <Link
