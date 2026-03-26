@@ -104,8 +104,8 @@ function TopBar({ dark = true }: { dark?: boolean }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/images/reform-party-logo.png" alt="개혁신당" width={96} height={37}
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }} />
-      <div className="text-right leading-tight">
-        <p style={{ color: textColor, fontSize: 46, fontWeight: 900, lineHeight: 1.1 }}>4&nbsp;&nbsp;손승범</p>
+      <div className="text-right leading-tight" style={{ flexShrink: 0 }}>
+        <p style={{ color: textColor, fontSize: 26, fontWeight: 900, lineHeight: 1.1, whiteSpace: "nowrap" }}>4&nbsp;&nbsp;손승범</p>
         <p style={{ color: subColor, fontSize: 11, fontWeight: 600, lineHeight: 1.5 }}>📍 천안시</p>
       </div>
     </div>
@@ -158,7 +158,7 @@ function SlideCover({ id, total, monday, sunday, filterCity, filterIssueType, fi
           <p style={{ color: "white", fontSize: 100, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3 }}>
             {headlineLine1}
           </p>
-          <p style={{ color: "rgba(255,255,255,0.92)", fontSize: 62, fontWeight: 900, lineHeight: 1.05, letterSpacing: -1.5, marginTop: 8 }}>
+          <p style={{ color: "rgba(255,255,255,0.92)", fontSize: 50, fontWeight: 900, lineHeight: 1.05, letterSpacing: -1, marginTop: 8, whiteSpace: "nowrap", overflow: "hidden" }}>
             {headlineLine2}
           </p>
           <p style={{ color: "white", fontSize: 100, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3, marginTop: 10, fontVariantNumeric: "tabular-nums" }}>
@@ -593,6 +593,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
       pointerEvents: "none",
     });
     document.body.appendChild(clone);
+    await document.fonts.ready;
     await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
       const canvas = await Promise.race([
