@@ -551,9 +551,10 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     goTo(0);
   }, [filterCity, filterIssueType, goTo]);
 
-  // When post type filter changes, jump to the popular posts slide
+  // When post type filter changes, jump to the popular posts slide (if it exists)
   useEffect(() => {
     if (filterPostType === null) { goTo(0); return; }
+    if (!hasPopular) return; // no popular posts to show — stay on current slide
     // Popular slide is at index: cover(0) + weeklyStats(1) + hotIssues? + cityMap?
     const popularIdx = 2 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0);
     goTo(popularIdx);
