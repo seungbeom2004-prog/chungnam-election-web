@@ -35,6 +35,20 @@ export async function GET(request: NextRequest) {
   const weekEnd = addDays(weekStart, 6);
   weekEnd.setHours(23, 59, 59, 999);
 
+  // Check Supabase cache for past weeks
+  const cacheKey = `weekly-${weekStart.toISOString().split("T")[0]}`;
+  const isPastWeek = weekEnd < new Date();
+  if (isPastWeek) {
+    const { data: cached } = await supabaseAdmin
+      .from("StatsCache")
+      .select("data")
+      .eq("cacheKey", cacheKey)
+      .single();
+    if (cached?.data) {
+      return NextResponse.json(cached.data);
+    }
+  }
+
   const prevStart = addDays(weekStart, -7);
   prevStart.setHours(0, 0, 0, 0);
   const prevEnd = addDays(weekStart, -1);
@@ -59,26 +73,39 @@ export async function GET(request: NextRequest) {
   }[] = [];
 
   {
-    const { data, error } = await supabaseAdmin
+    // Try with extended fields (viewCount may not exist in older DBs)
+    const { data: d1, error: e1 } = await supabaseAdmin
       .from("ProposalPost")
-      .select("id, postType, city, dong, issueId, createdAt, title, content, authorName, likeCount, viewCount")
+      .select("id, postType, city, dong, issueId, createdAt, title, content, authorName, viewCount")
       .gte("createdAt", startISO)
       .lte("createdAt", endISO)
       .is("deletedAt", null)
       .or("adminStatus.is.null,adminStatus.neq.hide_stats");
 
-    if (!error && data) {
-      posts = data;
+    if (!e1 && d1) {
+      posts = d1;
     } else {
-      // Fallback without dong/issueId/title/content/authorName/likeCount/viewCount
-      const { data: d2 } = await supabaseAdmin
+      // Fallback: without viewCount/dong/issueId
+      const { data: d2, error: e2 } = await supabaseAdmin
         .from("ProposalPost")
-        .select("id, postType, city, createdAt")
+        .select("id, postType, city, createdAt, title, content, authorName")
         .gte("createdAt", startISO)
         .lte("createdAt", endISO)
         .is("deletedAt", null)
         .or("adminStatus.is.null,adminStatus.neq.hide_stats");
-      posts = d2 ?? [];
+
+      if (!e2 && d2) {
+        posts = d2;
+      } else {
+        // Ultimate fallback: no adminStatus filter
+        const { data: d3 } = await supabaseAdmin
+          .from("ProposalPost")
+          .select("id, postType, city, createdAt")
+          .gte("createdAt", startISO)
+          .lte("createdAt", endISO)
+          .is("deletedAt", null);
+        posts = d3 ?? [];
+      }
     }
   }
 
@@ -234,7 +261,11 @@ export async function GET(request: NextRequest) {
   }
 
   const topLikedPosts: TopLikedPost[] = postsWithLikes
-    .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
+    .sort((a, b) => {
+      const likeDiff = (b.likeCount ?? 0) - (a.likeCount ?? 0);
+      if (likeDiff !== 0) return likeDiff;
+      return (b.viewCount ?? 0) - (a.viewCount ?? 0);
+    })
     .slice(0, 5)
     .map((p) => ({
       id: p.id,
@@ -248,7 +279,7 @@ export async function GET(request: NextRequest) {
       viewCount: p.viewCount ?? 0,
     }));
 
-  return NextResponse.json({
+  const responsePayload = {
     weekStart: weekStart.toISOString(),
     weekEnd: weekEnd.toISOString(),
     newReports,
@@ -261,5 +292,18 @@ export async function GET(request: NextRequest) {
     prevWeekReports,
     prevWeekProposals,
     topLikedPosts,
-  });
+  };
+
+  // Cache the result for past weeks
+  if (isPastWeek) {
+    try {
+      await supabaseAdmin.from("StatsCache").upsert({
+        cacheKey,
+        data: responsePayload,
+        createdAt: new Date().toISOString(),
+      }, { onConflict: "cacheKey" });
+    } catch { /* ignore cache write failures */ }
+  }
+
+  return NextResponse.json(responsePayload);
 }

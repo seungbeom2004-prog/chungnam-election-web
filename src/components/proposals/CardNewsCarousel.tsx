@@ -136,28 +136,28 @@ function SlideCover({ id, totalReports, totalProposals, totalPosts, total, targe
       <div style={{
         position: "absolute", inset: 0,
         display: "flex", flexDirection: "column", justifyContent: "space-between",
-        padding: "128px 36px 36px",
+        padding: "110px 36px 32px",
       }}>
         {/* ① 날짜 */}
         <div>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: 600, marginBottom: 5, letterSpacing: 0.3 }}>
+          <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 13, fontWeight: 600, marginBottom: 5, letterSpacing: 0.3 }}>
             {shortDate(targetDate)}
           </p>
-          <p style={{ color: "white", fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>
+          <p style={{ color: "white", fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>
             {dayOffset === 0 ? "오늘" : dayOffset === -1 ? "어제" : `${Math.abs(dayOffset)}일 전`}
           </p>
         </div>
 
         {/* ② 빅 헤드라인 */}
         <div>
-          <p style={{ color: "white", fontSize: 90, fontWeight: 900, lineHeight: 0.95, letterSpacing: -2 }}>
+          <p style={{ color: "white", fontSize: 100, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3 }}>
             {location}
           </p>
-          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 54, fontWeight: 900, lineHeight: 1.05, letterSpacing: -1.5, marginTop: 10 }}>
+          <p style={{ color: "rgba(255,255,255,0.92)", fontSize: 62, fontWeight: 900, lineHeight: 1.05, letterSpacing: -1.5, marginTop: 8 }}>
             {typeStr}
           </p>
-          <p style={{ color: "white", fontSize: 84, fontWeight: 900, lineHeight: 0.95, letterSpacing: -2, marginTop: 14, fontVariantNumeric: "tabular-nums" }}>
-            {count}건 접수
+          <p style={{ color: "white", fontSize: 100, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3, marginTop: 10, fontVariantNumeric: "tabular-nums" }}>
+            {count}개
           </p>
         </div>
 
@@ -334,67 +334,98 @@ function SlideCityMap({ id, cityBreakdown, total, slideNum }: {
 }
 
 // ── Slide 4: Popular Posts ────────────────────────────────────────────────────
-function SlidePopular({ id, topLikedPosts, total, slideNum }: {
+function DailyPostTile({ post, idx, fullWidth }: { post: DailyPost; idx: number; fullWidth?: boolean }) {
+  const title = post.title ? truncate(post.title, fullWidth ? 34 : 22) : null;
+  const body = truncate(post.content ?? "", fullWidth ? 70 : 42);
+  const loc = [post.city, post.dong].filter(Boolean).join(" ");
+  const rankLabel = ["1위","2위","3위"][idx] ?? `${idx+1}위`;
+  const rankEmoji = ["🥇","🥈","🥉"][idx] ?? "🏅";
+  const TILE_BG = "rgba(8, 42, 74, 0.88)";
+  const TILE_BORDER = "1px solid rgba(255,255,255,0.12)";
+  return (
+    <div style={{
+      background: TILE_BG,
+      borderRadius: 20,
+      border: TILE_BORDER,
+      padding: fullWidth ? "18px 20px" : "14px 16px",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      flex: 1,
+      minHeight: 0,
+    }}>
+      {/* rank + type + likes row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ fontSize: fullWidth ? 18 : 15, lineHeight: 1 }}>{rankEmoji}</span>
+          <span style={{ color: "white", fontSize: fullWidth ? 15 : 12, fontWeight: 900, letterSpacing: -0.5 }}>{rankLabel}</span>
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
+            background: post.postType === "민원" ? "rgba(239,68,68,0.35)" : "rgba(251,191,36,0.30)",
+            color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
+            {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(239,68,68,0.22)", borderRadius: 20, padding: "3px 7px" }}>
+          <span style={{ fontSize: 10 }}>❤️</span>
+          <span style={{ color: "#fca5a5", fontWeight: 900, fontSize: 11, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</span>
+        </div>
+      </div>
+      {/* title */}
+      {title && <p style={{ color: "white", fontWeight: 800, fontSize: fullWidth ? 15 : 12, lineHeight: 1.3, marginBottom: 5 }}>{title}</p>}
+      {/* body */}
+      <p style={{ color: "rgba(255,255,255,0.62)", fontSize: fullWidth ? 12 : 10, lineHeight: 1.5, flex: 1, overflow: "hidden" }}>{body}</p>
+      {/* location */}
+      {loc && <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, marginTop: 6, fontWeight: 600 }}>📍 {loc}</p>}
+    </div>
+  );
+}
+
+function SlidePopular({ id, topLikedPosts, total, slideNum, isWeekly = false }: {
   id: string;
   topLikedPosts: DailyPost[];
   total: number;
   slideNum: number;
+  isWeekly?: boolean;
 }) {
-  const topLiked = topLikedPosts.slice(0, 3);
+  const posts = topLikedPosts.slice(0, 3);
+
   return (
-    <Slide id={id} bg={{ background: `linear-gradient(160deg, #0f0014 0%, ${C.gray950} 50%, #140a00 100%)` }}>
+    <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
       <TopBar dark />
       <Counter current={slideNum} total={total} />
-      <div style={{ position: "absolute", inset: 0, padding: "60px 26px 24px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ marginBottom: 12 }}>
-          <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" as const, marginBottom: 4 }}>POPULAR TODAY</p>
-          <p style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.2 }}>오늘의 인기 글</p>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>가장 많은 공감을 받은 제보</p>
+      <div style={{
+        position: "absolute", inset: 0,
+        padding: "78px 20px 20px",
+        display: "flex", flexDirection: "column",
+        gap: 0,
+      }}>
+        {/* Header */}
+        <div style={{ marginBottom: 14 }}>
+          <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 12, fontWeight: 600, marginBottom: 3 }}>
+            {isWeekly ? "이번 주" : "오늘"}
+          </p>
+          <p style={{ color: "white", fontSize: 24, fontWeight: 900, letterSpacing: -0.5 }}>
+            {isWeekly ? "이번주 인기글" : "오늘의 인기글"}
+          </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, overflow: "hidden" }}>
-          {topLiked.map((post, idx) => {
-            const title = post.title ? truncate(post.title, 26) : null;
-            const body  = truncate(post.content ?? "", 55);
-            const location = [post.city, post.dong].filter(Boolean).join(" ");
-            const rankColors = ["rgba(255,214,0,0.13)", "rgba(192,192,192,0.1)", "rgba(205,127,50,0.1)"];
-            const rankBorder = ["rgba(255,214,0,0.28)", "rgba(192,192,192,0.22)", "rgba(205,127,50,0.22)"];
-            return (
-              <div key={post.id} style={{
-                background: rankColors[idx] ?? "rgba(255,255,255,0.05)",
-                borderRadius: 16,
-                padding: "11px 14px",
-                border: `1px solid ${rankBorder[idx] ?? "rgba(255,255,255,0.09)"}`,
-                flex: 1,
-                minHeight: 0,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}>
-                {/* Top row */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ fontSize: 16 }}>{["🥇","🥈","🥉"][idx]}</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
-                      background: post.postType === "민원" ? "rgba(239,68,68,0.3)" : "rgba(251,191,36,0.28)",
-                      color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
-                      {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(239,68,68,0.2)", borderRadius: 20, padding: "3px 8px" }}>
-                    <span style={{ fontSize: 11 }}>❤️</span>
-                    <span style={{ color: "#fca5a5", fontWeight: 900, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</span>
-                  </div>
-                </div>
-                {title && <p style={{ color: "white", fontWeight: 800, fontSize: 13, lineHeight: 1.3, marginBottom: 4 }}>{title}</p>}
-                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, lineHeight: 1.5, flex: 1, overflow: "hidden" }}>{body}</p>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-                  {location ? <p style={{ color: "rgba(255,114,16,0.8)", fontSize: 10, fontWeight: 600 }}>📍 {location}</p> : <span />}
-                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>{post.authorName}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* 1위 full-width tile */}
+        {posts[0] && (
+          <div style={{ height: 220, display: "flex", marginBottom: 12 }}>
+            <DailyPostTile post={posts[0]} idx={0} fullWidth />
+          </div>
+        )}
+        {/* 2위/3위 side by side */}
+        {posts.length > 1 && (
+          <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 0 }}>
+            {posts[1] && <DailyPostTile post={posts[1]} idx={1} />}
+            {posts[2] && <DailyPostTile post={posts[2]} idx={2} />}
+            {posts.length < 3 && <div style={{ flex: 1 }} />}
+          </div>
+        )}
+        {/* bottom */}
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, textAlign: "center", marginTop: 10 }}>
+          reform-chungnam.kr
+        </p>
       </div>
     </Slide>
   );
@@ -840,6 +871,7 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
                   topLikedPosts={filtered.topLikedPosts}
                   total={slideCount}
                   slideNum={si}
+                  isWeekly={false}
                 />
               </div>
             )}

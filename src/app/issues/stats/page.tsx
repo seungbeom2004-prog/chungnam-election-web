@@ -156,6 +156,17 @@ export default function WeeklyStatsPage() {
   const targetMonday = addDays(currentMonday, weekOffset * 7);
   const targetSunday = addDays(targetMonday, 6);
 
+  // Minimum allowed dates
+  const MIN_DATE = new Date("2026-03-01T00:00:00");
+  const MIN_MONDAY = (() => {
+    const d = new Date("2026-03-01T00:00:00");
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -246,7 +257,7 @@ export default function WeeklyStatsPage() {
       {/* ── Date Navigation ── */}
       {mode === "weekly" ? (
         <div className="flex items-center justify-between px-1 py-3 mb-2">
-          <button onClick={() => setWeekOffset((o) => o - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors">
+          <button onClick={() => setWeekOffset((o) => o - 1)} disabled={addDays(targetMonday, -7) < MIN_MONDAY} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             이전 주
           </button>
@@ -261,7 +272,7 @@ export default function WeeklyStatsPage() {
         </div>
       ) : (
         <div className="flex items-center justify-between px-1 py-3 mb-2">
-          <button onClick={() => setDayOffset((o) => o - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors">
+          <button onClick={() => setDayOffset((o) => o - 1)} disabled={addDays(targetDay, -1) < MIN_DATE} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             이전날
           </button>

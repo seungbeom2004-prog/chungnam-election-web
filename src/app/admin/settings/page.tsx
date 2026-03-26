@@ -28,6 +28,55 @@ interface DistrictItem {
   centerLng: number;
 }
 
+function WarmCacheButton() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string>("");
+
+  const handleWarm = async () => {
+    setLoading(true);
+    setResult("");
+    try {
+      const res = await fetch("/api/admin/warm-cache", {
+        method: "POST",
+        headers: { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "" },
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setResult(`✅ 완료: ${json.ok}/${json.total}건 캐시 생성 (실패: ${json.failed}건)`);
+      } else {
+        setResult(`❌ 오류: ${json.error ?? "알 수 없는 오류"}`);
+      }
+    } catch (e) {
+      setResult(`❌ 네트워크 오류: ${e}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Button type="button" onClick={handleWarm} disabled={loading}>
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              캐시 생성 중... (최대 60초)
+            </span>
+          ) : (
+            "📊 현황판 캐시 워밍 실행"
+          )}
+        </Button>
+        <span className="text-xs text-muted">3월 1일부터 현재까지 캐시 생성</span>
+      </div>
+      {result && (
+        <p className={`text-sm px-3 py-2 rounded-lg ${result.startsWith("✅") ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
+          {result}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -687,6 +736,19 @@ export default function AdminSettingsPage() {
             </Button>
           </div>
         )}
+      </Card>
+
+      {/* Stats Cache Card */}
+      <Card className="mt-6">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
+          현황판 캐시 워밍
+        </h2>
+        <p className="text-xs text-muted mb-3">
+          2026-03-01부터 현재까지의 주간·일간 현황판 데이터를 미리 로딩합니다.
+          Supabase에 <code className="bg-gray-100 px-1 rounded">StatsCache</code> 테이블이 있어야 합니다.
+          (<code className="bg-gray-100 px-1 rounded">supabase/migrations/20260326_stats_cache.sql</code> 실행 후 사용)
+        </p>
+        <WarmCacheButton />
       </Card>
 
       {/* NEC Sync Card */}
