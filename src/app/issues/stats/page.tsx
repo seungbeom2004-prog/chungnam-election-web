@@ -311,7 +311,7 @@ export default function WeeklyStatsPage() {
           {/* ── Footer links ── */}
           <div className="flex gap-3 pt-1">
             <Link
-              href="/proposals"
+              href="/proposals?type=report"
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-bold hover:bg-orange-100 transition-colors"
             >
               🚨 불편제보 보기

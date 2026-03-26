@@ -45,7 +45,12 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const candidateName = (session?.user as { name?: string })?.name ?? undefined;
 
   // Tab: 0=이슈 1=불편제보 2=공약제안
-  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(() => {
+    const t = searchParams.get("type");
+    if (t === "report") return 1;
+    if (t === "proposal") return 2;
+    return 0;
+  });
   // Map collapsed by default
   const [showMap, setShowMap] = useState(false);
   // Write form
