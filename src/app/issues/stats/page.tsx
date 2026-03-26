@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const WeeklyCardNewsCarousel = dynamic(() => import("@/components/proposals/WeeklyCardNewsCarousel"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HotIssue {
@@ -176,6 +179,14 @@ export default function WeeklyStatsPage() {
 
       {!loading && !error && data && (
         <div className="space-y-4">
+          {/* ── Card News Carousel ── */}
+          <WeeklyCardNewsCarousel
+            data={data}
+            weekOffset={weekOffset}
+            targetMonday={targetMonday}
+            targetSunday={targetSunday}
+          />
+
           {/* ── Section 1: Main Stats Cards ── */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Gradient Top Bar */}

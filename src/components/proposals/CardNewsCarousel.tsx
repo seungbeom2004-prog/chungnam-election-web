@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import Image from "next/image";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DailyPost {
@@ -28,13 +27,25 @@ export interface DailyStats {
 }
 interface Props {
   data: DailyStats;
-  dayOffset: number; // 0=today, -1=yesterday, etc.
+  dayOffset: number;
   targetDate: Date;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const SLIDE_W = 540;
-const SLIDE_H = 675; // 4:5 ratio
+const SLIDE_H = 675;
+
+// Hex colors (avoids Tailwind oklch gradient crash)
+const C = {
+  orange:    "#f97316",
+  orange600: "#ea580c",
+  red500:    "#ef4444",
+  amber400:  "#fbbf24",
+  amber500:  "#f59e0b",
+  gray950:   "#030712",
+  gray900:   "#111827",
+  gray800:   "#1f2937",
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function dayLabel(offset: number) {
@@ -49,177 +60,184 @@ function truncate(str: string, n: number) {
   return str.length > n ? str.slice(0, n) + "…" : str;
 }
 
-// ── Slide inner wrapper (always 540×675 in layout) ────────────────────────────
-function Slide({ id, children, className = "" }: { id: string; children: React.ReactNode; className?: string }) {
+// ── Slide wrapper ─────────────────────────────────────────────────────────────
+function Slide({ id, children, bg }: { id: string; children: React.ReactNode; bg: React.CSSProperties }) {
   return (
     <div
       id={id}
-      className={`relative overflow-hidden select-none ${className}`}
-      style={{ width: SLIDE_W, height: SLIDE_H, flexShrink: 0 }}
+      className="relative overflow-hidden select-none"
+      style={{ width: SLIDE_W, height: SLIDE_H, flexShrink: 0, ...bg }}
     >
       {children}
     </div>
   );
 }
 
-// 개혁신당 logo bar
-function TopBar({ light = false }: { light?: boolean }) {
+// ── Top branding bar ──────────────────────────────────────────────────────────
+function TopBar({ dark = true }: { dark?: boolean }) {
+  const textColor = dark ? "rgba(255,255,255,0.95)" : "#111827";
+  const subColor  = dark ? "rgba(255,255,255,0.65)" : "#374151";
   return (
-    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-6 z-10">
-      <Image
+    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-5 z-10">
+      {/* Logo — plain <img> for screenshot capture */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src="/images/reform-party-logo.png"
         alt="개혁신당"
-        width={72}
-        height={28}
-        style={{ filter: light ? "none" : "brightness(0) invert(1)" }}
-        unoptimized
+        width={96}
+        height={37}
+        crossOrigin="anonymous"
+        style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }}
       />
-      <div className={`text-right text-xs font-bold leading-tight ${light ? "text-gray-700" : "text-white/90"}`}>
-        <p className="text-sm font-black">4 손승범</p>
-        <p className="opacity-70 text-[10px]">reform-chungnam.kr</p>
+      <div className="text-right leading-tight">
+        <p style={{ color: textColor, fontSize: 17, fontWeight: 900, lineHeight: 1.2 }}>4 손승범</p>
+        <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>문성동 봉명동 성정1동 성정2동</p>
+        <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>천안시의원 후보</p>
       </div>
     </div>
   );
 }
 
 // Slide counter
-function SlideCounter({ current, total }: { current: number; total: number }) {
+function Counter({ current, total, dark = true }: { current: number; total: number; dark?: boolean }) {
   return (
-    <div className="absolute top-7 left-1/2 -translate-x-1/2 text-xs font-bold tabular-nums text-white/50">
+    <div style={{
+      position: "absolute", top: 28, left: "50%", transform: "translateX(-50%)",
+      fontSize: 11, fontWeight: 700, color: dark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)",
+      fontVariantNumeric: "tabular-nums",
+    }}>
       {String(current).padStart(2, "0")}/{String(total).padStart(2, "0")}
     </div>
   );
 }
 
-// ── Slide 1: Cover ─────────────────────────────────────────────────────────────
+// ── Slide 1: Cover ────────────────────────────────────────────────────────────
 function SlideCover({ id, data, total, targetDate, dayOffset }: {
   id: string; data: DailyStats; total: number; targetDate: Date; dayOffset: number;
 }) {
   const totalPosts = data.totalReports + data.totalProposals;
   return (
-    <Slide id={id} className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-500">
-      <TopBar />
-      <SlideCounter current={1} total={total} />
+    <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.orange}, ${C.orange600}, ${C.red500})` }}>
+      <TopBar dark />
+      <Counter current={1} total={total} />
 
-      <div className="absolute inset-0 flex flex-col justify-center px-8 pt-16">
-        <p className="text-white/80 text-sm font-bold mb-2 tracking-wide">📍 충청남도 · {shortDate(targetDate)}</p>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 36px", paddingTop: 64 }}>
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>
+          📍 충청남도 · {shortDate(targetDate)}
+        </p>
 
-        <div className="mb-4">
-          <p className="text-white text-xl font-black leading-tight mb-1">집 앞 불편,</p>
-          <p className="text-white text-xl font-black leading-tight">오늘도 기록되고 있습니다</p>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.3 }}>집 앞 불편,</p>
+          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.3 }}>오늘도 기록되고 있습니다</p>
         </div>
 
         {/* Big number */}
-        <div className="flex items-end gap-3 mb-6">
-          <span className="text-white font-black leading-none" style={{ fontSize: 110 }}>{totalPosts}</span>
-          <div className="mb-4">
-            <p className="text-white font-black text-2xl">건</p>
-            <p className="text-white/80 text-sm font-semibold">{dayLabel(dayOffset)} 접수</p>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 28 }}>
+          <span style={{ color: "white", fontSize: 120, fontWeight: 900, lineHeight: 1 }}>{totalPosts}</span>
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ color: "white", fontSize: 28, fontWeight: 900 }}>건</p>
+            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 600 }}>{dayLabel(dayOffset)} 접수</p>
           </div>
         </div>
 
         {/* Sub breakdown */}
-        <div className="flex gap-4">
-          <div className="bg-white/20 rounded-2xl px-5 py-3 backdrop-blur-sm">
-            <p className="text-white/80 text-xs font-semibold mb-0.5">📢 불편 제보</p>
-            <p className="text-white font-black text-3xl tabular-nums">{data.totalReports}</p>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
+            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>📢 불편 제보</p>
+            <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.totalReports}</p>
           </div>
-          <div className="bg-white/20 rounded-2xl px-5 py-3 backdrop-blur-sm">
-            <p className="text-white/80 text-xs font-semibold mb-0.5">💡 공약 제안</p>
-            <p className="text-white font-black text-3xl tabular-nums">{data.totalProposals}</p>
+          <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
+            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>💡 공약 제안</p>
+            <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.totalProposals}</p>
           </div>
         </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-8 py-4">
-        <p className="text-white font-black text-lg">{shortDate(targetDate)}</p>
-        <p className="text-white/60 text-xs">개혁신당 천안시의원후보 손승범 | 지역 변화 플랫폼</p>
       </div>
     </Slide>
   );
 }
 
-// ── Slide 2: Top Reports ────────────────────────────────────────────────────────
+// ── Slide 2: Top Reports ──────────────────────────────────────────────────────
 function SlideTopReports({ id, data, total }: { id: string; data: DailyStats; total: number }) {
   const top = data.reports.slice(0, 3);
   return (
-    <Slide id={id} className="bg-gray-950">
-      <TopBar />
-      <SlideCounter current={2} total={total} />
-      <div className="absolute inset-0 px-7 pt-16 flex flex-col justify-center">
-        <div className="mb-5">
-          <p className="text-orange-400 text-xs font-black tracking-widest uppercase mb-1">TODAY&apos;S REPORT</p>
-          <p className="text-white font-black text-2xl leading-tight">오늘의 불편 제보</p>
-          <p className="text-white/40 text-sm">총 {data.totalReports}건 접수됨</p>
+    <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
+      <TopBar dark />
+      <Counter current={2} total={total} />
+      <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>TODAY&apos;S REPORT</p>
+          <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>오늘의 불편 제보</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>총 {data.totalReports}건 접수됨</p>
         </div>
-        <div className="space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {top.map((post, idx) => {
             const rank = ["🥇", "🥈", "🥉"][idx];
             const text = post.title ?? post.content;
             const location = [post.city, post.dong].filter(Boolean).join(" ");
             return (
-              <div key={post.id} className="flex items-start gap-3 bg-white/5 rounded-2xl px-4 py-3.5 border border-white/10">
-                <span className="text-2xl shrink-0 mt-0.5">{rank}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm leading-tight mb-1">{truncate(text, 28)}</p>
-                  {location && <p className="text-orange-400/80 text-xs">📍 {location}</p>}
-                  <p className="text-white/30 text-xs mt-0.5">{post.authorName}</p>
+              <div key={post.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>{rank}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ color: "white", fontWeight: 700, fontSize: 14, lineHeight: 1.4, marginBottom: 3 }}>{truncate(text, 28)}</p>
+                  {location && <p style={{ color: "rgba(249,115,22,0.75)", fontSize: 11 }}>📍 {location}</p>}
+                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, marginTop: 2 }}>{post.authorName}</p>
                 </div>
                 {post.likeCount > 0 && (
-                  <p className="text-red-400 text-xs font-bold shrink-0">❤️ {post.likeCount}</p>
+                  <p style={{ color: "#f87171", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>❤️ {post.likeCount}</p>
                 )}
               </div>
             );
           })}
         </div>
         {data.totalReports > 3 && (
-          <p className="text-white/30 text-xs text-center mt-4">외 {data.totalReports - 3}건 더 →</p>
+          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, textAlign: "center", marginTop: 14 }}>외 {data.totalReports - 3}건 더 →</p>
         )}
       </div>
     </Slide>
   );
 }
 
-// ── Slide 3: City Breakdown ─────────────────────────────────────────────────────
+// ── Slide 3: City Breakdown ───────────────────────────────────────────────────
 function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total: number }) {
   const cities = data.cityBreakdown.slice(0, 5);
   const maxVal = cities[0]?.total ?? 1;
   return (
-    <Slide id={id} className="bg-gray-950">
-      <TopBar />
-      <SlideCounter current={3} total={total} />
-      <div className="absolute inset-0 px-7 pt-16 flex flex-col justify-center">
-        <div className="mb-5">
-          <p className="text-orange-400 text-xs font-black tracking-widest uppercase mb-1">AREA BREAKDOWN</p>
-          <p className="text-white font-black text-2xl leading-tight">지역별 현황</p>
-          <p className="text-white/40 text-sm">제보/제안이 많은 지역 TOP {cities.length}</p>
+    <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
+      <TopBar dark />
+      <Counter current={3} total={total} />
+      <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>AREA BREAKDOWN</p>
+          <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>지역별 현황</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>제보/제안이 많은 지역 TOP {cities.length}</p>
         </div>
-        <div className="space-y-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {cities.map((item, idx) => {
             const pct = maxVal > 0 ? (item.total / maxVal) * 100 : 0;
             const reportPct = item.total > 0 ? (item.reports / item.total) * 100 : 0;
             return (
-              <div key={item.city} className="flex items-center gap-3">
-                <span className="text-orange-400 font-black text-sm w-5 text-right shrink-0">{idx + 1}</span>
-                <span className="text-white font-bold text-sm w-16 shrink-0">{item.city}</span>
-                <div className="flex-1 relative h-7 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full overflow-hidden" style={{ width: `${pct}%`, backgroundColor: "rgba(255,255,255,0.15)" }}>
-                    <div className="h-full bg-gradient-to-r from-orange-500 to-red-500 float-left" style={{ width: `${reportPct}%` }} />
-                    <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 float-left" style={{ width: `${100 - reportPct}%` }} />
+              <div key={item.city} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ color: C.orange, fontWeight: 900, fontSize: 13, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                <span style={{ color: "white", fontWeight: 700, fontSize: 13, width: 56, flexShrink: 0 }}>{item.city}</span>
+                <div style={{ flex: 1, position: "relative", height: 26, background: "rgba(255,255,255,0.1)", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, overflow: "hidden" }}>
+                    <div style={{ display: "flex", height: "100%" }}>
+                      <div style={{ width: `${reportPct}%`, background: `linear-gradient(to right, ${C.orange}, ${C.red500})` }} />
+                      <div style={{ flex: 1, background: `linear-gradient(to right, ${C.amber400}, ${C.amber500})` }} />
+                    </div>
                   </div>
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-white font-black text-xs">{item.total}</span>
+                  <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: "white", fontSize: 11, fontWeight: 900 }}>{item.total}</span>
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="flex gap-4 mt-5">
-          <span className="flex items-center gap-1.5 text-[11px] text-white/50">
-            <span className="w-3 h-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500 shrink-0" />불편제보
+        <div style={{ display: "flex", gap: 16, marginTop: 20 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.orange, flexShrink: 0, display: "inline-block" }} />불편제보
           </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-white/50">
-            <span className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 shrink-0" />공약제안
+          <span style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.amber400, flexShrink: 0, display: "inline-block" }} />공약제안
           </span>
         </div>
       </div>
@@ -227,40 +245,40 @@ function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total
   );
 }
 
-// ── Slide 4: Popular Posts ──────────────────────────────────────────────────────
+// ── Slide 4: Popular Posts ────────────────────────────────────────────────────
 function SlidePopular({ id, data, total }: { id: string; data: DailyStats; total: number }) {
   const topLiked = data.topLikedPosts.filter(p => p.likeCount > 0).slice(0, 3);
   return (
-    <Slide id={id} className="bg-gradient-to-b from-gray-950 to-gray-900">
-      <TopBar />
-      <SlideCounter current={4} total={total} />
-      <div className="absolute inset-0 px-7 pt-16 flex flex-col justify-center">
-        <div className="mb-5">
-          <p className="text-red-400 text-xs font-black tracking-widest uppercase mb-1">POPULAR TODAY</p>
-          <p className="text-white font-black text-2xl leading-tight">오늘의 인기 글</p>
-          <p className="text-white/40 text-sm">가장 많은 공감을 받은 제보</p>
+    <Slide id={id} bg={{ background: `linear-gradient(to bottom, ${C.gray950}, ${C.gray900})` }}>
+      <TopBar dark />
+      <Counter current={4} total={total} />
+      <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>POPULAR TODAY</p>
+          <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>오늘의 인기 글</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>가장 많은 공감을 받은 제보</p>
         </div>
-        <div className="space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {topLiked.map((post, idx) => {
             const text = post.title ?? post.content;
             return (
-              <div key={post.id} className="bg-white/5 rounded-2xl px-4 py-3.5 border border-white/10">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${post.postType === "민원" ? "bg-red-500/30 text-red-300" : "bg-amber-500/30 text-amber-300"}`}>
+              <div key={post.id} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 999, background: post.postType === "민원" ? "rgba(239,68,68,0.25)" : "rgba(251,191,36,0.25)", color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
                         {post.postType === "민원" ? "📢 제보" : "💡 제안"}
                       </span>
-                      <span className="text-white/30 text-[10px]">#{idx + 1}</span>
+                      <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>#{idx + 1}</span>
                     </div>
-                    <p className="text-white font-bold text-sm leading-tight">{truncate(text, 30)}</p>
+                    <p style={{ color: "white", fontWeight: 700, fontSize: 14, lineHeight: 1.4 }}>{truncate(text, 30)}</p>
                     {(post.city || post.dong) && (
-                      <p className="text-white/40 text-xs mt-1">📍 {[post.city, post.dong].filter(Boolean).join(" ")}</p>
+                      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 4 }}>📍 {[post.city, post.dong].filter(Boolean).join(" ")}</p>
                     )}
                   </div>
-                  <div className="shrink-0 bg-red-500/20 rounded-xl px-2.5 py-1.5 text-center">
-                    <p className="text-red-400 text-base font-black">❤️</p>
-                    <p className="text-red-300 font-black text-sm">{post.likeCount}</p>
+                  <div style={{ flexShrink: 0, background: "rgba(239,68,68,0.18)", borderRadius: 12, padding: "6px 10px", textAlign: "center" }}>
+                    <p style={{ fontSize: 16, fontWeight: 900 }}>❤️</p>
+                    <p style={{ color: "#fca5a5", fontWeight: 900, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</p>
                   </div>
                 </div>
               </div>
@@ -272,48 +290,92 @@ function SlidePopular({ id, data, total }: { id: string; data: DailyStats; total
   );
 }
 
-// ── Slide 5: CTA ───────────────────────────────────────────────────────────────
-function SlideCTA({ id, total }: { id: string; total: number }) {
+// ── Slide CTA (last) — light background ───────────────────────────────────────
+export function SlideCTA({ id, current, total }: { id: string; current: number; total: number }) {
   return (
-    <Slide id={id} className="bg-gray-950">
-      <TopBar />
-      <SlideCounter current={total} total={total} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-        <p className="text-orange-400 text-sm font-black tracking-widest uppercase mb-3">YOUR TURN</p>
-        <p className="text-white font-black text-[28px] leading-tight mb-2">
+    <Slide id={id} bg={{ backgroundColor: "#fff7ed" }}>
+      {/* Decorative top orange strip */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(to right, ${C.orange}, ${C.red500})` }} />
+
+      <TopBar dark={false} />
+      <Counter current={current} total={total} dark={false} />
+
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px", textAlign: "center" }}>
+        <p style={{ color: C.orange, fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 12 }}>YOUR TURN</p>
+
+        <p style={{ color: "#111827", fontSize: 30, fontWeight: 900, lineHeight: 1.3, marginBottom: 8 }}>
           당신 집 앞<br />불편을 제보하세요
         </p>
-        <p className="text-white/50 text-sm mb-8 leading-relaxed">
-          함께 기록하면 정치인은 움직입니다<br />
-          로그인 없이도 바로 제보할 수 있어요
+        <p style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
+          함께 기록하면 정치인은 움직입니다<br />로그인 없이도 바로 제보할 수 있어요
         </p>
-        <div className="bg-orange-500 rounded-2xl px-8 py-4 mb-4 w-full">
-          <p className="text-white font-black text-xl tracking-tight">reform-chungnam.kr</p>
+
+        {/* URL box */}
+        <div style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange}, ${C.orange600})`, borderRadius: 18, padding: "16px 28px", marginBottom: 14 }}>
+          <p style={{ color: "white", fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>reform-chungnam.kr</p>
         </div>
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-5 py-3 w-full">
-          <span className="text-orange-400 text-lg">👆</span>
-          <p className="text-white/70 text-sm font-medium">프로필 링크에서도 바로 접속 가능</p>
+
+        {/* Profile hint */}
+        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, padding: "12px 20px" }}>
+          <span style={{ fontSize: 18 }}>👆</span>
+          <p style={{ color: "#374151", fontSize: 13, fontWeight: 600 }}>프로필 링크에서도 바로 접속 가능</p>
         </div>
-        <div className="mt-6 flex items-center gap-2">
-          <div className="w-px h-4 bg-white/20" />
-          <p className="text-white/30 text-xs">개혁신당 천안시의원후보 손승범</p>
-          <div className="w-px h-4 bg-white/20" />
+
+        {/* Footer name + district */}
+        <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 1, height: 16, background: "rgba(0,0,0,0.2)" }} />
+          <p style={{ color: "#374151", fontSize: 12, fontWeight: 700 }}>개혁신당 손승범 · 문성동 봉명동 성정1동 성정2동 천안시의원 후보</p>
+          <div style={{ width: 1, height: 16, background: "rgba(0,0,0,0.2)" }} />
         </div>
       </div>
     </Slide>
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Arrow Button ──────────────────────────────────────────────────────────────
+function ArrowBtn({ direction, onClick }: { direction: "left" | "right"; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        position: "absolute",
+        top: "50%",
+        transform: "translateY(-50%)",
+        [direction]: 10,
+        zIndex: 20,
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: "rgba(0,0,0,0.45)",
+        border: "none",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        {direction === "left"
+          ? <path d="M10 3L5 8l5 5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          : <path d="M6 3l5 5-5 5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        }
+      </svg>
+    </button>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [scale, setScale] = useState(1);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const outerRef = useRef<HTMLDivElement>(null);
+  const outerRef    = useRef<HTMLDivElement>(null);
 
-  // Measure container width and compute scale
+  // Responsive scale
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
@@ -329,43 +391,57 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
 
   // Build slide list
   const hasTopReports = data.reports.length > 0;
-  const hasCityMap = data.cityBreakdown.length > 0;
-  const hasPopular = data.topLikedPosts.filter(p => p.likeCount > 0).length > 0;
-  const slideCount = 2 + (hasTopReports ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
-  const slideIds = ["card-slide-1", "card-slide-2", "card-slide-3", "card-slide-4", "card-slide-5"].slice(0, slideCount);
+  const hasCityMap    = data.cityBreakdown.length > 0;
+  const hasPopular    = data.topLikedPosts.filter(p => p.likeCount > 0).length > 0;
+  const slideCount    = 2 + (hasTopReports ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
+  const slideIds      = ["card-slide-1","card-slide-2","card-slide-3","card-slide-4","card-slide-5"].slice(0, slideCount);
 
   const goTo = useCallback((idx: number) => {
     setCurrentSlide(idx);
-    const container = carouselRef.current;
-    if (container) {
-      container.scrollTo({ left: idx * SLIDE_W, behavior: "smooth" });
-    }
+    const c = carouselRef.current;
+    if (c) c.scrollTo({ left: idx * SLIDE_W, behavior: "smooth" });
   }, []);
 
   const handleScroll = useCallback(() => {
-    const container = carouselRef.current;
-    if (!container) return;
-    const idx = Math.round(container.scrollLeft / SLIDE_W);
+    const c = carouselRef.current;
+    if (!c) return;
+    const idx = Math.round(c.scrollLeft / SLIDE_W);
     if (idx !== currentSlide) setCurrentSlide(idx);
   }, [currentSlide]);
 
-  // html2canvas helper
-  const captureSlide = useCallback(async (id: string, scale2x = 2) => {
-    const { default: html2canvas } = await import("html2canvas");
+  // ── Capture: use modern-screenshot (handles Tailwind v4 oklch/lab) ───────────
+  const captureSlide = useCallback(async (id: string): Promise<string> => {
+    const { domToJpeg } = await import("modern-screenshot");
     const el = document.getElementById(id);
-    if (!el) throw new Error("Slide not found");
-    return await html2canvas(el, {
-      scale: scale2x,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false,
-      width: SLIDE_W,
-      height: SLIDE_H,
+    if (!el) throw new Error("Slide not found: " + id);
+
+    // Clone off-screen to escape CSS transform context
+    const clone = el.cloneNode(true) as HTMLElement;
+    Object.assign(clone.style, {
+      position: "fixed",
+      top: "-99999px",
+      left: "0px",
+      width:  `${SLIDE_W}px`,
+      height: `${SLIDE_H}px`,
+      transform: "none",
+      zIndex: "-1",
     });
+    clone.id = `${id}-cap`;
+    document.body.appendChild(clone);
+
+    try {
+      return await domToJpeg(clone, {
+        scale: 2,      // 540×2 = 1080px, 675×2 = 1350px
+        quality: 0.95,
+        width:  SLIDE_W,
+        height: SLIDE_H,
+      });
+    } finally {
+      document.body.removeChild(clone);
+    }
   }, []);
 
-  const dateStr = `${targetDate.getFullYear()}${String(targetDate.getMonth() + 1).padStart(2, "0")}${String(targetDate.getDate()).padStart(2, "0")}`;
+  const dateStr = `${targetDate.getFullYear()}${String(targetDate.getMonth()+1).padStart(2,"0")}${String(targetDate.getDate()).padStart(2,"0")}`;
 
   const downloadAll = useCallback(async () => {
     setDownloading(true);
@@ -373,18 +449,17 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
     try {
       for (let i = 0; i < slideIds.length; i++) {
         setDownloadProgress(Math.round(((i + 0.5) / slideIds.length) * 100));
-        const canvas = await captureSlide(slideIds[i]);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        const dataUrl = await captureSlide(slideIds[i]);
         const a = document.createElement("a");
-        a.download = `reform-chungnam-${dateStr}-${String(i + 1).padStart(2, "0")}.jpg`;
+        a.download = `reform-chungnam-${dateStr}-${String(i+1).padStart(2,"0")}.jpg`;
         a.href = dataUrl;
         a.click();
-        await new Promise(r => setTimeout(r, 350));
+        await new Promise(r => setTimeout(r, 400));
         setDownloadProgress(Math.round(((i + 1) / slideIds.length) * 100));
       }
     } catch (err) {
       console.error("Download failed:", err);
-      alert("이미지 저장에 실패했습니다. 다시 시도해주세요.");
+      alert("이미지 저장에 실패했습니다.\n" + (err instanceof Error ? err.message : ""));
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
@@ -394,14 +469,14 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
   const downloadCurrent = useCallback(async () => {
     setDownloading(true);
     try {
-      const canvas = await captureSlide(slideIds[currentSlide]);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      const dataUrl = await captureSlide(slideIds[currentSlide]);
       const a = document.createElement("a");
-      a.download = `reform-chungnam-${dateStr}-${String(currentSlide + 1).padStart(2, "0")}.jpg`;
+      a.download = `reform-chungnam-${dateStr}-${String(currentSlide+1).padStart(2,"0")}.jpg`;
       a.href = dataUrl;
       a.click();
     } catch (err) {
       console.error("Download failed:", err);
+      alert("이미지 저장에 실패했습니다.\n" + (err instanceof Error ? err.message : ""));
     } finally {
       setDownloading(false);
     }
@@ -409,89 +484,74 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
 
   const shareCurrent = useCallback(async () => {
     try {
-      const canvas = await captureSlide(slideIds[currentSlide]);
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], `reform-chungnam-${currentSlide + 1}.jpg`, { type: "image/jpeg" });
-        if (navigator.share && navigator.canShare?.({ files: [file] })) {
-          await navigator.share({
-            title: `${shortDate(targetDate)} 지역 불편 현황`,
-            text: `${shortDate(targetDate)} 천안 지역 불편 제보 현황 | reform-chungnam.kr`,
-            files: [file],
-          });
-        } else {
-          await navigator.clipboard.writeText("https://reform-chungnam.kr/proposals/daily-stats");
-          alert("링크가 복사됐습니다!");
-        }
-      }, "image/jpeg", 0.95);
+      const dataUrl = await captureSlide(slideIds[currentSlide]);
+      // Convert data URL to Blob for sharing
+      const res  = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `reform-chungnam-${currentSlide+1}.jpg`, { type: "image/jpeg" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: `${shortDate(targetDate)} 지역 불편 현황`,
+          text:  `${shortDate(targetDate)} 천안 지역 불편 제보 현황 | reform-chungnam.kr`,
+          files: [file],
+        });
+      } else {
+        await navigator.clipboard.writeText("https://reform-chungnam.kr/proposals/daily-stats");
+        alert("링크가 복사됐습니다!");
+      }
     } catch (err) {
       console.error("Share failed:", err);
     }
   }, [slideIds, currentSlide, targetDate, captureSlide]);
 
-  let slideIndex = 0;
-
-  // Scaled height for the viewport clip area
   const viewH = Math.round(SLIDE_H * scale);
+  let si = 0;
 
   return (
     <div className="rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
-      {/* Outer measure wrapper */}
-      <div ref={outerRef} className="w-full overflow-hidden" style={{ height: viewH }}>
-        {/* Scale transform container */}
-        <div
-          style={{
-            transform: `scale(${scale})`,
-            transformOrigin: "top left",
-            width: SLIDE_W,
-            height: SLIDE_H,
-          }}
-        >
-          {/* Scrollable carousel — at full 540px per slide */}
+      {/* Carousel area — arrows overlay */}
+      <div ref={outerRef} className="w-full relative" style={{ height: viewH }}>
+        {/* Left arrow */}
+        {currentSlide > 0 && (
+          <ArrowBtn direction="left" onClick={() => goTo(currentSlide - 1)} />
+        )}
+        {/* Right arrow */}
+        {currentSlide < slideCount - 1 && (
+          <ArrowBtn direction="right" onClick={() => goTo(currentSlide + 1)} />
+        )}
+
+        {/* Scale + scroll layer */}
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: SLIDE_W, height: SLIDE_H }}>
           <div
             ref={carouselRef}
-            className="flex"
-            style={{
-              width: SLIDE_W,
-              height: SLIDE_H,
-              overflowX: "scroll",
-              scrollSnapType: "x mandatory",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
+            style={{ display: "flex", width: SLIDE_W, height: SLIDE_H, overflowX: "scroll", scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
             onScroll={handleScroll}
           >
-            {/* Slide 1: Cover */}
+            {/* Slide 1 */}
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-              <SlideCover
-                id={slideIds[slideIndex++]}
-                data={data}
-                total={slideCount}
-                targetDate={targetDate}
-                dayOffset={dayOffset}
-              />
+              <SlideCover id={slideIds[si++]} data={data} total={slideCount} targetDate={targetDate} dayOffset={dayOffset} />
             </div>
-            {/* Slide 2: Top Reports */}
+            {/* Slide 2 */}
             {hasTopReports && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideTopReports id={slideIds[slideIndex++]} data={data} total={slideCount} />
+                <SlideTopReports id={slideIds[si++]} data={data} total={slideCount} />
               </div>
             )}
-            {/* Slide 3: City breakdown */}
+            {/* Slide 3 */}
             {hasCityMap && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideCityMap id={slideIds[slideIndex++]} data={data} total={slideCount} />
+                <SlideCityMap id={slideIds[si++]} data={data} total={slideCount} />
               </div>
             )}
-            {/* Slide 4: Popular */}
+            {/* Slide 4 */}
             {hasPopular && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlidePopular id={slideIds[slideIndex++]} data={data} total={slideCount} />
+                <SlidePopular id={slideIds[si++]} data={data} total={slideCount} />
               </div>
             )}
-            {/* Slide 5: CTA */}
+            {/* Slide CTA */}
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-              <SlideCTA id={slideIds[slideIndex++]} total={slideCount} />
+              <SlideCTA id={slideIds[si++]} current={slideCount} total={slideCount} />
             </div>
           </div>
         </div>
@@ -510,7 +570,6 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
 
       {/* Action buttons */}
       <div className="px-5 pb-5 pt-3 flex gap-2">
-        {/* Download current slide */}
         <button
           onClick={downloadCurrent}
           disabled={downloading}
@@ -521,29 +580,17 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
           </svg>
           이 슬라이드
         </button>
-
-        {/* Download all */}
         <button
           onClick={downloadAll}
           disabled={downloading}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
         >
           {downloading ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              저장 중{downloadProgress > 0 ? ` ${downloadProgress}%` : ""}
-            </>
+            <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />저장 중{downloadProgress > 0 ? ` ${downloadProgress}%` : ""}</>
           ) : (
-            <>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              전체 다운로드 ({slideCount}장)
-            </>
+            <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>전체 다운로드 ({slideCount}장)</>
           )}
         </button>
-
-        {/* Share */}
         <button
           onClick={shareCurrent}
           disabled={downloading}
