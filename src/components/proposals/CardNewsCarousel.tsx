@@ -684,6 +684,15 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
     });
     document.body.appendChild(clone);
     await document.fonts.ready;
+    // Force Pretendard dynamic-subset to load all needed Korean unicode ranges
+    const KO_TEST = '가나다라마바사아자차카타파하정치인은움직공약제안불편제보오늘인기글';
+    await Promise.allSettled([
+      document.fonts.load(`900 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`800 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`700 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`600 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`400 14px "Pretendard Variable"`, KO_TEST),
+    ]);
     await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
       const canvas = await Promise.race([

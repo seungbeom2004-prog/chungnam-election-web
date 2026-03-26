@@ -122,17 +122,24 @@ function Counter({ current, total, dark = true }: { current: number; total: numb
 }
 
 // ── Slide 1: Weekly Cover ─────────────────────────────────────────────────────
-function SlideCover({ id, total, monday, sunday, filterCity, filterIssueType, filteredReportCount }: {
+function SlideCover({ id, total, monday, sunday, filterCity, filterIssueType, filterPostType, filteredReportCount }: {
   id: string;
   total: number;
   monday: Date;
   sunday: Date;
   filterCity: string | null;
   filterIssueType: string | null;
+  filterPostType: string | null;
   filteredReportCount: number;
 }) {
   const headlineLine1 = filterCity ?? "충청남도";
-  const headlineLine2 = filterIssueType ? `${filterIssueType} 제보` : "불편제보·공약제안";
+  const headlineLine2 = filterIssueType
+    ? `${filterIssueType} 제보`
+    : filterPostType === "불편제보"
+      ? "불편제보"
+      : filterPostType === "공약제안"
+        ? "공약제안"
+        : "불편제보·공약제안";
 
   return (
     <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
@@ -370,7 +377,8 @@ function WeeklyPostTile({ post, idx, fullWidth }: { post: TopLikedPost; idx: num
           <span style={{ color: "white", fontSize: fullWidth ? 15 : 12, fontWeight: 900, letterSpacing: -0.5 }}>{rankLabel}</span>
           <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
             background: post.postType === "민원" ? "rgba(239,68,68,0.35)" : "rgba(251,191,36,0.30)",
-            color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
+            color: post.postType === "민원" ? "#fca5a5" : "#fde68a",
+            whiteSpace: "nowrap", flexShrink: 0 }}>
             {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
           </span>
         </div>
@@ -603,6 +611,16 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     });
     document.body.appendChild(clone);
     await document.fonts.ready;
+    // Force Pretendard dynamic-subset to load all needed Korean unicode ranges
+    // (dynamic-subset only loads ranges for chars visible at CSS parse time)
+    const KO_TEST = '가나다라마바사아자차카타파하정치인은움직공약제안불편제보이번주인기글';
+    await Promise.allSettled([
+      document.fonts.load(`900 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`800 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`700 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`600 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`400 14px "Pretendard Variable"`, KO_TEST),
+    ]);
     await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
       const canvas = await Promise.race([
@@ -729,6 +747,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
                 sunday={targetSunday}
                 filterCity={filterCity}
                 filterIssueType={filterIssueType}
+                filterPostType={filterPostType}
                 filteredReportCount={filtered.filteredTotalPosts}
               />
             </div>
