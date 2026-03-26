@@ -684,14 +684,15 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
     });
     document.body.appendChild(clone);
     await document.fonts.ready;
-    // Force Pretendard dynamic-subset to load all needed Korean unicode ranges
-    const KO_TEST = '가나다라마바사아자차카타파하정치인은움직공약제안불편제보오늘인기글';
+    // Use slide's actual text so every character's font slice loads.
+    // Pretendard dynamic-subset skips slices for off-screen slides.
+    const slideText = el.textContent ?? '';
     await Promise.allSettled([
-      document.fonts.load(`900 14px "Pretendard Variable"`, KO_TEST),
-      document.fonts.load(`800 14px "Pretendard Variable"`, KO_TEST),
-      document.fonts.load(`700 14px "Pretendard Variable"`, KO_TEST),
-      document.fonts.load(`600 14px "Pretendard Variable"`, KO_TEST),
-      document.fonts.load(`400 14px "Pretendard Variable"`, KO_TEST),
+      document.fonts.load(`900 14px "Pretendard Variable"`, slideText),
+      document.fonts.load(`800 14px "Pretendard Variable"`, slideText),
+      document.fonts.load(`700 14px "Pretendard Variable"`, slideText),
+      document.fonts.load(`600 14px "Pretendard Variable"`, slideText),
+      document.fonts.load(`400 14px "Pretendard Variable"`, slideText),
     ]);
     await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
@@ -712,6 +713,9 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
     setDownloadProgress(0);
     try {
       for (let i = 0; i < slideIds.length; i++) {
+        // Navigate to slide first so browser renders it and loads font slices
+        goTo(i);
+        await new Promise(r => setTimeout(r, 200));
         setDownloadProgress(Math.round(((i + 0.5) / slideIds.length) * 100));
         const dataUrl = await captureSlide(slideIds[i]);
         const a = document.createElement("a");
@@ -728,7 +732,7 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
       setDownloading(false);
       setDownloadProgress(0);
     }
-  }, [slideIds, dateStr, captureSlide]);
+  }, [slideIds, dateStr, captureSlide, goTo]);
 
   const downloadCurrent = useCallback(async () => {
     setDownloading(true);
