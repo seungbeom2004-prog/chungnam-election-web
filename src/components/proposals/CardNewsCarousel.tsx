@@ -451,10 +451,10 @@ export function SlideCTA({ id, current, total }: { id: string; current: number; 
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px", textAlign: "center" }}>
         <p style={{ color: C.brand, fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 12 }}>YOUR TURN</p>
 
-        <p style={{ color: "#111827", fontSize: 30, fontWeight: 900, lineHeight: 1.3, marginBottom: 8 }}>
+        <p style={{ color: "#111827", fontSize: 30, fontWeight: 900, lineHeight: 1.3, marginBottom: 8, width: "100%" }}>
           당신 집 앞<br />불편을 제보하세요
         </p>
-        <p style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
+        <p style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.7, marginBottom: 32, width: "100%" }}>
           함께 기록하면 정치인은 움직입니다<br />로그인 없이도 바로 제보할 수 있어요
         </p>
 
