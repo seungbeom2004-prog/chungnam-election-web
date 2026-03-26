@@ -8,6 +8,7 @@ import {
   MobileBottomNavConditional,
   MobileContentSpacer,
   MainContentWrapper,
+  StatsPinConditional,
 } from "@/components/layout/NavbarConditional";
 import AuthProvider from "@/components/layout/AuthProvider";
 import DisclaimerModal from "@/components/layout/DisclaimerModal";
@@ -134,6 +135,7 @@ export default function RootLayout({
               <MobileContentSpacer />
             </MainContentWrapper>
             <MobileBottomNavConditional />
+            <StatsPinConditional />
             <CtaBanner />
           </ThemeProvider>
         </AuthProvider>
