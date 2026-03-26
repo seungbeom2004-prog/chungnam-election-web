@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const WeeklyCardNewsCarousel = dynamic(() => import("@/components/proposals/WeeklyCardNewsCarousel"), { ssr: false });
+const CardNewsCarousel = dynamic(() => import("@/components/proposals/CardNewsCarousel"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HotIssue {
@@ -50,6 +51,34 @@ interface WeeklyStats {
   prevWeekReports: number;
   prevWeekProposals: number;
   topLikedPosts: TopLikedPost[];
+}
+
+interface DailyPost {
+  id: string;
+  title: string | null;
+  content: string;
+  authorName: string;
+  city: string | null;
+  dong: string | null;
+  postType: string;
+  likeCount: number;
+  viewCount: number;
+  createdAt: string;
+}
+interface DailyCityBreakdown {
+  city: string;
+  reports: number;
+  proposals: number;
+  total: number;
+}
+interface DailyStats {
+  date: string;
+  reports: DailyPost[];
+  proposals: DailyPost[];
+  totalReports: number;
+  totalProposals: number;
+  cityBreakdown: DailyCityBreakdown[];
+  topLikedPosts: DailyPost[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -117,6 +146,11 @@ export default function WeeklyStatsPage() {
   const [data, setData] = useState<WeeklyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"weekly" | "daily">("weekly");
+  const [dayOffset, setDayOffset] = useState(0);
+  const [dailyData, setDailyData] = useState<DailyStats | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyError, setDailyError] = useState<string | null>(null);
 
   const currentMonday = getMondayOfWeek(new Date());
   const targetMonday = addDays(currentMonday, weekOffset * 7);
@@ -141,6 +175,67 @@ export default function WeeklyStatsPage() {
     load();
   }, [load]);
 
+  function getDateMidnight(offset: number): Date {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  const targetDay = getDateMidnight(dayOffset);
+  const nextDay = getDateMidnight(dayOffset + 1);
+  const isToday = dayOffset >= 0;
+  const dayLabel = dayOffset === 0 ? "오늘" : dayOffset === -1 ? "어제" : `${Math.abs(dayOffset)}일 전`;
+
+  const loadDaily = useCallback(async () => {
+    setDailyLoading(true);
+    setDailyError(null);
+    try {
+      const since = targetDay.toISOString();
+      const until = nextDay.toISOString();
+      const [rRes, pRes] = await Promise.all([
+        fetch(`/api/proposals?limit=500&postType=민원&since=${since}&until=${until}&sort=popular`),
+        fetch(`/api/proposals?limit=500&postType=제안&since=${since}&until=${until}&sort=popular`),
+      ]);
+      if (!rRes.ok || !pRes.ok) throw new Error("데이터 로드 실패");
+      const [rJson, pJson] = await Promise.all([rRes.json(), pRes.json()]);
+      const reports: DailyPost[] = (rJson.data ?? []).map((p: Record<string, unknown>) => ({
+        id: p.id as string, title: (p.title as string | null) ?? null, content: p.content as string,
+        authorName: p.authorName as string, city: (p.city as string | null) ?? null,
+        dong: (p.dong as string | null) ?? null, postType: (p.postType as string) ?? "민원",
+        likeCount: (p.likeCount as number) ?? 0, viewCount: (p.viewCount as number) ?? 0,
+        createdAt: p.createdAt as string,
+      }));
+      const proposals: DailyPost[] = (pJson.data ?? []).map((p: Record<string, unknown>) => ({
+        id: p.id as string, title: (p.title as string | null) ?? null, content: p.content as string,
+        authorName: p.authorName as string, city: (p.city as string | null) ?? null,
+        dong: (p.dong as string | null) ?? null, postType: (p.postType as string) ?? "제안",
+        likeCount: (p.likeCount as number) ?? 0, viewCount: (p.viewCount as number) ?? 0,
+        createdAt: p.createdAt as string,
+      }));
+      const cityMap = new Map<string, { reports: number; proposals: number }>();
+      [...reports, ...proposals].forEach((p) => {
+        const city = p.city ?? "기타";
+        if (!cityMap.has(city)) cityMap.set(city, { reports: 0, proposals: 0 });
+        if (p.postType === "민원") cityMap.get(city)!.reports++;
+        else cityMap.get(city)!.proposals++;
+      });
+      const cityBreakdown: DailyCityBreakdown[] = Array.from(cityMap.entries())
+        .map(([city, v]) => ({ city, ...v, total: v.reports + v.proposals }))
+        .sort((a, b) => b.total - a.total);
+      const topLikedPosts = [...reports, ...proposals].sort((a, b) => b.likeCount - a.likeCount).slice(0, 5);
+      const fmt = (d: Date) => `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일(${["일","월","화","수","목","금","토"][d.getDay()]})`;
+      setDailyData({ date: fmt(targetDay), reports, proposals, totalReports: reports.length, totalProposals: proposals.length, cityBreakdown, topLikedPosts });
+    } catch (e) {
+      setDailyError(e instanceof Error ? e.message : "오류가 발생했습니다");
+    } finally {
+      setDailyLoading(false);
+    }
+  }, [dayOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (mode === "daily") loadDaily();
+  }, [loadDaily, mode]);
+
   const maxCity = data?.cityBreakdown[0]?.total ?? 1;
   const maxDong = data?.dongBreakdown[0]?.count ?? 1;
   const maxIssueWeek = data?.hotIssues[0]?.weekReports ?? data?.hotIssues[0]?.reportCount ?? 1;
@@ -148,33 +243,81 @@ export default function WeeklyStatsPage() {
 
   return (
     <div className="max-w-xl mx-auto pb-12">
-      {/* ── Week Navigation ── */}
-      <div className="flex items-center justify-between px-1 py-3 mb-2">
+      {/* Mode toggle */}
+      <div className="flex gap-2 justify-center mb-4 bg-gray-100 rounded-2xl p-1">
         <button
-          onClick={() => setWeekOffset((o) => o - 1)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors"
+          onClick={() => setMode("weekly")}
+          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${mode === "weekly" ? "bg-white text-orange-500 shadow-sm" : "text-gray-500"}`}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          이전 주
+          📊 주간
         </button>
-        <div className="text-center">
-          <p className="text-sm font-bold text-foreground">{formatWeekLabel(targetMonday)}</p>
-          <p className="text-xs text-muted">{formatDateRange(targetMonday, targetSunday)}</p>
-        </div>
         <button
-          onClick={() => setWeekOffset((o) => o + 1)}
-          disabled={isCurrentWeek}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          onClick={() => setMode("daily")}
+          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${mode === "daily" ? "bg-white text-orange-500 shadow-sm" : "text-gray-500"}`}
         >
-          다음 주
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          📅 일간
         </button>
       </div>
 
+      {/* ── Date Navigation ── */}
+      {mode === "weekly" ? (
+        <div className="flex items-center justify-between px-1 py-3 mb-2">
+          <button onClick={() => setWeekOffset((o) => o - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            이전 주
+          </button>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground">{formatWeekLabel(targetMonday)}</p>
+            <p className="text-xs text-muted">{formatDateRange(targetMonday, targetSunday)}</p>
+          </div>
+          <button onClick={() => setWeekOffset((o) => o + 1)} disabled={isCurrentWeek} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+            다음 주
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-1 py-3 mb-2">
+          <button onClick={() => setDayOffset((o) => o - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            이전날
+          </button>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground">{dayLabel}</p>
+            <p className="text-xs text-muted">{dailyData?.date ?? ""}</p>
+          </div>
+          <button onClick={() => setDayOffset((o) => o + 1)} disabled={isToday} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+            다음날
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Daily Mode ── */}
+      {mode === "daily" && (
+        <>
+          {dailyLoading && (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-8 h-8 border-[3px] border-orange-400 border-t-transparent rounded-full animate-spin" />
+              <p className="text-muted text-sm">불러오는 중...</p>
+            </div>
+          )}
+          {!dailyLoading && dailyError && (
+            <div className="text-center py-16">
+              <p className="text-red-500 text-sm font-medium">{dailyError}</p>
+              <button onClick={loadDaily} className="mt-3 text-primary text-sm hover:underline">다시 시도</button>
+            </div>
+          )}
+          {!dailyLoading && !dailyError && dailyData && (
+            <div className="space-y-4">
+              <CardNewsCarousel data={dailyData} dayOffset={dayOffset} targetDate={targetDay} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Weekly Mode ── */}
+      {mode === "weekly" && (
+        <>
       {/* ── Loading / Error ── */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -465,6 +608,8 @@ export default function WeeklyStatsPage() {
             </Link>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

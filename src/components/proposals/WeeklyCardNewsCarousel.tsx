@@ -98,7 +98,7 @@ function TopBar({ dark = true }: { dark?: boolean }) {
       <img src="/images/reform-party-logo.png" alt="개혁신당" width={96} height={37}
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }} />
       <div className="text-right leading-tight">
-        <p style={{ color: textColor, fontSize: 17, fontWeight: 900, lineHeight: 1.2 }}>4 손승범</p>
+        <p style={{ color: textColor, fontSize: 32, fontWeight: 900, lineHeight: 1.2 }}>4 손승범</p>
         <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>문성동 봉명동 성정1동 성정2동</p>
         <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>천안시의원 후보</p>
       </div>
@@ -116,82 +116,109 @@ function Counter({ current, total, dark = true }: { current: number; total: numb
 }
 
 // ── Slide 1: Weekly Cover ─────────────────────────────────────────────────────
-function SlideCover({ id, data, total, monday, sunday, offset, filterCity, filterIssueType, filteredReportCount }: {
+function SlideCover({ id, total, monday, sunday, filterCity, filterIssueType, filteredReportCount }: {
   id: string;
-  data: WeeklyStats;
   total: number;
   monday: Date;
   sunday: Date;
-  offset: number;
   filterCity: string | null;
   filterIssueType: string | null;
   filteredReportCount: number;
 }) {
   // Build dynamic headline
-  let headlineLine1: string;
-  let headlineLine2: string;
-  let headlineLine3: string;
-
-  if (!filterCity && !filterIssueType) {
-    headlineLine1 = "충청남도에서";
-    headlineLine2 = "이번 주 불편 제보";
-    headlineLine3 = `${filteredReportCount}건 접수`;
-  } else if (filterCity && !filterIssueType) {
-    headlineLine1 = `${filterCity}에서`;
-    headlineLine2 = "이번 주 불편 제보";
-    headlineLine3 = `${filteredReportCount}건 접수`;
-  } else if (!filterCity && filterIssueType) {
-    headlineLine1 = `${filterIssueType} 관련`;
-    headlineLine2 = "이번 주 제보";
-    headlineLine3 = `${filteredReportCount}건 접수`;
-  } else {
-    headlineLine1 = `${filterCity} ${filterIssueType} 관련`;
-    headlineLine2 = "이번 주";
-    headlineLine3 = `${filteredReportCount}건 접수`;
-  }
+  const loc = filterCity ?? "충청남도";
+  const headlineLine1 = `이번 주 ${loc}에서`;
+  const headlineLine2 = filterIssueType ? `${filterIssueType} 제보` : "불편 제보 · 공약제안";
 
   return (
     <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
       <TopBar dark />
       <Counter current={1} total={total} />
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 36px", paddingTop: 64 }}>
-        <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", marginBottom: 8 }}>
-          WEEKLY REPORT
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 36px 48px" }}>
+        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: 700, marginBottom: 20, letterSpacing: 1 }}>
+          📅 {weekLabel(monday)} · {dateRange(monday, sunday)}
         </p>
-        <p style={{ color: "white", fontSize: 18, fontWeight: 900, lineHeight: 1.3, marginBottom: 4 }}>{weekLabel(monday)}</p>
-        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, marginBottom: 20 }}>{dateRange(monday, sunday)}</p>
+        <p style={{ color: "white", fontSize: 52, fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
+          {headlineLine1}
+        </p>
+        <p style={{ color: "rgba(255,255,255,0.88)", fontSize: 46, fontWeight: 900, lineHeight: 1.1, marginTop: 6 }}>
+          {headlineLine2}
+        </p>
+        <p style={{ color: "white", fontSize: 96, fontWeight: 900, lineHeight: 0.9, marginTop: 16, fontVariantNumeric: "tabular-nums" }}>
+          {filteredReportCount}
+        </p>
+        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 38, fontWeight: 800, lineHeight: 1.1, marginTop: 6 }}>
+          건 접수
+        </p>
+      </div>
+    </Slide>
+  );
+}
 
-        {/* Big dynamic headline */}
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1.3 }}>{headlineLine1}</p>
-          <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1.3 }}>{headlineLine2}</p>
-          <p style={{ color: "rgba(255,255,255,0.95)", fontSize: 32, fontWeight: 900, lineHeight: 1.25, marginTop: 4 }}>{headlineLine3}</p>
-        </div>
-
-        <div style={{ display: "flex", gap: 16 }}>
-          <div style={{ background: "rgba(255,255,255,0.18)", borderRadius: 16, padding: "12px 20px" }}>
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>📢 불편 제보</p>
-            <p style={{ color: "white", fontSize: 32, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.newReports}</p>
-            {trendStr(data.newReports, data.prevWeekReports) && (
-              <p style={{ color: data.newReports >= data.prevWeekReports ? "#86efac" : "#93c5fd", fontSize: 10, fontWeight: 700, marginTop: 2 }}>
-                {trendStr(data.newReports, data.prevWeekReports)}
+// ── Slide 1.5: Weekly Stats Infographic ───────────────────────────────────────
+function SlideWeeklyStats({ id, data, cityBreakdown, total, slideNum }: {
+  id: string;
+  data: WeeklyStats;
+  cityBreakdown: CityItem[];
+  total: number;
+  slideNum: number;
+}) {
+  const topCities = cityBreakdown.slice(0, 3);
+  const maxVal = topCities[0]?.total ?? 1;
+  const reportTrend = trendStr(data.newReports, data.prevWeekReports);
+  const proposalTrend = trendStr(data.newProposals, data.prevWeekProposals);
+  return (
+    <Slide id={id} bg={{ background: `linear-gradient(160deg, #1a0800 0%, ${C.gray950} 50%, #0a0a14 100%)` }}>
+      <TopBar dark />
+      <Counter current={slideNum} total={total} />
+      <div style={{ position: "absolute", inset: 0, padding: "60px 28px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <p style={{ color: C.brand, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" as const, marginBottom: 16 }}>WEEKLY OVERVIEW</p>
+        {/* Big stat cards */}
+        <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+          <div style={{ flex: 1, background: "rgba(255,114,16,0.18)", borderRadius: 24, padding: "22px 18px", border: "1px solid rgba(255,114,16,0.3)" }}>
+            <p style={{ fontSize: 24, marginBottom: 8 }}>📢</p>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>불편 제보</p>
+            <p style={{ color: "white", fontSize: 68, fontWeight: 900, lineHeight: 0.85, fontVariantNumeric: "tabular-nums" }}>{data.newReports}</p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, marginTop: 8 }}>건 접수</p>
+            {reportTrend && (
+              <p style={{ color: data.newReports >= data.prevWeekReports ? "#86efac" : "#93c5fd", fontSize: 11, fontWeight: 700, marginTop: 6 }}>
+                {reportTrend}
               </p>
             )}
           </div>
-          <div style={{ background: "rgba(255,255,255,0.18)", borderRadius: 16, padding: "12px 20px" }}>
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>💡 공약 제안</p>
-            <p style={{ color: "white", fontSize: 32, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.newProposals}</p>
-            {trendStr(data.newProposals, data.prevWeekProposals) && (
-              <p style={{ color: data.newProposals >= data.prevWeekProposals ? "#86efac" : "#93c5fd", fontSize: 10, fontWeight: 700, marginTop: 2 }}>
-                {trendStr(data.newProposals, data.prevWeekProposals)}
+          <div style={{ flex: 1, background: "rgba(251,191,36,0.15)", borderRadius: 24, padding: "22px 18px", border: "1px solid rgba(251,191,36,0.25)" }}>
+            <p style={{ fontSize: 24, marginBottom: 8 }}>💡</p>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>공약 제안</p>
+            <p style={{ color: "white", fontSize: 68, fontWeight: 900, lineHeight: 0.85, fontVariantNumeric: "tabular-nums" }}>{data.newProposals}</p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, marginTop: 8 }}>건 제안</p>
+            {proposalTrend && (
+              <p style={{ color: data.newProposals >= data.prevWeekProposals ? "#86efac" : "#93c5fd", fontSize: 11, fontWeight: 700, marginTop: 6 }}>
+                {proposalTrend}
               </p>
             )}
           </div>
         </div>
-
-        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginTop: 12 }}>
-          {offset === 0 ? "이번 주" : `${Math.abs(offset)}주 전`} 기준
-        </p>
+        {/* Top cities mini chart */}
+        {topCities.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 18, padding: "18px 18px" }}>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, letterSpacing: 2, marginBottom: 12, textTransform: "uppercase" as const }}>TOP AREA</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {topCities.map((item, i) => {
+                const pct = maxVal > 0 ? (item.total / maxVal) * 100 : 0;
+                return (
+                  <div key={item.city} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ color: C.brand, fontSize: 12, fontWeight: 900, width: 16, textAlign: "right" as const, flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ color: "white", fontSize: 13, fontWeight: 700, width: 54, flexShrink: 0 }}>{item.city}</span>
+                    <div style={{ flex: 1, height: 22, background: "rgba(255,255,255,0.08)", borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: `linear-gradient(to right, ${C.brand}, ${C.brand3})`, borderRadius: 999 }} />
+                    </div>
+                    <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: 700, width: 24, textAlign: "right" as const, flexShrink: 0 }}>{item.total}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </Slide>
   );
@@ -306,37 +333,60 @@ function SlidePopular({ id, posts, total, slideNum }: {
 }) {
   const top = posts.slice(0, 3);
   return (
-    <Slide id={id} bg={{ background: `linear-gradient(to bottom, ${C.gray950}, ${C.gray900})` }}>
+    <Slide id={id} bg={{ background: `linear-gradient(160deg, #0f0014 0%, ${C.gray950} 50%, #140a00 100%)` }}>
       <TopBar dark />
       <Counter current={slideNum} total={total} />
-      <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>POPULAR POSTS</p>
-          <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>이번 주 인기 글</p>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>가장 많은 공감을 받은 제보</p>
+      <div style={{ position: "absolute", inset: 0, padding: "60px 26px 28px", display: "flex", flexDirection: "column" }}>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" as const, marginBottom: 4 }}>POPULAR POSTS</p>
+          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.2 }}>이번 주 인기 글</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>가장 많은 공감을 받은 제보</p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
           {top.map((post, idx) => {
-            const text = post.title ?? post.content;
+            const title = post.title ? truncate(post.title, 28) : null;
+            const body  = truncate(post.content ?? "", 72);
+            const location = [post.city, post.dong].filter(Boolean).join(" ");
+            const rankColors = ["rgba(255,214,0,0.15)", "rgba(192,192,192,0.12)", "rgba(205,127,50,0.12)"];
+            const rankBorder = ["rgba(255,214,0,0.3)", "rgba(192,192,192,0.25)", "rgba(205,127,50,0.25)"];
             return (
-              <div key={post.id} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.09)" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 999, background: post.postType === "민원" ? "rgba(239,68,68,0.25)" : "rgba(251,191,36,0.25)", color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
-                        {post.postType === "민원" ? "📢 제보" : "💡 제안"}
-                      </span>
-                      <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>#{idx + 1}</span>
-                    </div>
-                    <p style={{ color: "white", fontWeight: 700, fontSize: 14, lineHeight: 1.4 }}>{truncate(text, 30)}</p>
-                    {(post.city || post.dong) && (
-                      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 4 }}>📍 {[post.city, post.dong].filter(Boolean).join(" ")}</p>
-                    )}
+              <div key={post.id} style={{
+                background: idx === 0 ? rankColors[0] : idx === 1 ? rankColors[1] : rankColors[2],
+                borderRadius: 18,
+                padding: "14px 16px",
+                border: `1px solid ${idx === 0 ? rankBorder[0] : idx === 1 ? rankBorder[1] : rankBorder[2]}`,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}>
+                {/* Top row: rank + type badge + likes */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>{["🥇","🥈","🥉"][idx]}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+                      background: post.postType === "민원" ? "rgba(239,68,68,0.3)" : "rgba(251,191,36,0.28)",
+                      color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
+                      {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
+                    </span>
                   </div>
-                  <div style={{ flexShrink: 0, background: "rgba(239,68,68,0.18)", borderRadius: 12, padding: "6px 10px", textAlign: "center" }}>
-                    <p style={{ fontSize: 16, fontWeight: 900 }}>❤️</p>
-                    <p style={{ color: "#fca5a5", fontWeight: 900, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(239,68,68,0.2)", borderRadius: 20, padding: "4px 10px" }}>
+                    <span style={{ fontSize: 13 }}>❤️</span>
+                    <span style={{ color: "#fca5a5", fontWeight: 900, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</span>
                   </div>
+                </div>
+                {/* Title */}
+                {title && (
+                  <p style={{ color: "white", fontWeight: 800, fontSize: 14, lineHeight: 1.35, marginBottom: 5 }}>{title}</p>
+                )}
+                {/* Body content */}
+                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, lineHeight: 1.55, flex: 1 }}>{body}</p>
+                {/* Footer: location + author */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                  {location
+                    ? <p style={{ color: "rgba(255,114,16,0.8)", fontSize: 11, fontWeight: 600 }}>📍 {location}</p>
+                    : <span />}
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>{post.authorName}</p>
                 </div>
               </div>
             );
@@ -452,8 +502,9 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
   const hasHotIssues = filtered.filteredHotIssues.length > 0;
   const hasCityMap   = filtered.filteredCityBreakdown.length > 0;
   const hasPopular   = filtered.filteredLikedPosts.length > 0;
-  const slideCount   = 2 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
-  const slideIds     = ["w-slide-1","w-slide-2","w-slide-3","w-slide-4","w-slide-5"].slice(0, slideCount);
+  // +1 for SlideWeeklyStats (always shown after cover)
+  const slideCount   = 3 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
+  const slideIds     = ["w-slide-1","w-slide-2","w-slide-3","w-slide-4","w-slide-5","w-slide-6"].slice(0, slideCount);
 
   const goTo = useCallback((idx: number) => {
     setCurrentSlide(idx);
@@ -610,17 +661,25 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
               <SlideCover
                 id={slideIds[si++]}
-                data={data}
                 total={slideCount}
                 monday={targetMonday}
                 sunday={targetSunday}
-                offset={weekOffset}
                 filterCity={filterCity}
                 filterIssueType={filterIssueType}
-                filteredReportCount={filtered.filteredReportCount}
+                filteredReportCount={filtered.filteredTotalPosts}
               />
             </div>
-            {/* Slide 2: Hot Issues */}
+            {/* Slide 2: Weekly Stats Infographic */}
+            <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
+              <SlideWeeklyStats
+                id={slideIds[si++]}
+                data={data}
+                cityBreakdown={filtered.filteredCityBreakdown}
+                total={slideCount}
+                slideNum={si}
+              />
+            </div>
+            {/* Slide 3: Hot Issues */}
             {hasHotIssues && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
                 <SlideHotIssues id={slideIds[si++]} hotIssues={filtered.filteredHotIssues} total={slideCount} slideNum={si} />
