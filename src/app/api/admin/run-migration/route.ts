@@ -15,11 +15,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const BUILD_VERSION = "v3-management-api";
   const projectRef = "cuokeqrlkbczbwhidtjn";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
   if (!serviceRoleKey) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }, { status: 500 });
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set", version: BUILD_VERSION }, { status: 500 });
   }
 
   // Full SQL to create StatsCache table with all policies
