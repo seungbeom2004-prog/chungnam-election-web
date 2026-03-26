@@ -82,16 +82,6 @@ interface DailyStats {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const CATEGORY_COLORS: Record<string, string> = {
-  교통: "bg-blue-100 text-blue-700",
-  안전: "bg-red-100 text-red-700",
-  교육: "bg-purple-100 text-purple-700",
-  복지: "bg-green-100 text-green-700",
-  경제: "bg-yellow-100 text-yellow-800",
-  환경: "bg-emerald-100 text-emerald-700",
-  문화: "bg-pink-100 text-pink-700",
-  기타: "bg-gray-100 text-gray-600",
-};
 
 function getMondayOfWeek(d: Date): Date {
   const date = new Date(d);
@@ -121,24 +111,6 @@ function formatDateRange(start: Date, end: Date): string {
   return `${fmt(start)} ~ ${fmt(end)}`;
 }
 
-function trendBadge(current: number, prev: number) {
-  if (prev === 0 && current === 0) return null;
-  const diff = current - prev;
-  if (diff === 0) return <span className="text-xs text-gray-400 font-medium">지난주와 동일</span>;
-  if (diff > 0)
-    return (
-      <span className="text-xs text-orange-500 font-bold">
-        ▲ {diff} 더 많음
-      </span>
-    );
-  return (
-    <span className="text-xs text-blue-400 font-bold">
-      ▼ {Math.abs(diff)} 더 적음
-    </span>
-  );
-}
-
-const RANK_EMOJI = ["🥇", "🥈", "🥉", "4", "5"];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function WeeklyStatsPage() {
@@ -247,9 +219,6 @@ export default function WeeklyStatsPage() {
     if (mode === "daily") loadDaily();
   }, [loadDaily, mode]);
 
-  const maxCity = data?.cityBreakdown[0]?.total ?? 1;
-  const maxDong = data?.dongBreakdown[0]?.count ?? 1;
-  const maxIssueWeek = data?.hotIssues[0]?.weekReports ?? data?.hotIssues[0]?.reportCount ?? 1;
   const isCurrentWeek = weekOffset >= 0;
 
   return (
@@ -339,269 +308,19 @@ export default function WeeklyStatsPage() {
             onModeChange={setMode}
           />
 
-          {/* ── Section 1: Main Stats Cards ── */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Gradient Top Bar */}
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-500 px-5 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/80 text-xs font-medium tracking-wider uppercase">Weekly Report</p>
-                  <p className="text-white font-black text-lg leading-tight">{formatWeekLabel(targetMonday)}</p>
-                  <p className="text-white/70 text-xs">{formatDateRange(targetMonday, targetSunday)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-white/80 text-xs">이번 주 총 활동</p>
-                  <p className="text-white font-black text-4xl tabular-nums leading-none">{data.totalPosts}</p>
-                  <p className="text-white/70 text-xs">건</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Two big stat boxes */}
-            <div className="grid grid-cols-2 divide-x divide-gray-100">
-              {/* 불편제보 */}
-              <div className="px-5 py-5 text-center">
-                <p className="text-2xl mb-0.5">🚨</p>
-                <p className="text-xs text-gray-500 font-medium mb-1">신규 불편제보</p>
-                <p className="text-5xl font-black tabular-nums text-orange-500 leading-none">
-                  {data.newReports}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">건</p>
-                <div className="mt-2 min-h-[18px] flex justify-center">
-                  {trendBadge(data.newReports, data.prevWeekReports)}
-                </div>
-              </div>
-              {/* 공약제안 */}
-              <div className="px-5 py-5 text-center">
-                <p className="text-2xl mb-0.5">💡</p>
-                <p className="text-xs text-gray-500 font-medium mb-1">신규 공약제안</p>
-                <p className="text-5xl font-black tabular-nums text-blue-500 leading-none">
-                  {data.newProposals}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">건</p>
-                <div className="mt-2 min-h-[18px] flex justify-center">
-                  {trendBadge(data.newProposals, data.prevWeekProposals)}
-                </div>
-              </div>
-            </div>
-
-            {/* View count */}
-            {data.totalViews > 0 && (
-              <div className="border-t border-gray-100 px-5 py-3 flex items-center justify-between bg-gray-50/50">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-gray-400">
-                    <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.5" />
-                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                  이슈 총 조회수
-                </div>
-                <p className="font-black text-lg tabular-nums text-gray-700">
-                  {data.totalViews.toLocaleString()}<span className="text-xs text-gray-400 font-normal ml-0.5">회</span>
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Section 2: Hot Issues ── */}
-          {data.hotIssues.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 flex items-center gap-2 border-b border-gray-50">
-                <span className="text-xl">🔥</span>
-                <div>
-                  <p className="font-black text-sm text-gray-800">이번 주 핫한 이슈</p>
-                  <p className="text-xs text-gray-400">제보가 집중된 지역 이슈</p>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {data.hotIssues.map((issue, idx) => {
-                  const catColor = CATEGORY_COLORS[issue.category ?? "기타"] ?? CATEGORY_COLORS["기타"];
-                  const location = [issue.city, issue.dong].filter(Boolean).join(" ");
-                  const weekCount = issue.weekReports || issue.reportCount;
-                  const barPct = maxIssueWeek > 0 ? (weekCount / maxIssueWeek) * 100 : 0;
-                  return (
-                    <Link
-                      key={issue.id}
-                      href={`/issues/${issue.id}`}
-                      className="flex items-center gap-3 px-5 py-3.5 hover:bg-orange-50/30 transition-colors group"
-                    >
-                      {/* Rank */}
-                      <span className={`shrink-0 w-7 h-7 flex items-center justify-center text-base font-black rounded-full
-                        ${idx < 3 ? "text-xl" : "bg-gray-100 text-gray-500 text-sm"}`}>
-                        {RANK_EMOJI[idx]}
-                      </span>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                          {issue.category && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${catColor}`}>
-                              {issue.category}
-                            </span>
-                          )}
-                          <span className="text-sm font-bold text-gray-800 group-hover:text-orange-600 truncate transition-colors">
-                            {issue.title}
-                          </span>
-                        </div>
-                        {location && <p className="text-[11px] text-gray-400 mb-1">📍 {location}</p>}
-                        {/* Mini bar */}
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full transition-all duration-700"
-                            style={{ width: `${barPct}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Count */}
-                      <div className="shrink-0 text-right">
-                        <p className="text-lg font-black tabular-nums text-orange-500">{weekCount}</p>
-                        <p className="text-[10px] text-gray-400 leading-none">건 제보</p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Section 3: City Breakdown ── */}
-          {data.cityBreakdown.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-gray-50">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xl">🗺️</span>
-                  <p className="font-black text-sm text-gray-800">시별 현황</p>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />불편제보
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />공약제안
-                  </span>
-                </div>
-              </div>
-              <div className="px-5 py-4 space-y-3">
-                {data.cityBreakdown.map((item) => {
-                  const totalPct = maxCity > 0 ? (item.total / maxCity) * 100 : 0;
-                  const reportPct = item.total > 0 ? (item.reports / item.total) * 100 : 0;
-                  return (
-                    <div key={item.city} className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-gray-600 w-14 sm:w-16 shrink-0 text-right">
-                        {item.city}
-                      </span>
-                      <div className="flex-1 relative">
-                        {/* Background track */}
-                        <div className="h-5 bg-gray-100 rounded-full overflow-hidden">
-                          {/* Total bar */}
-                          <div
-                            className="h-full rounded-full overflow-hidden transition-all duration-700"
-                            style={{ width: `${totalPct}%`, backgroundColor: "#f3f4f6" }}
-                          >
-                            {/* Report portion */}
-                            <div
-                              className="h-full bg-gradient-to-r from-orange-400 to-red-400 float-left transition-all duration-700"
-                              style={{ width: `${reportPct}%` }}
-                            />
-                            {/* Proposal portion */}
-                            <div
-                              className="h-full bg-gradient-to-r from-blue-400 to-blue-500 float-left transition-all duration-700"
-                              style={{ width: `${100 - reportPct}%` }}
-                            />
-                          </div>
-                        </div>
-                        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] font-black text-white drop-shadow-sm">
-                          {item.total}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Section 4: Dong Breakdown ── */}
-          {data.dongBreakdown.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-gray-50">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">📍</span>
-                  <div>
-                    <p className="font-black text-sm text-gray-800">동별 현황</p>
-                    <p className="text-xs text-gray-400">제보/제안이 많은 동네</p>
-                  </div>
-                </div>
-              </div>
-              <div className="px-5 py-4 space-y-2.5">
-                {data.dongBreakdown.map((item, idx) => {
-                  const pct = maxDong > 0 ? (item.count / maxDong) * 100 : 0;
-                  const opacity = 1 - idx * 0.09;
-                  return (
-                    <div key={item.dong} className="flex items-center gap-2.5">
-                      <span
-                        className="text-xs font-black w-5 text-right shrink-0"
-                        style={{ color: `rgba(249,115,22,${opacity})` }}
-                      >
-                        {idx + 1}
-                      </span>
-                      <span className="text-xs font-bold text-gray-700 w-16 sm:w-20 shrink-0">
-                        {item.dong}
-                      </span>
-                      <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: `rgba(249,115,22,${opacity})`,
-                          }}
-                        />
-                      </div>
-                      <span className="text-xs font-black tabular-nums text-gray-600 w-6 text-right shrink-0">
-                        {item.count}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Empty state for dong */}
-              {data.dongBreakdown.length === 0 && (
-                <div className="px-5 pb-5 text-center text-xs text-gray-400 pt-4">
-                  동별 데이터가 아직 없습니다
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Empty Week ── */}
-          {data.totalPosts === 0 && data.hotIssues.length === 0 && (
-            <div className="bg-white rounded-3xl border border-gray-100 py-16 text-center">
-              <p className="text-4xl mb-3">📭</p>
-              <p className="text-gray-500 text-sm font-medium">이번 주 활동 내역이 없습니다</p>
-              <p className="text-gray-400 text-xs mt-1">첫 제보를 올려보세요!</p>
-              <Link
-                href="/proposals"
-                className="inline-block mt-4 px-5 py-2 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600 transition-colors"
-              >
-                제보하러 가기
-              </Link>
-            </div>
-          )}
-
           {/* ── Footer links ── */}
           <div className="flex gap-3 pt-1">
             <Link
               href="/proposals"
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-bold hover:bg-orange-100 transition-colors"
             >
-              🚨 제보하기
+              🚨 불편제보 보기
             </Link>
             <Link
               href="/proposals?type=proposal"
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-colors"
             >
-              💡 제안하기
+              💡 공약제안 보기
             </Link>
           </div>
         </div>

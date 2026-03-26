@@ -457,7 +457,7 @@ export function SlideCTA({ id, current, total }: { id: string; current: number; 
         </div>
 
         {/* Profile hint */}
-        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, padding: "12px 20px" }}>
+        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, padding: "12px 20px" }}>
           <span style={{ fontSize: 18 }}>👆</span>
           <p style={{ color: "#374151", fontSize: 13, fontWeight: 600 }}>프로필 링크에서도 바로 접속 가능</p>
         </div>

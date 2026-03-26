@@ -403,7 +403,6 @@ function SlidePopular({ id, posts, total, slideNum }: {
         display: "flex", flexDirection: "column",
       }}>
         <div style={{ marginBottom: 14 }}>
-          <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 12, fontWeight: 600, marginBottom: 3 }}>이번 주</p>
           <p style={{ color: "white", fontSize: 24, fontWeight: 900, letterSpacing: -0.5 }}>이번주 인기글</p>
         </div>
         {top[0] && (
@@ -478,6 +477,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
   const [scale, setScale] = useState(1);
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterIssueType, setFilterIssueType] = useState<string | null>(null);
+  const [filterPostType, setFilterPostType] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const outerRef    = useRef<HTMLDivElement>(null);
 
@@ -511,13 +511,18 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
       ? (data.cityBreakdown.find(c => c.city === filterCity)?.total ?? 0)
       : data.totalPosts;
 
+    const REPORT_TYPES = ["불편제보", "민원"];
+    const PROPOSAL_TYPES = ["공약제안", "제안", "공약"];
+
     const filteredLikedPosts = (data.topLikedPosts ?? []).filter(p => {
       if (filterCity && p.city !== filterCity) return false;
+      if (filterPostType === "불편제보" && !REPORT_TYPES.includes(p.postType)) return false;
+      if (filterPostType === "공약제안" && !PROPOSAL_TYPES.includes(p.postType)) return false;
       return true;
     });
 
     return { filteredHotIssues, filteredCityBreakdown, filteredReportCount, filteredTotalPosts, filteredLikedPosts };
-  }, [data, filterCity, filterIssueType]);
+  }, [data, filterCity, filterIssueType, filterPostType]);
 
   // City options for chips
   const cityOptions = useMemo(() => data.cityBreakdown.map(c => c.city), [data.cityBreakdown]);
@@ -544,7 +549,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
   // Reset to slide 0 when filters change
   useEffect(() => {
     goTo(0);
-  }, [filterCity, filterIssueType, goTo]);
+  }, [filterCity, filterIssueType, filterPostType, goTo]);
 
   const handleScroll = useCallback(() => {
     const c = carouselRef.current;
@@ -674,6 +679,15 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
             </div>
           </div>
         )}
+        {/* Post type filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: issueTypeOptions.length >= 2 ? 8 : 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>유형</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <FilterChip label="전체" active={filterPostType === null} onClick={() => setFilterPostType(null)} />
+            <FilterChip label="🚨 불편제보" active={filterPostType === "불편제보"} onClick={() => setFilterPostType(filterPostType === "불편제보" ? null : "불편제보")} />
+            <FilterChip label="💡 공약제안" active={filterPostType === "공약제안"} onClick={() => setFilterPostType(filterPostType === "공약제안" ? null : "공약제안")} />
+          </div>
+        </div>
         {/* Issue type filter */}
         {issueTypeOptions.length >= 2 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
