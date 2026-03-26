@@ -3,6 +3,37 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { SlideCTA } from "./CardNewsCarousel";
 
+// ── Full-font injection for screenshot capture ─────────────────────────────────
+// Pretendard is loaded via a cross-origin CDN CSS (no crossorigin attr), so
+// modern-screenshot cannot read its @font-face rules (SecurityError on cssRules).
+// Fix: fetch the full (non-subsetted) woff2, convert to data URL, inject a
+// same-origin @font-face into document.head that modern-screenshot CAN read.
+let _snapFontLoading: Promise<void> | null = null;
+async function ensureSnapFont(): Promise<void> {
+  if (document.getElementById("__pretendard_snap__")) return;
+  if (_snapFontLoading) return _snapFontLoading;
+  _snapFontLoading = (async () => {
+    try {
+      const url = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/PretendardVariable.woff2";
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onloadend = () => resolve(fr.result as string);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+      const style = document.createElement("style");
+      style.id = "__pretendard_snap__";
+      style.textContent = `@font-face{font-family:"Pretendard Variable";font-weight:100 900;font-style:normal;src:url("${dataUrl}") format("woff2-variations");}`;
+      document.head.appendChild(style);
+    } catch (e) {
+      console.warn("[snapshot] full-font load failed:", e);
+    }
+  })();
+  return _snapFontLoading;
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface HotIssue {
   id: string;
@@ -580,6 +611,10 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     if (!el) throw new Error("Slide not found: " + id);
     const { domToCanvas } = await import("modern-screenshot");
 
+    // Inject full Pretendard woff2 as a same-origin @font-face so modern-screenshot
+    // can embed it without hitting the cross-origin cssRules SecurityError.
+    await ensureSnapFont();
+
     const clone = el.cloneNode(true) as HTMLElement;
     clone.id = id + "-snap";
 
@@ -626,7 +661,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     try {
       const canvas = await Promise.race([
         domToCanvas(clone, { scale: 2, width: SLIDE_W, height: SLIDE_H }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Capture timeout")), 15000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Capture timeout")), 30000)),
       ]);
       return canvas.toDataURL("image/jpeg", 0.95);
     } finally {
@@ -641,9 +676,10 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     setDownloading(true); setDownloadProgress(0);
     try {
       for (let i = 0; i < slideIds.length; i++) {
-        // Navigate to slide first so browser renders it and loads font slices
-        goTo(i);
-        await new Promise(r => setTimeout(r, 200));
+        // Scroll to slide instantly so browser renders it (loads font slices)
+        setCurrentSlide(i);
+        carouselRef.current?.scrollTo({ left: i * SLIDE_W, behavior: "instant" as ScrollBehavior });
+        await new Promise(r => setTimeout(r, 400));
         setDownloadProgress(Math.round(((i+0.5)/slideIds.length)*100));
         const dataUrl = await captureSlide(slideIds[i]);
         const a = document.createElement("a");
@@ -655,7 +691,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     } catch (err) {
       console.error(err); alert("이미지 저장 실패: " + (err instanceof Error ? err.message : ""));
     } finally { setDownloading(false); setDownloadProgress(0); }
-  }, [slideIds, dateStr, captureSlide, goTo]);
+  }, [slideIds, dateStr, captureSlide, carouselRef]);
 
   const downloadCurrent = useCallback(async () => {
     setDownloading(true);
