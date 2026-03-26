@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 /**
- * One-time migration endpoint — creates StatsCache table.
+ * One-time migration endpoint — creates StatsCache table via Supabase Management API.
  * DELETE this file after running once.
  *
  * POST /api/admin/run-migration
@@ -16,64 +15,86 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const results: { step: string; status: string; error?: string }[] = [];
+  const projectRef = "cuokeqrlkbczbwhidtjn";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-  const steps = [
-    {
-      name: "create StatsCache table",
-      sql: `
-        CREATE TABLE IF NOT EXISTS "StatsCache" (
-          "id"        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-          "cacheKey"  TEXT NOT NULL UNIQUE,
-          "data"      JSONB NOT NULL,
-          "createdAt" TIMESTAMPTZ DEFAULT NOW()
-        )
-      `,
-    },
-    {
-      name: "create index on cacheKey",
-      sql: `CREATE INDEX IF NOT EXISTS idx_stats_cache_key ON "StatsCache" ("cacheKey")`,
-    },
-    {
-      name: "enable RLS",
-      sql: `ALTER TABLE "StatsCache" ENABLE ROW LEVEL SECURITY`,
-    },
-    {
-      name: "create read policy",
-      sql: `
-        DO $$ BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_policies WHERE tablename = 'StatsCache' AND policyname = 'Allow read for all'
-          ) THEN
-            CREATE POLICY "Allow read for all" ON "StatsCache" FOR SELECT USING (true);
-          END IF;
-        END $$
-      `,
-    },
-    {
-      name: "create write policy",
-      sql: `
-        DO $$ BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_policies WHERE tablename = 'StatsCache' AND policyname = 'Allow insert/update for service role'
-          ) THEN
-            CREATE POLICY "Allow insert/update for service role" ON "StatsCache" FOR ALL USING (true);
-          END IF;
-        END $$
-      `,
-    },
-  ];
-
-  for (const step of steps) {
-    try {
-      await prisma.$executeRawUnsafe(step.sql);
-      results.push({ step: step.name, status: "ok" });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      results.push({ step: step.name, status: "error", error: msg });
-    }
+  if (!serviceRoleKey) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }, { status: 500 });
   }
 
-  const allOk = results.every((r) => r.status === "ok");
-  return NextResponse.json({ success: allOk, results });
+  // Full SQL to create StatsCache table with all policies
+  const sql = `
+    CREATE TABLE IF NOT EXISTS "StatsCache" (
+      "id"        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      "cacheKey"  TEXT NOT NULL UNIQUE,
+      "data"      JSONB NOT NULL,
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_stats_cache_key ON "StatsCache" ("cacheKey");
+
+    ALTER TABLE "StatsCache" ENABLE ROW LEVEL SECURITY;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'StatsCache' AND policyname = 'Allow read for all'
+      ) THEN
+        CREATE POLICY "Allow read for all" ON "StatsCache" FOR SELECT USING (true);
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'StatsCache' AND policyname = 'Allow insert/update for service role'
+      ) THEN
+        CREATE POLICY "Allow insert/update for service role" ON "StatsCache" FOR ALL USING (true);
+      END IF;
+    END $$;
+  `;
+
+  // Try Supabase Management API
+  const mgmtRes = await fetch(
+    `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ query: sql }),
+    }
+  );
+
+  const mgmtText = await mgmtRes.text();
+  let mgmtJson: unknown;
+  try { mgmtJson = JSON.parse(mgmtText); } catch { mgmtJson = mgmtText; }
+
+  if (mgmtRes.ok) {
+    return NextResponse.json({ success: true, method: "management-api", result: mgmtJson });
+  }
+
+  // Fallback: try direct REST SQL via supabase (experimental)
+  const restRes = await fetch(
+    `https://${projectRef}.supabase.co/rest/v1/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey,
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({ query: sql }),
+    }
+  );
+  const restText = await restRes.text();
+
+  return NextResponse.json({
+    success: false,
+    managementApiStatus: mgmtRes.status,
+    managementApiError: mgmtJson,
+    restStatus: restRes.status,
+    restError: restText,
+    serviceKeyLength: serviceRoleKey.length,
+  });
 }
