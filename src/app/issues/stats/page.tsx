@@ -243,22 +243,6 @@ export default function WeeklyStatsPage() {
 
   return (
     <div className="max-w-xl mx-auto pb-12">
-      {/* Mode toggle */}
-      <div className="flex gap-2 justify-center mb-4 bg-gray-100 rounded-2xl p-1">
-        <button
-          onClick={() => setMode("weekly")}
-          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${mode === "weekly" ? "bg-white text-orange-500 shadow-sm" : "text-gray-500"}`}
-        >
-          📊 주간
-        </button>
-        <button
-          onClick={() => setMode("daily")}
-          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${mode === "daily" ? "bg-white text-orange-500 shadow-sm" : "text-gray-500"}`}
-        >
-          📅 일간
-        </button>
-      </div>
-
       {/* ── Date Navigation ── */}
       {mode === "weekly" ? (
         <div className="flex items-center justify-between px-1 py-3 mb-2">
@@ -309,7 +293,7 @@ export default function WeeklyStatsPage() {
           )}
           {!dailyLoading && !dailyError && dailyData && (
             <div className="space-y-4">
-              <CardNewsCarousel data={dailyData} dayOffset={dayOffset} targetDate={targetDay} />
+              <CardNewsCarousel data={dailyData} dayOffset={dayOffset} targetDate={targetDay} mode={mode} onModeChange={setMode} />
             </div>
           )}
         </>
@@ -340,6 +324,8 @@ export default function WeeklyStatsPage() {
             weekOffset={weekOffset}
             targetMonday={targetMonday}
             targetSunday={targetSunday}
+            mode={mode}
+            onModeChange={setMode}
           />
 
           {/* ── Section 1: Main Stats Cards ── */}

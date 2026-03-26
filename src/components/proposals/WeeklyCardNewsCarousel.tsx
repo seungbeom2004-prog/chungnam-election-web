@@ -44,6 +44,8 @@ interface Props {
   weekOffset: number;
   targetMonday: Date;
   targetSunday: Date;
+  mode?: "daily" | "weekly";
+  onModeChange?: (m: "daily" | "weekly") => void;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -93,7 +95,7 @@ function TopBar({ dark = true }: { dark?: boolean }) {
   const textColor = dark ? "rgba(255,255,255,0.95)" : "#111827";
   const subColor  = dark ? "rgba(255,255,255,0.65)" : "#374151";
   return (
-    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-5 z-10">
+    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-8 z-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/images/reform-party-logo.png" alt="개혁신당" width={96} height={37}
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }} />
@@ -134,21 +136,18 @@ function SlideCover({ id, total, monday, sunday, filterCity, filterIssueType, fi
     <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
       <TopBar dark />
       <Counter current={1} total={total} />
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 36px 48px" }}>
-        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: 700, marginBottom: 20, letterSpacing: 1 }}>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 40px", paddingTop: 90 }}>
+        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: 700, marginBottom: 24, letterSpacing: 1 }}>
           📅 {weekLabel(monday)} · {dateRange(monday, sunday)}
         </p>
-        <p style={{ color: "white", fontSize: 52, fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
+        <p style={{ color: "white", fontSize: 50, fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
           {headlineLine1}
         </p>
-        <p style={{ color: "rgba(255,255,255,0.88)", fontSize: 46, fontWeight: 900, lineHeight: 1.1, marginTop: 6 }}>
+        <p style={{ color: "rgba(255,255,255,0.88)", fontSize: 44, fontWeight: 900, lineHeight: 1.15, marginTop: 10 }}>
           {headlineLine2}
         </p>
-        <p style={{ color: "white", fontSize: 96, fontWeight: 900, lineHeight: 0.9, marginTop: 16, fontVariantNumeric: "tabular-nums" }}>
-          {filteredReportCount}
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 38, fontWeight: 800, lineHeight: 1.1, marginTop: 6 }}>
-          건 접수
+        <p style={{ color: "white", fontSize: 64, fontWeight: 900, lineHeight: 1.05, marginTop: 20, fontVariantNumeric: "tabular-nums", letterSpacing: -1 }}>
+          {filteredReportCount}건 접수
         </p>
       </div>
     </Slide>
@@ -336,57 +335,50 @@ function SlidePopular({ id, posts, total, slideNum }: {
     <Slide id={id} bg={{ background: `linear-gradient(160deg, #0f0014 0%, ${C.gray950} 50%, #140a00 100%)` }}>
       <TopBar dark />
       <Counter current={slideNum} total={total} />
-      <div style={{ position: "absolute", inset: 0, padding: "60px 26px 28px", display: "flex", flexDirection: "column" }}>
-        <div style={{ marginBottom: 16 }}>
+      <div style={{ position: "absolute", inset: 0, padding: "60px 26px 24px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ marginBottom: 12 }}>
           <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" as const, marginBottom: 4 }}>POPULAR POSTS</p>
-          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.2 }}>이번 주 인기 글</p>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>가장 많은 공감을 받은 제보</p>
+          <p style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.2 }}>이번 주 인기 글</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>가장 많은 공감을 받은 제보</p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, overflow: "hidden" }}>
           {top.map((post, idx) => {
-            const title = post.title ? truncate(post.title, 28) : null;
-            const body  = truncate(post.content ?? "", 72);
+            const title = post.title ? truncate(post.title, 26) : null;
+            const body  = truncate(post.content ?? "", 55);
             const location = [post.city, post.dong].filter(Boolean).join(" ");
-            const rankColors = ["rgba(255,214,0,0.15)", "rgba(192,192,192,0.12)", "rgba(205,127,50,0.12)"];
-            const rankBorder = ["rgba(255,214,0,0.3)", "rgba(192,192,192,0.25)", "rgba(205,127,50,0.25)"];
+            const rankColors = ["rgba(255,214,0,0.13)", "rgba(192,192,192,0.1)", "rgba(205,127,50,0.1)"];
+            const rankBorder = ["rgba(255,214,0,0.28)", "rgba(192,192,192,0.22)", "rgba(205,127,50,0.22)"];
             return (
               <div key={post.id} style={{
-                background: idx === 0 ? rankColors[0] : idx === 1 ? rankColors[1] : rankColors[2],
-                borderRadius: 18,
-                padding: "14px 16px",
-                border: `1px solid ${idx === 0 ? rankBorder[0] : idx === 1 ? rankBorder[1] : rankBorder[2]}`,
+                background: rankColors[idx] ?? "rgba(255,255,255,0.05)",
+                borderRadius: 16,
+                padding: "11px 14px",
+                border: `1px solid ${rankBorder[idx] ?? "rgba(255,255,255,0.09)"}`,
                 flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: "space-between",
               }}>
-                {/* Top row: rank + type badge + likes */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 18 }}>{["🥇","🥈","🥉"][idx]}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ fontSize: 16 }}>{["🥇","🥈","🥉"][idx]}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
                       background: post.postType === "민원" ? "rgba(239,68,68,0.3)" : "rgba(251,191,36,0.28)",
                       color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
                       {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
                     </span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(239,68,68,0.2)", borderRadius: 20, padding: "4px 10px" }}>
-                    <span style={{ fontSize: 13 }}>❤️</span>
-                    <span style={{ color: "#fca5a5", fontWeight: 900, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(239,68,68,0.2)", borderRadius: 20, padding: "3px 8px" }}>
+                    <span style={{ fontSize: 11 }}>❤️</span>
+                    <span style={{ color: "#fca5a5", fontWeight: 900, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</span>
                   </div>
                 </div>
-                {/* Title */}
-                {title && (
-                  <p style={{ color: "white", fontWeight: 800, fontSize: 14, lineHeight: 1.35, marginBottom: 5 }}>{title}</p>
-                )}
-                {/* Body content */}
-                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, lineHeight: 1.55, flex: 1 }}>{body}</p>
-                {/* Footer: location + author */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
-                  {location
-                    ? <p style={{ color: "rgba(255,114,16,0.8)", fontSize: 11, fontWeight: 600 }}>📍 {location}</p>
-                    : <span />}
-                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>{post.authorName}</p>
+                {title && <p style={{ color: "white", fontWeight: 800, fontSize: 13, lineHeight: 1.3, marginBottom: 4 }}>{title}</p>}
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, lineHeight: 1.5, flex: 1, overflow: "hidden" }}>{body}</p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                  {location ? <p style={{ color: "rgba(255,114,16,0.8)", fontSize: 10, fontWeight: 600 }}>📍 {location}</p> : <span />}
+                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>{post.authorName}</p>
                 </div>
               </div>
             );
@@ -442,7 +434,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday, targetSunday }: Props) {
+export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday, targetSunday, mode = "weekly", onModeChange }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [downloading, setDownloading]   = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -484,7 +476,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
 
     const filteredLikedPosts = (data.topLikedPosts ?? []).filter(p => {
       if (filterCity && p.city !== filterCity) return false;
-      return p.likeCount > 0;
+      return true;
     });
 
     return { filteredHotIssues, filteredCityBreakdown, filteredReportCount, filteredTotalPosts, filteredLikedPosts };
@@ -623,6 +615,16 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     <div style={{ maxWidth: SLIDE_W }} className="mx-auto rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
       {/* Filter chips */}
       <div style={{ padding: "12px 16px 8px", background: "white", borderBottom: "1px solid #f3f4f6" }}>
+        {/* Period filter */}
+        {onModeChange && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>기간</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <FilterChip label="📊 주간" active={mode === "weekly"} onClick={() => onModeChange("weekly")} />
+              <FilterChip label="📅 일간" active={mode === "daily"} onClick={() => onModeChange("daily")} />
+            </div>
+          </div>
+        )}
         {/* City filter */}
         {cityOptions.length >= 2 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>

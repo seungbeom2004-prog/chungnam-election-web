@@ -172,6 +172,28 @@ export default function AdminProposalsPage() {
     }
   };
 
+  const toggleStatsHidden = async (id: string, currentAdminStatus: string | null) => {
+    const newStatus = currentAdminStatus === "hide_stats" ? null : "hide_stats";
+    setAdminStatusLoading(id);
+    try {
+      const res = await fetch(`/api/admin/proposals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminStatus: newStatus }),
+      });
+      if (res.ok) {
+        showMessage(newStatus === "hide_stats" ? "현황판에서 숨겼습니다." : "현황판에 다시 표시합니다.");
+        fetchProposals();
+      } else {
+        showMessage("처리에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAdminStatusLoading(null);
+    }
+  };
+
   const anonymizePost = async (id: string) => {
     setAnonymizeLoading(id);
     try {
@@ -501,6 +523,17 @@ export default function AdminProposalsPage() {
                   <button onClick={() => openSplit(selectedProposal)} className="px-3 py-2 text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors text-center">✂️ 분할</button>
                   <button onClick={() => { setLinkTarget(selectedProposal); setLinkSearch(""); }} className="px-3 py-2 text-xs bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors text-center">🔗 연결</button>
                   <button onClick={() => setIssueModalTarget(selectedProposal)} className="px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-center">🏷️ 이슈</button>
+                  <button
+                    onClick={() => toggleStatsHidden(selectedProposal.id, selectedProposal.adminStatus)}
+                    disabled={adminStatusLoading === selectedProposal.id}
+                    className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                      selectedProposal.adminStatus === "hide_stats"
+                        ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {selectedProposal.adminStatus === "hide_stats" ? "📊 현황판 표시" : "📊 현황판 제외"}
+                  </button>
                   {selectedProposal.candidateId && (
                     <button onClick={() => { if (confirm("익명으로 변환?")) anonymizePost(selectedProposal.id); }} disabled={anonymizeLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors text-center disabled:opacity-50">👤 익명</button>
                   )}

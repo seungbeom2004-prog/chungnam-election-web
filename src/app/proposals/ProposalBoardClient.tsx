@@ -118,7 +118,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
       <div className="flex items-center gap-2 py-2 border-b border-border">
         <span className="font-black text-primary text-sm">📋 이슈</span>
         <span className="text-xs text-muted bg-background border border-border rounded-full px-2 py-0.5">{issueStats.totalIssues}개</span>
-        <Link href="/issues/stats" className="text-[10px] text-primary hover:underline ml-auto">현황판 →</Link>
+        <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline ml-auto">현황판 →</Link>
       </div>
 
       {/* City tabs */}
@@ -234,11 +234,8 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
                 오늘 +{(todayMinwonCount ?? 0) + (todayProposalCount ?? 0)}
               </span>
             )}
-            <Link href="/proposals/daily-stats" className="text-[10px] text-primary font-semibold hover:underline">
-              📊 일간 현황판 →
-            </Link>
-            <Link href="/issues/stats" className="text-[10px] text-muted font-semibold hover:underline">
-              📈 주간 현황판 →
+            <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline">
+              📊 현황판 →
             </Link>
           </div>
         </div>

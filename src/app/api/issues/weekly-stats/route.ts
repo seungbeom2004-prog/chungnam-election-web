@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
       .select("id, postType, city, dong, issueId, createdAt, title, content, authorName, likeCount, viewCount")
       .gte("createdAt", startISO)
       .lte("createdAt", endISO)
-      .is("deletedAt", null);
+      .is("deletedAt", null)
+      .or("adminStatus.is.null,adminStatus.neq.hide_stats");
 
     if (!error && data) {
       posts = data;
@@ -75,7 +76,8 @@ export async function GET(request: NextRequest) {
         .select("id, postType, city, createdAt")
         .gte("createdAt", startISO)
         .lte("createdAt", endISO)
-        .is("deletedAt", null);
+        .is("deletedAt", null)
+        .or("adminStatus.is.null,adminStatus.neq.hide_stats");
       posts = d2 ?? [];
     }
   }
@@ -94,7 +96,8 @@ export async function GET(request: NextRequest) {
     .select("id, postType")
     .gte("createdAt", prevStart.toISOString())
     .lte("createdAt", prevEnd.toISOString())
-    .is("deletedAt", null);
+    .is("deletedAt", null)
+    .or("adminStatus.is.null,adminStatus.neq.hide_stats");
 
   const prevWeekReports = (prevPosts ?? []).filter((p) => REPORT_TYPES.includes(p.postType)).length;
   const prevWeekProposals = (prevPosts ?? []).filter((p) => PROPOSAL_TYPES.includes(p.postType)).length;
@@ -199,7 +202,25 @@ export async function GET(request: NextRequest) {
     .not("viewCount", "is", null);
   const totalViews = (issueViews ?? []).reduce((s, r) => s + (r.viewCount ?? 0), 0);
 
-  // ─── 8. Top liked posts ───────────────────────────────────────────────────
+  // ─── 8. Top liked posts (via ProposalLike for accurate counts) ───────────
+  const postIds = posts.map(p => p.id);
+  let likeCountMap: Record<string, number> = {};
+  if (postIds.length > 0) {
+    const { data: likeRows } = await supabaseAdmin
+      .from("ProposalLike")
+      .select("proposalId")
+      .in("proposalId", postIds);
+    for (const row of likeRows ?? []) {
+      if (row.proposalId) likeCountMap[row.proposalId] = (likeCountMap[row.proposalId] ?? 0) + 1;
+    }
+  }
+
+  // Merge real like counts into posts
+  const postsWithLikes = posts.map(p => ({
+    ...p,
+    likeCount: likeCountMap[p.id] ?? (p.likeCount ?? 0),
+  }));
+
   interface TopLikedPost {
     id: string;
     title: string | null;
@@ -212,8 +233,7 @@ export async function GET(request: NextRequest) {
     viewCount: number;
   }
 
-  const topLikedPosts: TopLikedPost[] = posts
-    .filter((p) => (p.likeCount ?? 0) > 0)
+  const topLikedPosts: TopLikedPost[] = postsWithLikes
     .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
     .slice(0, 5)
     .map((p) => ({
