@@ -58,7 +58,8 @@ function shortDate(d: Date) {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 function truncate(str: string, n: number) {
-  return str.length > n ? str.slice(0, n) + "…" : str;
+  const s = str.replace(/[\r\n\t]+/g, " ").trim();
+  return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
 // ── Slide wrapper ─────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ function TopBar({ dark = true }: { dark?: boolean }) {
   const textColor = dark ? "rgba(255,255,255,0.95)" : "#111827";
   const subColor  = dark ? "rgba(255,255,255,0.65)" : "#374151";
   return (
-    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-8 z-10">
+    <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-12 z-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/reform-party-logo.png"
@@ -89,9 +90,8 @@ function TopBar({ dark = true }: { dark?: boolean }) {
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }}
       />
       <div className="text-right leading-tight">
-        <p style={{ color: textColor, fontSize: 32, fontWeight: 900, lineHeight: 1.2 }}>4 손승범</p>
-        <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>문성동 봉명동 성정1동 성정2동</p>
-        <p style={{ color: subColor, fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>천안시의원 후보</p>
+        <p style={{ color: textColor, fontSize: 46, fontWeight: 900, lineHeight: 1.1 }}>4&nbsp;&nbsp;손승범</p>
+        <p style={{ color: subColor, fontSize: 11, fontWeight: 600, lineHeight: 1.5 }}>📍 천안시</p>
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ function SlideCover({ id, totalReports, totalProposals, totalPosts, total, targe
   filterType: "all" | "report" | "proposal";
 }) {
   const location = filterCity ?? "충청남도";
-  const typeStr = filterType === "report" ? "불편 제보" : filterType === "proposal" ? "공약 제안" : "불편 제보 · 공약제안";
+  const typeStr = filterType === "report" ? "불편제보" : filterType === "proposal" ? "공약제안" : "불편제보·공약제안";
   const count = filterType === "report" ? totalReports : filterType === "proposal" ? totalProposals : totalPosts;
 
   return (
@@ -131,19 +131,43 @@ function SlideCover({ id, totalReports, totalProposals, totalPosts, total, targe
       <TopBar dark />
       <Counter current={1} total={total} />
 
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 40px", paddingTop: 90 }}>
-        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: 700, marginBottom: 24, letterSpacing: 1 }}>
-          📍 {shortDate(targetDate)}
-        </p>
-        <p style={{ color: "white", fontSize: 50, fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
-          {dayOffset === 0 ? "오늘" : dayOffset === -1 ? "어제" : `${Math.abs(dayOffset)}일 전`} {location}에서
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.88)", fontSize: 44, fontWeight: 900, lineHeight: 1.15, marginTop: 10 }}>
-          {typeStr}
-        </p>
-        <p style={{ color: "white", fontSize: 64, fontWeight: 900, lineHeight: 1.05, marginTop: 20, fontVariantNumeric: "tabular-nums", letterSpacing: -1 }}>
-          {count}건 접수
-        </p>
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", flexDirection: "column", justifyContent: "space-between",
+        padding: "128px 36px 36px",
+      }}>
+        {/* ① 날짜 */}
+        <div>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: 600, marginBottom: 5, letterSpacing: 0.3 }}>
+            {shortDate(targetDate)}
+          </p>
+          <p style={{ color: "white", fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>
+            {dayOffset === 0 ? "오늘" : dayOffset === -1 ? "어제" : `${Math.abs(dayOffset)}일 전`}
+          </p>
+        </div>
+
+        {/* ② 빅 헤드라인 */}
+        <div>
+          <p style={{ color: "white", fontSize: 90, fontWeight: 900, lineHeight: 0.95, letterSpacing: -2 }}>
+            {location}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 54, fontWeight: 900, lineHeight: 1.05, letterSpacing: -1.5, marginTop: 10 }}>
+            {typeStr}
+          </p>
+          <p style={{ color: "white", fontSize: 84, fontWeight: 900, lineHeight: 0.95, letterSpacing: -2, marginTop: 14, fontVariantNumeric: "tabular-nums" }}>
+            {count}건 접수
+          </p>
+        </div>
+
+        {/* ③ 하단 출처 */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.22)", paddingTop: 14 }}>
+          <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 11, lineHeight: 1.65 }}>
+            성정1동 성정2동 봉명동 문성동 천안시의원 후보자 손승범 | 개혁신당
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 2 }}>
+            reform-chungnam.kr
+          </p>
+        </div>
       </div>
     </Slide>
   );
