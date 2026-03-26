@@ -3,49 +3,15 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { SlideCTA } from "./CardNewsCarousel";
 
-// ── Full-font injection for screenshot capture ─────────────────────────────────
-// Pretendard dynamic-subset is loaded from a CDN. modern-screenshot re-fetches
-// font files to embed them as data URLs in the SVG; subset woff2 files may not
-// cover all glyphs used in off-screen slides (e.g., "치" U+CE58, "요" U+C694).
-// Fix: fetch the full PretendardVariable.woff2 served locally (same-origin →
-// no CORS, no subset gaps), convert to data URL, inject as @font-face.
-// The data-URL style is ALSO injected INSIDE every captured clone so that
-// modern-screenshot's SVG foreignObject serialization always carries the font.
-let _snapFontLoading: Promise<void> | null = null;
-let _snapFontDataUrl: string | null = null;
-async function ensureSnapFont(): Promise<void> {
-  if (_snapFontDataUrl) return; // already loaded
-  if (_snapFontLoading) return _snapFontLoading;
-  _snapFontLoading = (async () => {
-    try {
-      // Served locally → same-origin fetch, no CORS issues
-      const res = await fetch("/fonts/PretendardVariable.woff2");
-      if (!res.ok) throw new Error(`Font fetch failed: ${res.status}`);
-      const blob = await res.blob();
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onloadend = () => resolve(fr.result as string);
-        fr.onerror = reject;
-        fr.readAsDataURL(blob);
-      });
-      _snapFontDataUrl = dataUrl;
-      // Also inject into document.head for document.fonts recognition
-      if (!document.getElementById("__pretendard_snap__")) {
-        const style = document.createElement("style");
-        style.id = "__pretendard_snap__";
-        style.textContent = snapFontFaceRule(dataUrl);
-        document.head.appendChild(style);
-      }
-      console.log("[snapshot] Pretendard full font loaded, size:", Math.round(dataUrl.length / 1024), "KB");
-    } catch (e) {
-      console.warn("[snapshot] full-font load failed:", e);
-    }
-  })();
-  return _snapFontLoading;
-}
-function snapFontFaceRule(dataUrl: string): string {
-  return `@font-face{font-family:"Pretendard Variable";font-weight:100 900;font-style:normal;src:url("${dataUrl}") format("woff2");}`;
-}
+// ── Font pre-loading for screenshot capture ────────────────────────────────────
+// Pretendard is loaded via CDN with crossOrigin="anonymous" (in layout.tsx),
+// so modern-screenshot CAN read its @font-face rules and embed the subset woff2
+// files as data URLs. We just need to ensure the browser has loaded the right
+// subset files BEFORE calling domToCanvas — otherwise off-screen slides whose
+// characters are in unloaded subsets (e.g., "치" U+CE58, "요" U+C694) render
+// as tofu boxes. document.fonts.load() forces the subset download.
+// /public/fonts/PretendardVariable.woff2 is kept as a local asset for potential
+// future use, but is NOT injected during capture (it would alter font metrics).
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface HotIssue {
@@ -624,20 +590,8 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     if (!el) throw new Error("Slide not found: " + id);
     const { domToCanvas } = await import("modern-screenshot");
 
-    // Ensure local full-font woff2 is fetched and available as a data URL.
-    await ensureSnapFont();
-
     const clone = el.cloneNode(true) as HTMLElement;
     clone.id = id + "-snap";
-
-    // Inject the @font-face rule INSIDE the clone so that modern-screenshot's
-    // SVG foreignObject serialization always carries the embedded font —
-    // even if it can't read the document.head stylesheet for some reason.
-    if (_snapFontDataUrl) {
-      const inlineStyle = document.createElement("style");
-      inlineStyle.textContent = snapFontFaceRule(_snapFontDataUrl);
-      clone.prepend(inlineStyle);
-    }
 
     // Pre-fetch all images as data URLs so modern-screenshot doesn't hang on fetching
     await Promise.all(Array.from(clone.querySelectorAll("img")).map(async (img) => {
