@@ -3,17 +3,20 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 
 // ── Full-font injection for screenshot capture ─────────────────────────────────
-// Pretendard CDN CSS lacks crossorigin attr → SecurityError on cssRules →
-// modern-screenshot cannot embed the font → some glyphs render as tofu boxes.
-// Fix: fetch full woff2, convert to data URL, inject same-origin @font-face.
+// Pretendard dynamic-subset is loaded from a CDN. modern-screenshot re-fetches
+// font files to embed them; subset woff2 files may not cover all glyphs in
+// off-screen slides. Fix: fetch full PretendardVariable.woff2 served locally
+// (same-origin, no CORS, no subset gaps), convert to data URL, inject @font-face.
+// The data-URL style is ALSO injected inside every clone so the SVG always has it.
 let _snapFontLoading: Promise<void> | null = null;
+let _snapFontDataUrl: string | null = null;
 async function ensureSnapFont(): Promise<void> {
-  if (document.getElementById("__pretendard_snap__")) return;
+  if (_snapFontDataUrl) return;
   if (_snapFontLoading) return _snapFontLoading;
   _snapFontLoading = (async () => {
     try {
-      const url = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/PretendardVariable.woff2";
-      const res = await fetch(url);
+      const res = await fetch("/fonts/PretendardVariable.woff2");
+      if (!res.ok) throw new Error(`Font fetch failed: ${res.status}`);
       const blob = await res.blob();
       const dataUrl: string = await new Promise((resolve, reject) => {
         const fr = new FileReader();
@@ -21,15 +24,22 @@ async function ensureSnapFont(): Promise<void> {
         fr.onerror = reject;
         fr.readAsDataURL(blob);
       });
-      const style = document.createElement("style");
-      style.id = "__pretendard_snap__";
-      style.textContent = `@font-face{font-family:"Pretendard Variable";font-weight:100 900;font-style:normal;src:url("${dataUrl}") format("woff2-variations");}`;
-      document.head.appendChild(style);
+      _snapFontDataUrl = dataUrl;
+      if (!document.getElementById("__pretendard_snap__")) {
+        const style = document.createElement("style");
+        style.id = "__pretendard_snap__";
+        style.textContent = snapFontFaceRule(dataUrl);
+        document.head.appendChild(style);
+      }
+      console.log("[snapshot] Pretendard full font loaded, size:", Math.round(dataUrl.length / 1024), "KB");
     } catch (e) {
       console.warn("[snapshot] full-font load failed:", e);
     }
   })();
   return _snapFontLoading;
+}
+function snapFontFaceRule(dataUrl: string): string {
+  return `@font-face{font-family:"Pretendard Variable";font-weight:100 900;font-style:normal;src:url("${dataUrl}") format("woff2");}`;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -683,11 +693,19 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
     if (!el) throw new Error("Slide not found: " + id);
     const { domToCanvas } = await import("modern-screenshot");
 
-    // Inject full Pretendard woff2 as same-origin @font-face for reliable embed
+    // Ensure local full-font woff2 is fetched and available as a data URL.
     await ensureSnapFont();
 
     const clone = el.cloneNode(true) as HTMLElement;
     clone.id = id + "-snap";
+
+    // Inject the @font-face rule INSIDE the clone so modern-screenshot's SVG
+    // foreignObject serialization always carries the embedded font.
+    if (_snapFontDataUrl) {
+      const inlineStyle = document.createElement("style");
+      inlineStyle.textContent = snapFontFaceRule(_snapFontDataUrl);
+      clone.prepend(inlineStyle);
+    }
 
     // Pre-fetch all images as data URLs so modern-screenshot doesn't hang on fetching
     await Promise.all(Array.from(clone.querySelectorAll("img")).map(async (img) => {
