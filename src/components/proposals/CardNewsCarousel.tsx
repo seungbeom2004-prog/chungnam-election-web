@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DailyPost {
@@ -35,16 +35,15 @@ interface Props {
 const SLIDE_W = 540;
 const SLIDE_H = 675;
 
-// Hex colors (avoids Tailwind oklch gradient crash)
 const C = {
-  orange:    "#f97316",
-  orange600: "#ea580c",
-  red500:    "#ef4444",
-  amber400:  "#fbbf24",
-  amber500:  "#f59e0b",
-  gray950:   "#030712",
-  gray900:   "#111827",
-  gray800:   "#1f2937",
+  brand:    "#FF7210",
+  brand2:   "#ff4d00",
+  brand3:   "#e63000",
+  amber400: "#fbbf24",
+  amber500: "#f59e0b",
+  gray950:  "#030712",
+  gray900:  "#111827",
+  gray800:  "#1f2937",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -79,14 +78,12 @@ function TopBar({ dark = true }: { dark?: boolean }) {
   const subColor  = dark ? "rgba(255,255,255,0.65)" : "#374151";
   return (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-5 z-10">
-      {/* Logo — plain <img> for screenshot capture */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/reform-party-logo.png"
         alt="개혁신당"
         width={96}
         height={37}
-        crossOrigin="anonymous"
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }}
       />
       <div className="text-right leading-tight">
@@ -112,62 +109,85 @@ function Counter({ current, total, dark = true }: { current: number; total: numb
 }
 
 // ── Slide 1: Cover ────────────────────────────────────────────────────────────
-function SlideCover({ id, data, total, targetDate, dayOffset }: {
-  id: string; data: DailyStats; total: number; targetDate: Date; dayOffset: number;
+function SlideCover({ id, totalReports, totalProposals, totalPosts, total, targetDate, dayOffset, filterCity, filterType }: {
+  id: string;
+  totalReports: number;
+  totalProposals: number;
+  totalPosts: number;
+  total: number;
+  targetDate: Date;
+  dayOffset: number;
+  filterCity: string | null;
+  filterType: "all" | "report" | "proposal";
 }) {
-  const totalPosts = data.totalReports + data.totalProposals;
+  const location = filterCity ?? "충청남도";
+  const typeStr = filterType === "report" ? "불편 제보" : filterType === "proposal" ? "공약 제안" : "불편 제보·제안";
+  const count = filterType === "report" ? totalReports : filterType === "proposal" ? totalProposals : totalPosts;
+
   return (
-    <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.orange}, ${C.orange600}, ${C.red500})` }}>
+    <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
       <TopBar dark />
       <Counter current={1} total={total} />
 
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 36px", paddingTop: 64 }}>
-        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>
-          📍 충청남도 · {shortDate(targetDate)}
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, marginBottom: 16, letterSpacing: 1 }}>
+          📍 {shortDate(targetDate)}
         </p>
 
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.3 }}>집 앞 불편,</p>
-          <p style={{ color: "white", fontSize: 24, fontWeight: 900, lineHeight: 1.3 }}>오늘도 기록되고 있습니다</p>
-        </div>
-
-        {/* Big number */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 28 }}>
-          <span style={{ color: "white", fontSize: 120, fontWeight: 900, lineHeight: 1 }}>{totalPosts}</span>
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ color: "white", fontSize: 28, fontWeight: 900 }}>건</p>
-            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 600 }}>{dayLabel(dayOffset)} 접수</p>
-          </div>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: "white", fontSize: 30, fontWeight: 900, lineHeight: 1.25 }}>
+            오늘 {location}에서
+          </p>
+          <p style={{ color: "white", fontSize: 30, fontWeight: 900, lineHeight: 1.25 }}>
+            {typeStr}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 28, fontWeight: 900, lineHeight: 1.25, marginTop: 4 }}>
+            {count}건 접수
+          </p>
         </div>
 
         {/* Sub breakdown */}
-        <div style={{ display: "flex", gap: 16 }}>
-          <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
-            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>📢 불편 제보</p>
-            <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.totalReports}</p>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
-            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>💡 공약 제안</p>
-            <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{data.totalProposals}</p>
-          </div>
+        <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+          {filterType !== "proposal" && (
+            <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>📢 불편 제보</p>
+              <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{totalReports}</p>
+            </div>
+          )}
+          {filterType !== "report" && (
+            <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 16, padding: "12px 20px" }}>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>💡 공약 제안</p>
+              <p style={{ color: "white", fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{totalProposals}</p>
+            </div>
+          )}
         </div>
+
+        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: 600, marginTop: 16 }}>
+          {dayLabel(dayOffset)} 기준
+        </p>
       </div>
     </Slide>
   );
 }
 
 // ── Slide 2: Top Reports ──────────────────────────────────────────────────────
-function SlideTopReports({ id, data, total }: { id: string; data: DailyStats; total: number }) {
-  const top = data.reports.slice(0, 3);
+function SlideTopReports({ id, posts, totalReports, total, slideNum }: {
+  id: string;
+  posts: DailyPost[];
+  totalReports: number;
+  total: number;
+  slideNum: number;
+}) {
+  const top = posts.slice(0, 3);
   return (
     <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
       <TopBar dark />
-      <Counter current={2} total={total} />
+      <Counter current={slideNum} total={total} />
       <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ marginBottom: 20 }}>
-          <p style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>TODAY&apos;S REPORT</p>
+          <p style={{ color: C.brand, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>TODAY&apos;S REPORT</p>
           <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>오늘의 불편 제보</p>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>총 {data.totalReports}건 접수됨</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>총 {totalReports}건 접수됨</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {top.map((post, idx) => {
@@ -189,8 +209,8 @@ function SlideTopReports({ id, data, total }: { id: string; data: DailyStats; to
             );
           })}
         </div>
-        {data.totalReports > 3 && (
-          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, textAlign: "center", marginTop: 14 }}>외 {data.totalReports - 3}건 더 →</p>
+        {totalReports > 3 && (
+          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, textAlign: "center", marginTop: 14 }}>외 {totalReports - 3}건 더 →</p>
         )}
       </div>
     </Slide>
@@ -198,16 +218,21 @@ function SlideTopReports({ id, data, total }: { id: string; data: DailyStats; to
 }
 
 // ── Slide 3: City Breakdown ───────────────────────────────────────────────────
-function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total: number }) {
-  const cities = data.cityBreakdown.slice(0, 5);
+function SlideCityMap({ id, cityBreakdown, total, slideNum }: {
+  id: string;
+  cityBreakdown: CityBreakdown[];
+  total: number;
+  slideNum: number;
+}) {
+  const cities = cityBreakdown.slice(0, 5);
   const maxVal = cities[0]?.total ?? 1;
   return (
     <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
       <TopBar dark />
-      <Counter current={3} total={total} />
+      <Counter current={slideNum} total={total} />
       <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ marginBottom: 20 }}>
-          <p style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>AREA BREAKDOWN</p>
+          <p style={{ color: C.brand, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>AREA BREAKDOWN</p>
           <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>지역별 현황</p>
           <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>제보/제안이 많은 지역 TOP {cities.length}</p>
         </div>
@@ -217,12 +242,12 @@ function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total
             const reportPct = item.total > 0 ? (item.reports / item.total) * 100 : 0;
             return (
               <div key={item.city} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: C.orange, fontWeight: 900, fontSize: 13, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                <span style={{ color: C.brand, fontWeight: 900, fontSize: 13, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
                 <span style={{ color: "white", fontWeight: 700, fontSize: 13, width: 56, flexShrink: 0 }}>{item.city}</span>
                 <div style={{ flex: 1, position: "relative", height: 26, background: "rgba(255,255,255,0.1)", borderRadius: 999, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${pct}%`, overflow: "hidden" }}>
                     <div style={{ display: "flex", height: "100%" }}>
-                      <div style={{ width: `${reportPct}%`, background: `linear-gradient(to right, ${C.orange}, ${C.red500})` }} />
+                      <div style={{ width: `${reportPct}%`, background: `linear-gradient(to right, ${C.brand}, ${C.brand3})` }} />
                       <div style={{ flex: 1, background: `linear-gradient(to right, ${C.amber400}, ${C.amber500})` }} />
                     </div>
                   </div>
@@ -234,7 +259,7 @@ function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total
         </div>
         <div style={{ display: "flex", gap: 16, marginTop: 20 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.orange, flexShrink: 0, display: "inline-block" }} />불편제보
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.brand, flexShrink: 0, display: "inline-block" }} />불편제보
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.amber400, flexShrink: 0, display: "inline-block" }} />공약제안
@@ -246,12 +271,17 @@ function SlideCityMap({ id, data, total }: { id: string; data: DailyStats; total
 }
 
 // ── Slide 4: Popular Posts ────────────────────────────────────────────────────
-function SlidePopular({ id, data, total }: { id: string; data: DailyStats; total: number }) {
-  const topLiked = data.topLikedPosts.filter(p => p.likeCount > 0).slice(0, 3);
+function SlidePopular({ id, topLikedPosts, total, slideNum }: {
+  id: string;
+  topLikedPosts: DailyPost[];
+  total: number;
+  slideNum: number;
+}) {
+  const topLiked = topLikedPosts.slice(0, 3);
   return (
     <Slide id={id} bg={{ background: `linear-gradient(to bottom, ${C.gray950}, ${C.gray900})` }}>
       <TopBar dark />
-      <Counter current={4} total={total} />
+      <Counter current={slideNum} total={total} />
       <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ marginBottom: 20 }}>
           <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>POPULAR TODAY</p>
@@ -295,13 +325,13 @@ export function SlideCTA({ id, current, total }: { id: string; current: number; 
   return (
     <Slide id={id} bg={{ backgroundColor: "#fff7ed" }}>
       {/* Decorative top orange strip */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(to right, ${C.orange}, ${C.red500})` }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(to right, ${C.brand}, ${C.brand3})` }} />
 
       <TopBar dark={false} />
       <Counter current={current} total={total} dark={false} />
 
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px", textAlign: "center" }}>
-        <p style={{ color: C.orange, fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 12 }}>YOUR TURN</p>
+        <p style={{ color: C.brand, fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 12 }}>YOUR TURN</p>
 
         <p style={{ color: "#111827", fontSize: 30, fontWeight: 900, lineHeight: 1.3, marginBottom: 8 }}>
           당신 집 앞<br />불편을 제보하세요
@@ -311,7 +341,7 @@ export function SlideCTA({ id, current, total }: { id: string; current: number; 
         </p>
 
         {/* URL box */}
-        <div style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange}, ${C.orange600})`, borderRadius: 18, padding: "16px 28px", marginBottom: 14 }}>
+        <div style={{ width: "100%", background: `linear-gradient(135deg, ${C.brand}, ${C.brand2})`, borderRadius: 18, padding: "16px 28px", marginBottom: 14 }}>
           <p style={{ color: "white", fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>reform-chungnam.kr</p>
         </div>
 
@@ -321,11 +351,12 @@ export function SlideCTA({ id, current, total }: { id: string; current: number; 
           <p style={{ color: "#374151", fontSize: 13, fontWeight: 600 }}>프로필 링크에서도 바로 접속 가능</p>
         </div>
 
-        {/* Footer name + district */}
-        <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 1, height: 16, background: "rgba(0,0,0,0.2)" }} />
-          <p style={{ color: "#374151", fontSize: 12, fontWeight: 700 }}>개혁신당 손승범 · 문성동 봉명동 성정1동 성정2동 천안시의원 후보</p>
-          <div style={{ width: 1, height: 16, background: "rgba(0,0,0,0.2)" }} />
+        {/* Footer */}
+        <div style={{ marginTop: 24, textAlign: "center" }}>
+          <p style={{ color: "#6b7280", fontSize: 11, fontWeight: 600 }}>
+            개혁신당 문성동 봉명동 성정1동 성정2동 천안시의원 후보
+          </p>
+          <p style={{ color: "#111827", fontSize: 20, fontWeight: 900, marginTop: 4 }}>손승범</p>
         </div>
       </div>
     </Slide>
@@ -366,12 +397,38 @@ function ArrowBtn({ direction, onClick }: { direction: "left" | "right"; onClick
   );
 }
 
+// ── Filter Chip ───────────────────────────────────────────────────────────────
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        padding: "4px 12px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        border: active ? "none" : "1px solid #d1d5db",
+        background: active ? C.brand : "white",
+        color: active ? "white" : "#374151",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "all 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [scale, setScale] = useState(1);
+  const [filterCity, setFilterCity] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<"all" | "report" | "proposal">("all");
   const carouselRef = useRef<HTMLDivElement>(null);
   const outerRef    = useRef<HTMLDivElement>(null);
 
@@ -389,10 +446,74 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
     return () => ro.disconnect();
   }, []);
 
+  // Filtered data
+  const filtered = useMemo(() => {
+    const allPosts = [...data.reports, ...data.proposals];
+
+    const filteredReports = data.reports.filter(p => {
+      if (filterCity && p.city !== filterCity) return false;
+      return true;
+    });
+    const filteredProposals = data.proposals.filter(p => {
+      if (filterCity && p.city !== filterCity) return false;
+      return true;
+    });
+
+    const visiblePosts = filterType === "report"
+      ? filteredReports
+      : filterType === "proposal"
+        ? filteredProposals
+        : [...filteredReports, ...filteredProposals];
+
+    const totalReports = filteredReports.length;
+    const totalProposals = filteredProposals.length;
+    const totalPosts = filterType === "report"
+      ? totalReports
+      : filterType === "proposal"
+        ? totalProposals
+        : totalReports + totalProposals;
+
+    // Recompute city breakdown from filtered posts
+    const cityMap: Record<string, { reports: number; proposals: number }> = {};
+    const postsForCity = [...filteredReports, ...filteredProposals];
+    for (const p of postsForCity) {
+      const city = p.city ?? "기타";
+      if (!cityMap[city]) cityMap[city] = { reports: 0, proposals: 0 };
+      if (data.reports.includes(p)) cityMap[city].reports++;
+      else cityMap[city].proposals++;
+    }
+    const cityBreakdown: CityBreakdown[] = Object.entries(cityMap)
+      .map(([city, c]) => ({ city, reports: c.reports, proposals: c.proposals, total: c.reports + c.proposals }))
+      .sort((a, b) => b.total - a.total);
+
+    const topLikedPosts = [...data.topLikedPosts]
+      .filter(p => {
+        if (filterCity && p.city !== filterCity) return false;
+        if (filterType === "report" && !["불편제보", "민원"].includes(p.postType)) return false;
+        if (filterType === "proposal" && !["공약제안", "제안", "공약"].includes(p.postType)) return false;
+        return p.likeCount > 0;
+      })
+      .sort((a, b) => b.likeCount - a.likeCount)
+      .slice(0, 3);
+
+    // For SlideTopReports use filtered reports
+    const reportsForSlide = filterType === "proposal" ? [] : filteredReports;
+
+    void allPosts;
+    void visiblePosts;
+
+    return { filteredReports: reportsForSlide, filteredProposals, totalReports, totalProposals, totalPosts, cityBreakdown, topLikedPosts };
+  }, [data, filterCity, filterType]);
+
+  // Cities for filter chips
+  const cityOptions = useMemo(() => {
+    return data.cityBreakdown.map(c => c.city);
+  }, [data.cityBreakdown]);
+
   // Build slide list
-  const hasTopReports = data.reports.length > 0;
-  const hasCityMap    = data.cityBreakdown.length > 0;
-  const hasPopular    = data.topLikedPosts.filter(p => p.likeCount > 0).length > 0;
+  const hasTopReports = filtered.filteredReports.length > 0 && filterType !== "proposal";
+  const hasCityMap    = filtered.cityBreakdown.length > 0;
+  const hasPopular    = filtered.topLikedPosts.length > 0;
   const slideCount    = 2 + (hasTopReports ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
   const slideIds      = ["card-slide-1","card-slide-2","card-slide-3","card-slide-4","card-slide-5"].slice(0, slideCount);
 
@@ -402,6 +523,11 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
     if (c) c.scrollTo({ left: idx * SLIDE_W, behavior: "smooth" });
   }, []);
 
+  // Reset to slide 0 when filters change
+  useEffect(() => {
+    goTo(0);
+  }, [filterCity, filterType, goTo]);
+
   const handleScroll = useCallback(() => {
     const c = carouselRef.current;
     if (!c) return;
@@ -409,35 +535,51 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
     if (idx !== currentSlide) setCurrentSlide(idx);
   }, [currentSlide]);
 
-  // ── Capture: use modern-screenshot (handles Tailwind v4 oklch/lab) ───────────
+  // ── Capture ───────────────────────────────────────────────────────────────
   const captureSlide = useCallback(async (id: string): Promise<string> => {
-    const { domToJpeg } = await import("modern-screenshot");
     const el = document.getElementById(id);
     if (!el) throw new Error("Slide not found: " + id);
+    const { domToCanvas } = await import("modern-screenshot");
 
-    // Clone off-screen to escape CSS transform context
     const clone = el.cloneNode(true) as HTMLElement;
-    Object.assign(clone.style, {
-      position: "fixed",
-      top: "-99999px",
-      left: "0px",
-      width:  `${SLIDE_W}px`,
-      height: `${SLIDE_H}px`,
-      transform: "none",
-      zIndex: "-1",
-    });
-    clone.id = `${id}-cap`;
-    document.body.appendChild(clone);
+    clone.id = id + "-snap";
 
+    // Pre-fetch all images as data URLs so modern-screenshot doesn't hang on fetching
+    await Promise.all(Array.from(clone.querySelectorAll("img")).map(async (img) => {
+      const src = (img as HTMLImageElement).src; // absolute URL
+      if (!src || src.startsWith("data:")) return;
+      try {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onloadend = () => resolve(fr.result as string);
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        });
+        (img as HTMLImageElement).src = dataUrl;
+      } catch {
+        (img as HTMLImageElement).removeAttribute("src");
+      }
+    }));
+
+    Object.assign(clone.style, {
+      position: "fixed", top: "0px", left: "0px",
+      width: `${SLIDE_W}px`, height: `${SLIDE_H}px`,
+      transform: "none", zIndex: "99999",
+      overflow: "hidden", margin: "0", borderRadius: "0", boxShadow: "none",
+      pointerEvents: "none",
+    });
+    document.body.appendChild(clone);
+    await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
-      return await domToJpeg(clone, {
-        scale: 2,      // 540×2 = 1080px, 675×2 = 1350px
-        quality: 0.95,
-        width:  SLIDE_W,
-        height: SLIDE_H,
-      });
+      const canvas = await Promise.race([
+        domToCanvas(clone, { scale: 2, width: SLIDE_W, height: SLIDE_H }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Capture timeout")), 15000)),
+      ]);
+      return canvas.toDataURL("image/jpeg", 0.95);
     } finally {
-      document.body.removeChild(clone);
+      clone.remove();
     }
   }, []);
 
@@ -485,7 +627,6 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
   const shareCurrent = useCallback(async () => {
     try {
       const dataUrl = await captureSlide(slideIds[currentSlide]);
-      // Convert data URL to Blob for sharing
       const res  = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `reform-chungnam-${currentSlide+1}.jpg`, { type: "image/jpeg" });
@@ -508,7 +649,32 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
   let si = 0;
 
   return (
-    <div className="rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
+    <div style={{ maxWidth: SLIDE_W }} className="mx-auto rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
+      {/* Filter chips — above slide viewport */}
+      <div style={{ padding: "12px 16px 8px", background: "white", borderBottom: "1px solid #f3f4f6" }}>
+        {/* City filter */}
+        {cityOptions.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>시군구</span>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+              <FilterChip label="전체" active={filterCity === null} onClick={() => setFilterCity(null)} />
+              {cityOptions.map(city => (
+                <FilterChip key={city} label={city} active={filterCity === city} onClick={() => setFilterCity(filterCity === city ? null : city)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Type filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>유형</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <FilterChip label="전체" active={filterType === "all"} onClick={() => setFilterType("all")} />
+            <FilterChip label="📢 불편제보" active={filterType === "report"} onClick={() => setFilterType(filterType === "report" ? "all" : "report")} />
+            <FilterChip label="💡 공약제안" active={filterType === "proposal"} onClick={() => setFilterType(filterType === "proposal" ? "all" : "proposal")} />
+          </div>
+        </div>
+      </div>
+
       {/* Carousel area — arrows overlay */}
       <div ref={outerRef} className="w-full relative" style={{ height: viewH }}>
         {/* Left arrow */}
@@ -527,26 +693,52 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate }: Props)
             style={{ display: "flex", width: SLIDE_W, height: SLIDE_H, overflowX: "scroll", scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
             onScroll={handleScroll}
           >
-            {/* Slide 1 */}
+            {/* Slide 1: Cover */}
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-              <SlideCover id={slideIds[si++]} data={data} total={slideCount} targetDate={targetDate} dayOffset={dayOffset} />
+              <SlideCover
+                id={slideIds[si++]}
+                totalReports={filtered.totalReports}
+                totalProposals={filtered.totalProposals}
+                totalPosts={filtered.totalPosts}
+                total={slideCount}
+                targetDate={targetDate}
+                dayOffset={dayOffset}
+                filterCity={filterCity}
+                filterType={filterType}
+              />
             </div>
-            {/* Slide 2 */}
+            {/* Slide 2: Top Reports */}
             {hasTopReports && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideTopReports id={slideIds[si++]} data={data} total={slideCount} />
+                <SlideTopReports
+                  id={slideIds[si++]}
+                  posts={filtered.filteredReports}
+                  totalReports={filtered.totalReports}
+                  total={slideCount}
+                  slideNum={si}
+                />
               </div>
             )}
-            {/* Slide 3 */}
+            {/* Slide 3: City Map */}
             {hasCityMap && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideCityMap id={slideIds[si++]} data={data} total={slideCount} />
+                <SlideCityMap
+                  id={slideIds[si++]}
+                  cityBreakdown={filtered.cityBreakdown}
+                  total={slideCount}
+                  slideNum={si}
+                />
               </div>
             )}
-            {/* Slide 4 */}
+            {/* Slide 4: Popular */}
             {hasPopular && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlidePopular id={slideIds[si++]} data={data} total={slideCount} />
+                <SlidePopular
+                  id={slideIds[si++]}
+                  topLikedPosts={filtered.topLikedPosts}
+                  total={slideCount}
+                  slideNum={si}
+                />
               </div>
             )}
             {/* Slide CTA */}

@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
   const endISO = weekEnd.toISOString();
 
   // ─── 1. Posts this week ───────────────────────────────────────────────────
-  // Try to fetch with dong; fall back gracefully
   let posts: {
     id: string;
     postType: string;
@@ -52,12 +51,17 @@ export async function GET(request: NextRequest) {
     dong?: string | null;
     issueId?: string | null;
     createdAt: string;
+    title?: string | null;
+    content?: string;
+    authorName?: string;
+    likeCount?: number;
+    viewCount?: number;
   }[] = [];
 
   {
     const { data, error } = await supabaseAdmin
       .from("ProposalPost")
-      .select("id, postType, city, dong, issueId, createdAt")
+      .select("id, postType, city, dong, issueId, createdAt, title, content, authorName, likeCount, viewCount")
       .gte("createdAt", startISO)
       .lte("createdAt", endISO)
       .is("deletedAt", null);
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (!error && data) {
       posts = data;
     } else {
-      // Fallback without dong/issueId
+      // Fallback without dong/issueId/title/content/authorName/likeCount/viewCount
       const { data: d2 } = await supabaseAdmin
         .from("ProposalPost")
         .select("id, postType, city, createdAt")
@@ -189,12 +193,40 @@ export async function GET(request: NextRequest) {
   }
 
   // ─── 7. Total views from Issue (viewCount if exists) ─────────────────────
-  // ProposalPost doesn't have viewCount, so we get views from Issue table
   const { data: issueViews } = await supabaseAdmin
     .from("Issue")
     .select("viewCount")
     .not("viewCount", "is", null);
   const totalViews = (issueViews ?? []).reduce((s, r) => s + (r.viewCount ?? 0), 0);
+
+  // ─── 8. Top liked posts ───────────────────────────────────────────────────
+  interface TopLikedPost {
+    id: string;
+    title: string | null;
+    content: string;
+    authorName: string;
+    city: string | null;
+    dong: string | null;
+    postType: string;
+    likeCount: number;
+    viewCount: number;
+  }
+
+  const topLikedPosts: TopLikedPost[] = posts
+    .filter((p) => (p.likeCount ?? 0) > 0)
+    .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
+    .slice(0, 5)
+    .map((p) => ({
+      id: p.id,
+      title: p.title ?? null,
+      content: p.content ?? "",
+      authorName: p.authorName ?? "",
+      city: p.city ?? null,
+      dong: (p as { dong?: string | null }).dong ?? null,
+      postType: p.postType,
+      likeCount: p.likeCount ?? 0,
+      viewCount: p.viewCount ?? 0,
+    }));
 
   return NextResponse.json({
     weekStart: weekStart.toISOString(),
@@ -208,5 +240,6 @@ export async function GET(request: NextRequest) {
     dongBreakdown,
     prevWeekReports,
     prevWeekProposals,
+    topLikedPosts,
   });
 }

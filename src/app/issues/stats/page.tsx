@@ -26,6 +26,17 @@ interface DongItem {
   dong: string;
   count: number;
 }
+interface TopLikedPost {
+  id: string;
+  title: string | null;
+  content: string;
+  authorName: string;
+  city: string | null;
+  dong: string | null;
+  postType: string;
+  likeCount: number;
+  viewCount: number;
+}
 interface WeeklyStats {
   weekStart: string;
   weekEnd: string;
@@ -38,6 +49,7 @@ interface WeeklyStats {
   dongBreakdown: DongItem[];
   prevWeekReports: number;
   prevWeekProposals: number;
+  topLikedPosts: TopLikedPost[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

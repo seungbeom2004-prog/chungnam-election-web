@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { SlideCTA } from "./CardNewsCarousel";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -14,6 +14,17 @@ interface HotIssue {
   weekReports: number;
 }
 interface CityItem { city: string; total: number; reports: number; proposals: number }
+interface TopLikedPost {
+  id: string;
+  title: string | null;
+  content: string;
+  authorName: string;
+  city: string | null;
+  dong: string | null;
+  postType: string;
+  likeCount: number;
+  viewCount: number;
+}
 export interface WeeklyStats {
   weekStart: string;
   weekEnd: string;
@@ -26,6 +37,7 @@ export interface WeeklyStats {
   dongBreakdown: { dong: string; count: number }[];
   prevWeekReports: number;
   prevWeekProposals: number;
+  topLikedPosts: TopLikedPost[];
 }
 interface Props {
   data: WeeklyStats;
@@ -39,13 +51,14 @@ const SLIDE_W = 540;
 const SLIDE_H = 675;
 
 const C = {
-  orange:    "#f97316",
-  orange600: "#ea580c",
-  red500:    "#ef4444",
-  amber400:  "#fbbf24",
-  amber500:  "#f59e0b",
-  gray950:   "#030712",
-  gray900:   "#111827",
+  brand:    "#FF7210",
+  brand2:   "#ff4d00",
+  brand3:   "#e63000",
+  amber400: "#fbbf24",
+  amber500: "#f59e0b",
+  gray950:  "#030712",
+  gray900:  "#111827",
+  gray800:  "#1f2937",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -82,7 +95,7 @@ function TopBar({ dark = true }: { dark?: boolean }) {
   return (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-7 pt-5 z-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/reform-party-logo.png" alt="개혁신당" width={96} height={37} crossOrigin="anonymous"
+      <img src="/images/reform-party-logo.png" alt="개혁신당" width={96} height={37}
         style={{ filter: dark ? "brightness(0) invert(1)" : "none", display: "block" }} />
       <div className="text-right leading-tight">
         <p style={{ color: textColor, fontSize: 17, fontWeight: 900, lineHeight: 1.2 }}>4 손승범</p>
@@ -103,29 +116,56 @@ function Counter({ current, total, dark = true }: { current: number; total: numb
 }
 
 // ── Slide 1: Weekly Cover ─────────────────────────────────────────────────────
-function SlideCover({ id, data, total, monday, sunday, offset }: {
-  id: string; data: WeeklyStats; total: number; monday: Date; sunday: Date; offset: number;
+function SlideCover({ id, data, total, monday, sunday, offset, filterCity, filterIssueType, filteredReportCount }: {
+  id: string;
+  data: WeeklyStats;
+  total: number;
+  monday: Date;
+  sunday: Date;
+  offset: number;
+  filterCity: string | null;
+  filterIssueType: string | null;
+  filteredReportCount: number;
 }) {
+  // Build dynamic headline
+  let headlineLine1: string;
+  let headlineLine2: string;
+  let headlineLine3: string;
+
+  if (!filterCity && !filterIssueType) {
+    headlineLine1 = "충청남도에서";
+    headlineLine2 = "이번 주 불편 제보";
+    headlineLine3 = `${filteredReportCount}건 접수`;
+  } else if (filterCity && !filterIssueType) {
+    headlineLine1 = `${filterCity}에서`;
+    headlineLine2 = "이번 주 불편 제보";
+    headlineLine3 = `${filteredReportCount}건 접수`;
+  } else if (!filterCity && filterIssueType) {
+    headlineLine1 = `${filterIssueType} 관련`;
+    headlineLine2 = "이번 주 제보";
+    headlineLine3 = `${filteredReportCount}건 접수`;
+  } else {
+    headlineLine1 = `${filterCity} ${filterIssueType} 관련`;
+    headlineLine2 = "이번 주";
+    headlineLine3 = `${filteredReportCount}건 접수`;
+  }
+
   return (
-    <Slide id={id} bg={{ background: `linear-gradient(145deg, #1d4ed8, #2563eb, #7c3aed)` }}>
+    <Slide id={id} bg={{ background: `linear-gradient(145deg, ${C.brand}, ${C.brand2}, ${C.brand3})` }}>
       <TopBar dark />
       <Counter current={1} total={total} />
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 36px", paddingTop: 64 }}>
         <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", marginBottom: 8 }}>
           WEEKLY REPORT
         </p>
-        <p style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.3, marginBottom: 4 }}>{weekLabel(monday)}</p>
+        <p style={{ color: "white", fontSize: 18, fontWeight: 900, lineHeight: 1.3, marginBottom: 4 }}>{weekLabel(monday)}</p>
         <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, marginBottom: 20 }}>{dateRange(monday, sunday)}</p>
 
-        {/* Big number */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 28 }}>
-          <span style={{ color: "white", fontSize: 110, fontWeight: 900, lineHeight: 1 }}>{data.totalPosts}</span>
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ color: "white", fontSize: 26, fontWeight: 900 }}>건</p>
-            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600 }}>
-              {offset === 0 ? "이번 주" : `${Math.abs(offset)}주 전`} 총 활동
-            </p>
-          </div>
+        {/* Big dynamic headline */}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1.3 }}>{headlineLine1}</p>
+          <p style={{ color: "white", fontSize: 28, fontWeight: 900, lineHeight: 1.3 }}>{headlineLine2}</p>
+          <p style={{ color: "rgba(255,255,255,0.95)", fontSize: 32, fontWeight: 900, lineHeight: 1.25, marginTop: 4 }}>{headlineLine3}</p>
         </div>
 
         <div style={{ display: "flex", gap: 16 }}>
@@ -148,18 +188,27 @@ function SlideCover({ id, data, total, monday, sunday, offset }: {
             )}
           </div>
         </div>
+
+        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginTop: 12 }}>
+          {offset === 0 ? "이번 주" : `${Math.abs(offset)}주 전`} 기준
+        </p>
       </div>
     </Slide>
   );
 }
 
 // ── Slide 2: Hot Issues ───────────────────────────────────────────────────────
-function SlideHotIssues({ id, data, total }: { id: string; data: WeeklyStats; total: number }) {
-  const top = data.hotIssues.slice(0, 3);
+function SlideHotIssues({ id, hotIssues, total, slideNum }: {
+  id: string;
+  hotIssues: HotIssue[];
+  total: number;
+  slideNum: number;
+}) {
+  const top = hotIssues.slice(0, 3);
   return (
     <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
       <TopBar dark />
-      <Counter current={2} total={total} />
+      <Counter current={slideNum} total={total} />
       <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ marginBottom: 20 }}>
           <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>HOT ISSUES</p>
@@ -184,7 +233,7 @@ function SlideHotIssues({ id, data, total }: { id: string; data: WeeklyStats; to
                   {location && <p style={{ color: "rgba(249,115,22,0.75)", fontSize: 11, marginTop: 2 }}>📍 {location}</p>}
                 </div>
                 <div style={{ flexShrink: 0, textAlign: "right" }}>
-                  <p style={{ color: C.orange, fontSize: 20, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{count}</p>
+                  <p style={{ color: C.brand, fontSize: 20, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{count}</p>
                   <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 10 }}>건 제보</p>
                 </div>
               </div>
@@ -197,16 +246,21 @@ function SlideHotIssues({ id, data, total }: { id: string; data: WeeklyStats; to
 }
 
 // ── Slide 3: City Breakdown ───────────────────────────────────────────────────
-function SlideCityMap({ id, data, total }: { id: string; data: WeeklyStats; total: number }) {
-  const cities = data.cityBreakdown.slice(0, 5);
+function SlideCityMap({ id, cityBreakdown, total, slideNum }: {
+  id: string;
+  cityBreakdown: CityItem[];
+  total: number;
+  slideNum: number;
+}) {
+  const cities = cityBreakdown.slice(0, 5);
   const maxVal = cities[0]?.total ?? 1;
   return (
     <Slide id={id} bg={{ backgroundColor: C.gray950 }}>
       <TopBar dark />
-      <Counter current={3} total={total} />
+      <Counter current={slideNum} total={total} />
       <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ marginBottom: 20 }}>
-          <p style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>AREA BREAKDOWN</p>
+          <p style={{ color: C.brand, fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>AREA BREAKDOWN</p>
           <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>시별 현황</p>
           <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>제보/제안이 많은 시 TOP {cities.length}</p>
         </div>
@@ -216,12 +270,12 @@ function SlideCityMap({ id, data, total }: { id: string; data: WeeklyStats; tota
             const reportPct = item.total > 0 ? (item.reports / item.total) * 100 : 0;
             return (
               <div key={item.city} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: C.orange, fontWeight: 900, fontSize: 13, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                <span style={{ color: C.brand, fontWeight: 900, fontSize: 13, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
                 <span style={{ color: "white", fontWeight: 700, fontSize: 13, width: 56, flexShrink: 0 }}>{item.city}</span>
                 <div style={{ flex: 1, position: "relative", height: 26, background: "rgba(255,255,255,0.1)", borderRadius: 999, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${pct}%`, overflow: "hidden" }}>
                     <div style={{ display: "flex", height: "100%" }}>
-                      <div style={{ width: `${reportPct}%`, background: `linear-gradient(to right, ${C.orange}, ${C.red500})` }} />
+                      <div style={{ width: `${reportPct}%`, background: `linear-gradient(to right, ${C.brand}, ${C.brand3})` }} />
                       <div style={{ flex: 1, background: `linear-gradient(to right, ${C.amber400}, ${C.amber500})` }} />
                     </div>
                   </div>
@@ -232,11 +286,61 @@ function SlideCityMap({ id, data, total }: { id: string; data: WeeklyStats; tota
           })}
         </div>
         <div style={{ display: "flex", gap: 16, marginTop: 20 }}>
-          {[["불편제보", C.orange], ["공약제안", C.amber400]].map(([label, color]) => (
+          {([["불편제보", C.brand], ["공약제안", C.amber400]] as [string, string][]).map(([label, color]) => (
             <span key={label} style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: color as string, flexShrink: 0, display: "inline-block" }} />{label}
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />{label}
             </span>
           ))}
+        </div>
+      </div>
+    </Slide>
+  );
+}
+
+// ── Slide 4: Popular Posts ────────────────────────────────────────────────────
+function SlidePopular({ id, posts, total, slideNum }: {
+  id: string;
+  posts: TopLikedPost[];
+  total: number;
+  slideNum: number;
+}) {
+  const top = posts.slice(0, 3);
+  return (
+    <Slide id={id} bg={{ background: `linear-gradient(to bottom, ${C.gray950}, ${C.gray900})` }}>
+      <TopBar dark />
+      <Counter current={slideNum} total={total} />
+      <div style={{ position: "absolute", inset: 0, padding: "0 28px", paddingTop: 60, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>POPULAR POSTS</p>
+          <p style={{ color: "white", fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>이번 주 인기 글</p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>가장 많은 공감을 받은 제보</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {top.map((post, idx) => {
+            const text = post.title ?? post.content;
+            return (
+              <div key={post.id} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 999, background: post.postType === "민원" ? "rgba(239,68,68,0.25)" : "rgba(251,191,36,0.25)", color: post.postType === "민원" ? "#fca5a5" : "#fde68a" }}>
+                        {post.postType === "민원" ? "📢 제보" : "💡 제안"}
+                      </span>
+                      <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>#{idx + 1}</span>
+                    </div>
+                    <p style={{ color: "white", fontWeight: 700, fontSize: 14, lineHeight: 1.4 }}>{truncate(text, 30)}</p>
+                    {(post.city || post.dong) && (
+                      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 4 }}>📍 {[post.city, post.dong].filter(Boolean).join(" ")}</p>
+                    )}
+                  </div>
+                  <div style={{ flexShrink: 0, background: "rgba(239,68,68,0.18)", borderRadius: 12, padding: "6px 10px", textAlign: "center" }}>
+                    <p style={{ fontSize: 16, fontWeight: 900 }}>❤️</p>
+                    <p style={{ color: "#fca5a5", fontWeight: 900, fontSize: 14, fontVariantNumeric: "tabular-nums" }}>{post.likeCount}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </Slide>
@@ -263,12 +367,38 @@ function ArrowBtn({ direction, onClick }: { direction: "left" | "right"; onClick
   );
 }
 
+// ── Filter Chip ───────────────────────────────────────────────────────────────
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        padding: "4px 12px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        border: active ? "none" : "1px solid #d1d5db",
+        background: active ? C.brand : "white",
+        color: active ? "white" : "#374151",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "all 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday, targetSunday }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [downloading, setDownloading]   = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [scale, setScale] = useState(1);
+  const [filterCity, setFilterCity] = useState<string | null>(null);
+  const [filterIssueType, setFilterIssueType] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const outerRef    = useRef<HTMLDivElement>(null);
 
@@ -282,9 +412,47 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     return () => ro.disconnect();
   }, []);
 
-  const hasHotIssues = data.hotIssues.length > 0;
-  const hasCityMap   = data.cityBreakdown.length > 0;
-  const slideCount   = 2 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0);
+  // Filtered data
+  const filtered = useMemo(() => {
+    const filteredHotIssues = data.hotIssues.filter(issue => {
+      if (filterCity && issue.city !== filterCity) return false;
+      if (filterIssueType && issue.category !== filterIssueType) return false;
+      return true;
+    });
+
+    const filteredCityBreakdown = filterCity
+      ? data.cityBreakdown.filter(c => c.city === filterCity)
+      : data.cityBreakdown;
+
+    const filteredReportCount = filterCity
+      ? (data.cityBreakdown.find(c => c.city === filterCity)?.reports ?? 0)
+      : data.newReports;
+
+    const filteredTotalPosts = filterCity
+      ? (data.cityBreakdown.find(c => c.city === filterCity)?.total ?? 0)
+      : data.totalPosts;
+
+    const filteredLikedPosts = (data.topLikedPosts ?? []).filter(p => {
+      if (filterCity && p.city !== filterCity) return false;
+      return p.likeCount > 0;
+    });
+
+    return { filteredHotIssues, filteredCityBreakdown, filteredReportCount, filteredTotalPosts, filteredLikedPosts };
+  }, [data, filterCity, filterIssueType]);
+
+  // City options for chips
+  const cityOptions = useMemo(() => data.cityBreakdown.map(c => c.city), [data.cityBreakdown]);
+
+  // Issue type options for chips (unique categories from hotIssues)
+  const issueTypeOptions = useMemo(() => {
+    const cats = data.hotIssues.map(i => i.category).filter((c): c is string => !!c);
+    return [...new Set(cats)];
+  }, [data.hotIssues]);
+
+  const hasHotIssues = filtered.filteredHotIssues.length > 0;
+  const hasCityMap   = filtered.filteredCityBreakdown.length > 0;
+  const hasPopular   = filtered.filteredLikedPosts.length > 0;
+  const slideCount   = 2 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0) + (hasPopular ? 1 : 0);
   const slideIds     = ["w-slide-1","w-slide-2","w-slide-3","w-slide-4","w-slide-5"].slice(0, slideCount);
 
   const goTo = useCallback((idx: number) => {
@@ -292,6 +460,11 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     const c = carouselRef.current;
     if (c) c.scrollTo({ left: idx * SLIDE_W, behavior: "smooth" });
   }, []);
+
+  // Reset to slide 0 when filters change
+  useEffect(() => {
+    goTo(0);
+  }, [filterCity, filterIssueType, goTo]);
 
   const handleScroll = useCallback(() => {
     const c = carouselRef.current;
@@ -301,17 +474,49 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
   }, [currentSlide]);
 
   const captureSlide = useCallback(async (id: string): Promise<string> => {
-    const { domToJpeg } = await import("modern-screenshot");
     const el = document.getElementById(id);
     if (!el) throw new Error("Slide not found: " + id);
+    const { domToCanvas } = await import("modern-screenshot");
+
     const clone = el.cloneNode(true) as HTMLElement;
-    Object.assign(clone.style, { position: "fixed", top: "-99999px", left: "0px", width: `${SLIDE_W}px`, height: `${SLIDE_H}px`, transform: "none", zIndex: "-1" });
-    clone.id = `${id}-cap`;
+    clone.id = id + "-snap";
+
+    // Pre-fetch all images as data URLs so modern-screenshot doesn't hang on fetching
+    await Promise.all(Array.from(clone.querySelectorAll("img")).map(async (img) => {
+      const src = (img as HTMLImageElement).src;
+      if (!src || src.startsWith("data:")) return;
+      try {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onloadend = () => resolve(fr.result as string);
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        });
+        (img as HTMLImageElement).src = dataUrl;
+      } catch {
+        (img as HTMLImageElement).removeAttribute("src");
+      }
+    }));
+
+    Object.assign(clone.style, {
+      position: "fixed", top: "0px", left: "0px",
+      width: `${SLIDE_W}px`, height: `${SLIDE_H}px`,
+      transform: "none", zIndex: "99999",
+      overflow: "hidden", margin: "0", borderRadius: "0", boxShadow: "none",
+      pointerEvents: "none",
+    });
     document.body.appendChild(clone);
+    await new Promise<void>(r => { requestAnimationFrame(() => { requestAnimationFrame(() => r()); }); });
     try {
-      return await domToJpeg(clone, { scale: 2, quality: 0.95, width: SLIDE_W, height: SLIDE_H });
+      const canvas = await Promise.race([
+        domToCanvas(clone, { scale: 2, width: SLIDE_W, height: SLIDE_H }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Capture timeout")), 15000)),
+      ]);
+      return canvas.toDataURL("image/jpeg", 0.95);
     } finally {
-      document.body.removeChild(clone);
+      clone.remove();
     }
   }, []);
 
@@ -364,7 +569,35 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
   let si = 0;
 
   return (
-    <div className="rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
+    <div style={{ maxWidth: SLIDE_W }} className="mx-auto rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
+      {/* Filter chips */}
+      <div style={{ padding: "12px 16px 8px", background: "white", borderBottom: "1px solid #f3f4f6" }}>
+        {/* City filter */}
+        {cityOptions.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>시군구</span>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+              <FilterChip label="전체" active={filterCity === null} onClick={() => setFilterCity(null)} />
+              {cityOptions.map(city => (
+                <FilterChip key={city} label={city} active={filterCity === city} onClick={() => setFilterCity(filterCity === city ? null : city)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Issue type filter */}
+        {issueTypeOptions.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>이슈</span>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
+              <FilterChip label="전체" active={filterIssueType === null} onClick={() => setFilterIssueType(null)} />
+              {issueTypeOptions.map(type => (
+                <FilterChip key={type} label={type} active={filterIssueType === type} onClick={() => setFilterIssueType(filterIssueType === type ? null : type)} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div ref={outerRef} className="w-full relative" style={{ height: viewH }}>
         {currentSlide > 0 && <ArrowBtn direction="left" onClick={() => goTo(currentSlide - 1)} />}
         {currentSlide < slideCount - 1 && <ArrowBtn direction="right" onClick={() => goTo(currentSlide + 1)} />}
@@ -373,19 +606,39 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
             style={{ display: "flex", width: SLIDE_W, height: SLIDE_H, overflowX: "scroll", scrollSnapType: "x mandatory", scrollbarWidth: "none" }}
             onScroll={handleScroll}
           >
+            {/* Slide 1: Cover */}
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-              <SlideCover id={slideIds[si++]} data={data} total={slideCount} monday={targetMonday} sunday={targetSunday} offset={weekOffset} />
+              <SlideCover
+                id={slideIds[si++]}
+                data={data}
+                total={slideCount}
+                monday={targetMonday}
+                sunday={targetSunday}
+                offset={weekOffset}
+                filterCity={filterCity}
+                filterIssueType={filterIssueType}
+                filteredReportCount={filtered.filteredReportCount}
+              />
             </div>
+            {/* Slide 2: Hot Issues */}
             {hasHotIssues && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideHotIssues id={slideIds[si++]} data={data} total={slideCount} />
+                <SlideHotIssues id={slideIds[si++]} hotIssues={filtered.filteredHotIssues} total={slideCount} slideNum={si} />
               </div>
             )}
+            {/* Slide 3: City Map */}
             {hasCityMap && (
               <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
-                <SlideCityMap id={slideIds[si++]} data={data} total={slideCount} />
+                <SlideCityMap id={slideIds[si++]} cityBreakdown={filtered.filteredCityBreakdown} total={slideCount} slideNum={si} />
               </div>
             )}
+            {/* Slide 4: Popular */}
+            {hasPopular && (
+              <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
+                <SlidePopular id={slideIds[si++]} posts={filtered.filteredLikedPosts} total={slideCount} slideNum={si} />
+              </div>
+            )}
+            {/* Slide CTA */}
             <div style={{ scrollSnapAlign: "start", flexShrink: 0 }}>
               <SlideCTA id={slideIds[si++]} current={slideCount} total={slideCount} />
             </div>
@@ -396,7 +649,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
       <div className="flex justify-center gap-1.5 py-3 bg-gray-50 border-t border-gray-100">
         {Array.from({ length: slideCount }).map((_, i) => (
           <button key={i} onClick={() => goTo(i)}
-            className={`rounded-full transition-all ${i === currentSlide ? "w-5 h-2 bg-blue-600" : "w-2 h-2 bg-gray-300"}`} />
+            className={`rounded-full transition-all ${i === currentSlide ? "w-5 h-2 bg-orange-500" : "w-2 h-2 bg-gray-300"}`} />
         ))}
       </div>
 
@@ -407,7 +660,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
           이 슬라이드
         </button>
         <button onClick={downloadAll} disabled={downloading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50">
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
           {downloading
             ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />저장 중{downloadProgress > 0 ? ` ${downloadProgress}%` : ""}</>
             : <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>전체 다운로드 ({slideCount}장)</>
