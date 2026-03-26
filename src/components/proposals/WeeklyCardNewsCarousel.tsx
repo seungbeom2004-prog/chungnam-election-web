@@ -546,10 +546,18 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
     if (c) c.scrollTo({ left: idx * SLIDE_W, behavior: "smooth" });
   }, []);
 
-  // Reset to slide 0 when filters change
+  // Reset to slide 0 when city/issue filters change
   useEffect(() => {
     goTo(0);
-  }, [filterCity, filterIssueType, filterPostType, goTo]);
+  }, [filterCity, filterIssueType, goTo]);
+
+  // When post type filter changes, jump to the popular posts slide
+  useEffect(() => {
+    if (filterPostType === null) { goTo(0); return; }
+    // Popular slide is at index: cover(0) + weeklyStats(1) + hotIssues? + cityMap?
+    const popularIdx = 2 + (hasHotIssues ? 1 : 0) + (hasCityMap ? 1 : 0);
+    goTo(popularIdx);
+  }, [filterPostType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = useCallback(() => {
     const c = carouselRef.current;
