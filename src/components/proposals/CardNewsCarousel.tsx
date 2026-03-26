@@ -63,12 +63,14 @@ function truncate(str: string, n: number) {
 }
 
 // ── Slide wrapper ─────────────────────────────────────────────────────────────
+const SLIDE_FONT = '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
 function Slide({ id, children, bg }: { id: string; children: React.ReactNode; bg: React.CSSProperties }) {
   return (
     <div
       id={id}
       className="relative overflow-hidden select-none"
-      style={{ width: SLIDE_W, height: SLIDE_H, flexShrink: 0, ...bg }}
+      style={{ width: SLIDE_W, height: SLIDE_H, flexShrink: 0, fontFamily: SLIDE_FONT, ...bg }}
     >
       {children}
     </div>
@@ -728,7 +730,7 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
   let si = 0;
 
   return (
-    <div style={{ maxWidth: SLIDE_W }} className="mx-auto rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
+    <div style={{ maxWidth: SLIDE_W, fontFamily: SLIDE_FONT }} className="mx-auto rounded-3xl overflow-hidden border border-gray-200 shadow-lg bg-white">
       {/* Filter chips — above slide viewport */}
       <div style={{ padding: "12px 16px 8px", background: "white", borderBottom: "1px solid #f3f4f6" }}>
         {/* Period filter */}
