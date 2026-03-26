@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const CardNewsCarousel = dynamic(() => import("@/components/proposals/CardNewsCarousel"), { ssr: false });
 
 interface DailyPost {
   id: string;
@@ -183,6 +186,9 @@ export default function DailyStatsPage() {
 
       {!loading && !error && data && (
         <div className="space-y-4">
+          {/* Card News Carousel */}
+          <CardNewsCarousel data={data} dayOffset={dayOffset} targetDate={targetDay} />
+
           {/* Main stats card */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 px-5 py-4">
