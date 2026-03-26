@@ -417,7 +417,7 @@ function SlidePopular({ id, posts, total, slideNum }: {
       <Counter current={slideNum} total={total} />
       <div style={{
         position: "absolute", inset: 0,
-        padding: "78px 20px 20px",
+        padding: "100px 20px 20px",
         display: "flex", flexDirection: "column",
       }}>
         <div style={{ marginBottom: 14 }}>
