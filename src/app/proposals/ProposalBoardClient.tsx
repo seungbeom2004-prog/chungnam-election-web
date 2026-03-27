@@ -242,6 +242,9 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
             <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline">
               📊 현황판 →
             </Link>
+            <Link href="/proposals/responses" className="text-[10px] text-green-600 font-semibold hover:underline">
+              💬 후보자 답변 모아보기 →
+            </Link>
           </div>
         </div>
         <button
