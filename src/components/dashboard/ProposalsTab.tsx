@@ -766,22 +766,22 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch(`/api/proposals?candidateId=${candidateId}&limit=100`);
+      const res  = await fetch(`/api/proposals?limit=200&sort=latest`);
       const json = await res.json();
       setProposals(json.data ?? []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [candidateId]);
+  }, []);
 
   const fetchPledgeProposals = useCallback(async () => {
     setPpLoading(true);
     try {
-      const res  = await fetch(`/api/pledge-proposals?candidateId=${candidateId}&limit=100`);
+      const res  = await fetch(`/api/pledge-proposals?limit=200`);
       const json = await res.json();
       setPledgeProposals(json.data ?? []);
     } catch { /* ignore */ }
     finally { setPpLoading(false); }
-  }, [candidateId]);
+  }, []);
 
   const fetchPledges = useCallback(async () => {
     try {
@@ -1139,7 +1139,12 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                       : null;
                     return (
                       <div key={p.id} className="flex items-start gap-2 p-2.5 rounded-lg border border-border hover:bg-background transition-colors">
-                        <div className="flex-1 min-w-0">
+                        <a
+                          href={`/proposals/${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 min-w-0 block"
+                        >
                           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${
                               p.postType === "민원" ? "bg-red-500" : "bg-blue-500"
@@ -1148,16 +1153,29 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                             </span>
                             <span className="text-xs text-muted">{relativeTime(p.createdAt)}</span>
                           </div>
-                          <p className="text-sm font-medium text-foreground truncate">
+                          <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
                             {p.title || p.content.slice(0, 40)}
                           </p>
                           <p className="text-xs text-muted truncate">{p.authorName}</p>
+                        </a>
+                        <div className="shrink-0 flex flex-col items-end gap-1">
+                          {dist != null && (
+                            <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                              {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+                            </span>
+                          )}
+                          {onRegisterAsPledge && (
+                            <button
+                              onClick={() => onRegisterAsPledge({
+                                title: p.title || p.content.slice(0, 40),
+                                description: p.content,
+                              })}
+                              className="text-[10px] font-medium text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded-lg hover:bg-primary/10 transition-colors whitespace-nowrap"
+                            >
+                              📋 공약 등록
+                            </button>
+                          )}
                         </div>
-                        {dist != null && (
-                          <span className="shrink-0 text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                            {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
-                          </span>
-                        )}
                       </div>
                     );
                   })}
