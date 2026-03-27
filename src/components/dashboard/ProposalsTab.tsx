@@ -31,6 +31,7 @@ interface Props {
   candidateName?: string;
   pinLat?: number | null;
   pinLng?: number | null;
+  onRegisterAsPledge?: (data: { title: string; description: string }) => void;
 }
 
 // ─── Haversine 거리 계산 ──────────────────────────────────────────────────────
@@ -249,6 +250,7 @@ function MinwonCard({
   isPending,
   onReply,
   onRefresh,
+  onRegisterAsPledge,
 }: {
   proposal: ProposalPost;
   candidateId: string;
@@ -257,6 +259,7 @@ function MinwonCard({
   isPending: boolean;
   onReply?: (proposal: ProposalPost) => void;
   onRefresh: () => void;
+  onRegisterAsPledge?: (data: { title: string; description: string }) => void;
 }) {
   const myResponse = proposal.responses?.find(r => r.candidateId === candidateId);
   const [showResponsePanel, setShowResponsePanel] = useState(false);
@@ -332,6 +335,18 @@ function MinwonCard({
               💡 공약 제안
             </button>
           )}
+          {onRegisterAsPledge && (
+            <button
+              onClick={() => onRegisterAsPledge({
+                title: proposal.title || proposal.content.slice(0, 40),
+                description: proposal.content,
+              })}
+              disabled={isPending}
+              className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              📋 공약 등록
+            </button>
+          )}
           <button
             onClick={() => onAction(proposal.id, "delete")}
             disabled={isPending}
@@ -364,6 +379,7 @@ function PledgeProposalCard({
   onAction,
   isPending,
   onRefresh,
+  onRegisterAsPledge,
 }: {
   item: PledgeProposalItem;
   candidateId: string;
@@ -372,6 +388,7 @@ function PledgeProposalCard({
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
   onRefresh: () => void;
+  onRegisterAsPledge?: (data: { title: string; description: string }) => void;
 }) {
   const isMine = item.candidateId === candidateId;
   const isAdmin = userRole === "admin";
@@ -585,6 +602,15 @@ function PledgeProposalCard({
             >
               💬 답변하기
             </button>
+            {onRegisterAsPledge && (
+              <button
+                onClick={() => onRegisterAsPledge({ title: item.title, description: item.content })}
+                disabled={isPending}
+                className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-60 whitespace-nowrap"
+              >
+                📋 공약 등록
+              </button>
+            )}
             <button
               onClick={() => onAction(item.id, "delete")}
               disabled={isPending}
@@ -715,7 +741,7 @@ function CandidateProposalForm({
 // ─── 메인 탭 컴포넌트 ────────────────────────────────────────────────────────
 type TabKey = "minwon" | "visitor-proposal" | "candidate-proposal";
 
-export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLng }: Props) {
+export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLng, onRegisterAsPledge }: Props) {
   const { data: session } = useSession();
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const [activeTab, setActiveTab] = useState<TabKey>("minwon");
@@ -952,6 +978,7 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                     setShowProposalForm(true);
                     setProposalFormError(null);
                   }}
+                  onRegisterAsPledge={onRegisterAsPledge}
                 />
               ))}
             </div>
@@ -1030,6 +1057,7 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}
                   onRefresh={fetchPledgeProposals}
+                  onRegisterAsPledge={onRegisterAsPledge}
                 />
               ))}
             </div>
@@ -1064,6 +1092,7 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                   onAction={handlePpAction}
                   isPending={ppActionPending.has(item.id)}
                   onRefresh={fetchPledgeProposals}
+                  onRegisterAsPledge={onRegisterAsPledge}
                 />
               ))}
             </div>

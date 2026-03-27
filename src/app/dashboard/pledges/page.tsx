@@ -16,15 +16,19 @@ type ActiveTab = "mine" | "bylaws" | "others" | "proposals";
 // ── Bylaws form (inline — no map needed) ──────────────────────────
 function BylawsForm({
   editingBylaws,
+  prefillTitle,
+  prefillDescription,
   onSubmit,
   onClose,
 }: {
   editingBylaws: Pledge | null;
+  prefillTitle?: string;
+  prefillDescription?: string;
   onSubmit: (data: { title: string; description: string; budget?: string }) => Promise<void>;
   onClose: () => void;
 }) {
-  const [title, setTitle] = useState(editingBylaws?.title || "");
-  const [description, setDescription] = useState(editingBylaws?.description || "");
+  const [title, setTitle] = useState(editingBylaws?.title || prefillTitle || "");
+  const [description, setDescription] = useState(editingBylaws?.description || prefillDescription || "");
   const [budget, setBudget] = useState(editingBylaws?.budget || "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -97,6 +101,7 @@ export default function PledgesPage() {
   const [bylaws, setBylaws] = useState<Pledge[]>([]);
   const [showBylawsForm, setShowBylawsForm] = useState(false);
   const [editingBylaws, setEditingBylaws] = useState<Pledge | null>(null);
+  const [bylawsPrefill, setBylawsPrefill] = useState<{ title: string; description: string } | null>(null);
 
   const candidateId = (session?.user as { id?: string })?.id;
   const [candidatePin, setCandidatePin] = useState<{ lat: number; lng: number } | null>(null);
@@ -331,7 +336,20 @@ export default function PledgesPage() {
 
       {/* Tab: My Pledges */}
       {activeTab === "mine" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-13rem)]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <span className="text-base shrink-0">💡</span>
+            <p className="flex-1 text-xs text-amber-800">
+              시민들이 남긴 <strong>불편 제보·공약 제안</strong>을 참고해서 공약을 등록해보세요.
+            </p>
+            <button
+              onClick={() => setActiveTab("proposals")}
+              className="shrink-0 text-xs font-medium text-amber-700 border border-amber-300 bg-white px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
+            >
+              받은 제보 보기 →
+            </button>
+          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-16rem)]">
           {/* Left: Pledge List */}
           <div className="overflow-y-auto custom-scrollbar">
             <PledgeList
@@ -371,16 +389,29 @@ export default function PledgesPage() {
             )}
           </div>
         </div>
+        </div>
       )}
 
       {/* Tab: Bylaws (조례) */}
       {activeTab === "bylaws" && (
         <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <span className="text-base shrink-0">💡</span>
+            <p className="flex-1 text-xs text-amber-800">
+              시민 <strong>공약 제안</strong>에서 "📋 공약 등록" 버튼을 누르면 내용이 자동으로 채워집니다.
+            </p>
+            <button
+              onClick={() => setActiveTab("proposals")}
+              className="shrink-0 text-xs font-medium text-amber-700 border border-amber-300 bg-white px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
+            >
+              제안 확인하기 →
+            </button>
+          </div>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted">지도에 표시되지 않는 조례 공약을 관리합니다.</p>
             <Button
               size="sm"
-              onClick={() => { setShowBylawsForm(true); setEditingBylaws(null); }}
+              onClick={() => { setShowBylawsForm(true); setEditingBylaws(null); setBylawsPrefill(null); }}
             >
               새 조례 등록
             </Button>
@@ -389,8 +420,10 @@ export default function PledgesPage() {
           {showBylawsForm && (
             <BylawsForm
               editingBylaws={editingBylaws}
+              prefillTitle={bylawsPrefill?.title}
+              prefillDescription={bylawsPrefill?.description}
               onSubmit={handleBylawsSubmit}
-              onClose={() => { setShowBylawsForm(false); setEditingBylaws(null); }}
+              onClose={() => { setShowBylawsForm(false); setEditingBylaws(null); setBylawsPrefill(null); }}
             />
           )}
 
@@ -424,6 +457,12 @@ export default function PledgesPage() {
           candidateName={(session?.user as { name?: string })?.name ?? undefined}
           pinLat={candidatePin?.lat ?? null}
           pinLng={candidatePin?.lng ?? null}
+          onRegisterAsPledge={(data) => {
+            setBylawsPrefill(data);
+            setEditingBylaws(null);
+            setShowBylawsForm(true);
+            setActiveTab("bylaws");
+          }}
         />
       )}
 
