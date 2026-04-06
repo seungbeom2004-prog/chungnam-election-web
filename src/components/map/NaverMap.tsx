@@ -1563,17 +1563,30 @@ export default function NaverMap({
       {/* ── 현위치 버튼 ── */}
       <button
         onClick={() => {
-          if (!mapInstance.current || !navigator.geolocation) return;
+          if (!mapInstance.current) return;
+          if (!navigator.geolocation) { alert("이 브라우저에서 위치 서비스를 지원하지 않습니다."); return; }
+          // 먼저 빠른 저정밀 위치 시도, 실패 시 고정밀 재시도
+          const moveToPos = (pos: GeolocationPosition) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const naver = (window as any).naver;
+            const latlng = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+            mapInstance.current!.setCenter(latlng);
+            mapInstance.current!.setZoom(16);
+          };
           navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const naver = (window as any).naver;
-              const latlng = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-              mapInstance.current!.setCenter(latlng);
-              mapInstance.current!.setZoom(16);
+            moveToPos,
+            () => {
+              // 저정밀 실패 → 고정밀 재시도
+              navigator.geolocation.getCurrentPosition(
+                moveToPos,
+                (err) => {
+                  if (err.code === 1) alert("위치 권한이 차단되어 있습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
+                  else alert("현재 위치를 가져올 수 없습니다. 잠시 후 다시 시도해주세요.");
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+              );
             },
-            () => { alert("위치 정보를 가져올 수 없습니다."); },
-            { enableHighAccuracy: true, timeout: 5000 }
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
           );
         }}
         aria-label="현위치"
