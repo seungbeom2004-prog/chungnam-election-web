@@ -34,16 +34,11 @@ export default async function ProposalsPage() {
 
   const candidates = (candidatesRaw ?? []) as { id: string; name: string; district: string }[];
 
-  // Deduplicate district names from candidates
-  const districtSet = new Set<string>();
-  candidates.forEach((c) => { if (c.district) districtSet.add(c.district); });
-  const districts = Array.from(districtSet).sort().map((name) => ({ name }));
-
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-xl mx-auto px-4 py-8">
         <Suspense fallback={<div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
-          <ProposalBoardClient candidates={candidates} districts={districts} />
+          <ProposalBoardClient candidates={candidates} />
         </Suspense>
       </div>
     </div>

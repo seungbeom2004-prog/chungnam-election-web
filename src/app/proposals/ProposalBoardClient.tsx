@@ -14,8 +14,7 @@ const ProposalRanking = dynamic(() => import("@/components/proposals/ProposalRan
 const ProposalMapEmbed = dynamic(() => import("@/components/proposals/ProposalMapEmbed"), { ssr: false });
 
 interface CandidateOption { id: string; name: string; district: string }
-interface DistrictOption { name: string }
-interface Props { candidates: CandidateOption[]; districts: DistrictOption[] }
+interface Props { candidates: CandidateOption[] }
 
 interface MapPost {
   id: string; title: string; content: string; authorName: string;
@@ -37,7 +36,7 @@ const CITY_FILTERS = [
   "계룡시", "당진시", "금산군", "부여군", "서천군", "청양군", "홍성군", "예산군", "태안군",
 ];
 
-export default function ProposalBoardClient({ candidates, districts }: Props) {
+export default function ProposalBoardClient({ candidates }: Props) {
   const searchParams = useSearchParams();
   const { isCute } = useTheme();
   const { data: session } = useSession();
@@ -74,6 +73,7 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
   const [issuesLoading, setIssuesLoading] = useState(true);
   const [issueStats, setIssueStats] = useState<IssueStats>({ totalIssues: 0, totalReports: 0 });
   const [issueCityFilter, setIssueCityFilter] = useState("전체");
+  const [reportCities, setReportCities] = useState<string[]>([]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -85,6 +85,10 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
     fetch("/api/proposals?limit=1&postType=제안").then(r => r.json()).then(j => { if (typeof j.total === "number") setProposalCount(j.total); }).catch(() => {});
     fetch(`/api/proposals?limit=1&postType=민원&since=${todaySince}`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayMinwonCount(j.total); }).catch(() => {});
     fetch(`/api/proposals?limit=1&postType=제안&since=${todaySince}`).then(r => r.json()).then(j => { if (typeof j.total === "number") setTodayProposalCount(j.total); }).catch(() => {});
+    fetch("/api/proposals?limit=500&postType=민원").then(r => r.json()).then(j => {
+      const cities = [...new Set<string>((j.data ?? []).flatMap((p: { city?: string | null }) => p.city ? [p.city] : []))].sort();
+      setReportCities(cities);
+    }).catch(() => {});
   }, [rankingRefreshKey]);
 
   useEffect(() => {
@@ -165,16 +169,27 @@ export default function ProposalBoardClient({ candidates, districts }: Props) {
         <span className="font-black text-red-500 text-sm">📢 불편제보</span>
         {minwonCount !== null && <span className="text-xs text-muted bg-background border border-border rounded-full px-2 py-0.5">{minwonCount}건</span>}
         {(todayMinwonCount ?? 0) > 0 && <span className="text-[10px] text-green-600 font-semibold">오늘 +{todayMinwonCount}</span>}
-        {/* City filter */}
-        <div className="ml-auto flex items-center gap-1">
-          <select value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedCandidateId(""); }}
-            className="px-2 py-1 text-xs border border-border rounded-lg bg-surface text-foreground focus:outline-none">
-            <option value="">전체</option>
-            {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-          </select>
-          {selectedCity && <button onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }} className="text-xs text-muted hover:text-foreground">✕</button>}
-        </div>
+        {selectedCity && <button onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }} className="ml-auto text-xs text-muted hover:text-foreground">✕ {selectedCity}</button>}
       </div>
+
+      {/* City filter buttons */}
+      {reportCities.length > 0 && (
+        <div className="overflow-x-auto scrollbar-none -mt-1">
+          <div className="flex gap-1.5 pb-1 min-w-max">
+            <button
+              onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${!selectedCity ? "bg-primary text-white" : "bg-surface text-muted border border-border hover:bg-primary-light hover:text-primary"}`}
+            >전체</button>
+            {reportCities.map(city => (
+              <button
+                key={city}
+                onClick={() => { setSelectedCity(city); setSelectedCandidateId(""); }}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${selectedCity === city ? "bg-primary text-white" : "bg-surface text-muted border border-border hover:bg-primary-light hover:text-primary"}`}
+              >{city}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* CTA */}
       <button
