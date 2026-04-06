@@ -797,7 +797,7 @@ export default function CardNewsCarousel({ data, dayOffset, targetDate, mode = "
           </div>
         )}
         {/* City filter */}
-        {cityOptions.length >= 2 && (
+        {cityOptions.length >= 1 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", flexShrink: 0, width: 40 }}>시군구</span>
             <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" }}>
