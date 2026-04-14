@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 
 const WeeklyCardNewsCarousel = dynamic(() => import("@/components/proposals/WeeklyCardNewsCarousel"), { ssr: false });
 const CardNewsCarousel = dynamic(() => import("@/components/proposals/CardNewsCarousel"), { ssr: false });
+const TotalCardNewsCarousel = dynamic(() => import("@/components/proposals/TotalCardNewsCarousel"), { ssr: false });
 
 // ─── Cumulative Stats Types ───────────────────────────────────────────────────
 interface CumulativeStats {
@@ -250,12 +251,8 @@ export default function WeeklyStatsPage() {
 
   return (
     <div className="max-w-xl mx-auto pb-12">
-      {/* ── Date Navigation (weekly/daily only) ── */}
-      {mode === "total" ? (
-        <div className="flex items-center justify-center py-3 mb-2">
-          <p className="text-xs text-muted">서비스 시작(2026년 3월) 이후 전체 누적 현황</p>
-        </div>
-      ) : mode === "weekly" ? (
+      {/* ── Date Navigation (weekly/daily only; total mode has no date nav) ── */}
+      {mode === "weekly" ? (
         <div className="flex items-center justify-between px-1 py-3 mb-2">
           <button onClick={() => setWeekOffset((o) => o - 1)} disabled={addDays(targetMonday, -7) < MIN_MONDAY} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -455,96 +452,16 @@ export default function WeeklyStatsPage() {
 
       {/* ── Total Mode ── */}
       {mode === "total" && (
-        <div className="space-y-4">
+        <>
           {!cumulative ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="w-8 h-8 border-[3px] border-orange-400 border-t-transparent rounded-full animate-spin" />
               <p className="text-muted text-sm">불러오는 중...</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Big numbers */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-orange-50 border border-orange-100 p-4 text-center">
-                  <p className="text-3xl font-black text-orange-600">{cumulative.totalReports.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-orange-500 mt-1">🚨 누적 불편제보</p>
-                </div>
-                <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center">
-                  <p className="text-3xl font-black text-blue-600">{cumulative.totalProposals.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-blue-500 mt-1">💡 누적 공약제안</p>
-                </div>
-              </div>
-
-              {/* Issue resolution stats */}
-              <div className="rounded-xl bg-surface border border-border p-4">
-                <p className="text-sm font-bold text-foreground mb-3">이슈 처리 현황</p>
-                <div className="grid grid-cols-2 gap-2.5 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">🔍 검토중</span>
-                    <span className="font-bold text-foreground">{cumulative.issuesByStatus.reviewing}건</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">📋 공약 제안</span>
-                    <span className="font-bold text-blue-600">{cumulative.issuesByStatus.planned}건</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">🏛️ 민원 해결</span>
-                    <span className="font-bold text-purple-600">{cumulative.issuesByStatus.complaint_resolved}건</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">✅ 공약 반영</span>
-                    <span className="font-bold text-green-600">{cumulative.issuesByStatus.adopted}건</span>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-sm">
-                  <span className="text-muted">해결된 이슈</span>
-                  <span className="font-black text-green-600">{cumulative.resolvedIssues}건 / {cumulative.totalIssues}건</span>
-                </div>
-              </div>
-
-              {/* City breakdown */}
-              {cumulative.cityBreakdown.length > 0 && (
-                <div className="rounded-xl bg-surface border border-border p-4">
-                  <p className="text-sm font-bold text-foreground mb-3">지역별 누적 현황</p>
-                  <div className="space-y-2">
-                    {cumulative.cityBreakdown.slice(0, 8).map(c => {
-                      const maxTotal = cumulative.cityBreakdown[0]?.total || 1;
-                      const pct = Math.round((c.total / maxTotal) * 100);
-                      return (
-                        <div key={c.city}>
-                          <div className="flex items-center justify-between text-sm mb-1">
-                            <span className="font-medium text-foreground">{c.city}</span>
-                            <span className="text-muted">{c.total.toLocaleString()}건</span>
-                          </div>
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"
-                              style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Footer links */}
-              <div className="flex gap-3 pt-1">
-                <Link
-                  href="/reports"
-                  className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-bold hover:bg-orange-100 transition-colors"
-                >
-                  🚨 불편제보 보기
-                </Link>
-                <Link
-                  href="/suggestions"
-                  className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-colors"
-                >
-                  💡 공약제안 보기
-                </Link>
-              </div>
-            </div>
+            <TotalCardNewsCarousel data={cumulative} mode={mode} onModeChange={setMode} />
           )}
-        </div>
+        </>
       )}
     </div>
   );
