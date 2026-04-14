@@ -33,6 +33,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 const ADMIN_STATUS_LABEL: Record<string, string> = {
   planned: "공약 반영 예정",
   adopted: "공약 반영 완료",
+  complaint_resolved: "🏛️ 민원 해결",
   rejected: "반영 불가",
 };
 
@@ -77,6 +78,8 @@ export default function IssueCard({ issue }: IssueCardProps) {
                       ? "bg-green-100 text-green-700"
                       : issue.adminStatus === "planned"
                       ? "bg-blue-100 text-blue-700"
+                      : issue.adminStatus === "complaint_resolved"
+                      ? "bg-purple-100 text-purple-700"
                       : "bg-gray-100 text-gray-500"
                   }`}
                 >

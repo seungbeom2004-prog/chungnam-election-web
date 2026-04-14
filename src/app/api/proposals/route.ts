@@ -110,7 +110,10 @@ export async function GET(request: NextRequest) {
       if (until) q = q.lt("createdAt", until);
       if (parentId !== null) q = q.eq("parentId", parentId as string);
       if (search) q = q.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
-      // hasLocation only works after v10 migration
+      // hasLocation only works after v10 migration (latitude/longitude columns)
+      if (hasLocation && selectStr.includes("latitude")) {
+        q = q.not("latitude", "is", null).not("longitude", "is", null);
+      }
       return q;
     };
 

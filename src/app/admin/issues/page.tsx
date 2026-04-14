@@ -45,6 +45,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 const ADMIN_STATUS_STEPS = [
   { value: null, label: "검토중", color: "bg-gray-100 text-gray-600 border-gray-300" },
   { value: "planned", label: "공약 제안", color: "bg-blue-100 text-blue-700 border-blue-300" },
+  { value: "complaint_resolved", label: "🏛️ 민원 해결", color: "bg-purple-100 text-purple-700 border-purple-300" },
   { value: "adopted", label: "공약 반영 완료", color: "bg-green-100 text-green-700 border-green-300" },
 ];
 

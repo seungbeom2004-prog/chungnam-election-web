@@ -12,6 +12,7 @@ function adminStatusToStep(adminStatus: string | null | undefined): number {
   switch (adminStatus) {
     case "planned": return 1;
     case "adopted": return 2;
+    case "complaint_resolved": return 2; // treat as terminal step
     case "rejected": return -1;
     default: return 0; // null, "reviewed", etc. → 검토중
   }
@@ -33,6 +34,19 @@ interface Props {
 }
 
 export default function StatusStepper({ adminStatus, bestResponseStatus, className = "" }: Props) {
+  // Special terminal state: resolved via government complaint
+  if (adminStatus === "complaint_resolved") {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl ${className}`}>
+        <span className="text-base">🏛️</span>
+        <div>
+          <p className="text-xs font-bold text-purple-700">민원 해결</p>
+          <p className="text-[11px] text-muted">시청·구청 민원 제출로 해결되었습니다.</p>
+        </div>
+      </div>
+    );
+  }
+
   const fromAdmin = adminStatusToStep(adminStatus);
   const fromResponse = bestResponseStatus ? responseStatusToStep(bestResponseStatus) : -2;
   const isRejected = fromAdmin === -1 || fromResponse === -1;

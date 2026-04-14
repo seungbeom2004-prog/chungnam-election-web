@@ -7,6 +7,22 @@ import dynamic from "next/dynamic";
 const WeeklyCardNewsCarousel = dynamic(() => import("@/components/proposals/WeeklyCardNewsCarousel"), { ssr: false });
 const CardNewsCarousel = dynamic(() => import("@/components/proposals/CardNewsCarousel"), { ssr: false });
 
+// ─── Cumulative Stats Types ───────────────────────────────────────────────────
+interface CumulativeStats {
+  totalReports: number;
+  totalProposals: number;
+  totalPosts: number;
+  totalIssues: number;
+  resolvedIssues: number;
+  issuesByStatus: {
+    reviewing: number;
+    planned: number;
+    complaint_resolved: number;
+    adopted: number;
+  };
+  cityBreakdown: { city: string; reports: number; proposals: number; total: number }[];
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HotIssue {
   id: string;
@@ -123,6 +139,8 @@ export default function WeeklyStatsPage() {
   const [dailyData, setDailyData] = useState<DailyStats | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailyError, setDailyError] = useState<string | null>(null);
+  const [cumulative, setCumulative] = useState<CumulativeStats | null>(null);
+  const [showCumulative, setShowCumulative] = useState(false);
 
   const currentMonday = getMondayOfWeek(new Date());
   const targetMonday = addDays(currentMonday, weekOffset * 7);
@@ -219,6 +237,15 @@ export default function WeeklyStatsPage() {
     if (mode === "daily") loadDaily();
   }, [loadDaily, mode]);
 
+  // Load cumulative stats on demand
+  useEffect(() => {
+    if (!showCumulative || cumulative) return;
+    fetch("/api/cumulative-stats")
+      .then(r => r.json())
+      .then(j => setCumulative(j))
+      .catch(() => {});
+  }, [showCumulative, cumulative]);
+
   const isCurrentWeek = weekOffset >= 0;
 
   return (
@@ -308,16 +335,110 @@ export default function WeeklyStatsPage() {
             onModeChange={setMode}
           />
 
+          {/* ── Cumulative Stats Toggle ── */}
+          <div className="rounded-2xl border border-border overflow-hidden">
+            <button
+              onClick={() => setShowCumulative(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-50 to-gray-50 hover:from-slate-100 hover:to-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">📊</span>
+                <span className="text-sm font-bold text-foreground">누적 현황</span>
+                <span className="text-xs text-muted font-normal">서비스 시작 이후 전체</span>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                className={`text-muted transition-transform duration-200 ${showCumulative ? "rotate-180" : ""}`}>
+                <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {showCumulative && (
+              <div className="border-t border-border p-4">
+                {!cumulative ? (
+                  <div className="flex justify-center py-6">
+                    <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Big numbers */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 text-center">
+                        <p className="text-2xl font-black text-orange-600">{cumulative.totalReports.toLocaleString()}</p>
+                        <p className="text-xs font-semibold text-orange-500 mt-0.5">🚨 누적 불편제보</p>
+                      </div>
+                      <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-center">
+                        <p className="text-2xl font-black text-blue-600">{cumulative.totalProposals.toLocaleString()}</p>
+                        <p className="text-xs font-semibold text-blue-500 mt-0.5">💡 누적 공약제안</p>
+                      </div>
+                    </div>
+
+                    {/* Issue resolution stats */}
+                    <div className="rounded-xl bg-surface border border-border p-3">
+                      <p className="text-xs font-bold text-foreground mb-2">이슈 처리 현황</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted">🔍 검토중</span>
+                          <span className="font-bold text-foreground">{cumulative.issuesByStatus.reviewing}건</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted">📋 공약 제안</span>
+                          <span className="font-bold text-blue-600">{cumulative.issuesByStatus.planned}건</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted">🏛️ 민원 해결</span>
+                          <span className="font-bold text-purple-600">{cumulative.issuesByStatus.complaint_resolved}건</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted">✅ 공약 반영</span>
+                          <span className="font-bold text-green-600">{cumulative.issuesByStatus.adopted}건</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
+                        <span className="text-muted">해결된 이슈</span>
+                        <span className="font-black text-green-600">{cumulative.resolvedIssues}건 / {cumulative.totalIssues}건</span>
+                      </div>
+                    </div>
+
+                    {/* City breakdown */}
+                    {cumulative.cityBreakdown.length > 0 && (
+                      <div className="rounded-xl bg-surface border border-border p-3">
+                        <p className="text-xs font-bold text-foreground mb-2">지역별 누적 현황</p>
+                        <div className="space-y-1.5">
+                          {cumulative.cityBreakdown.slice(0, 8).map(c => {
+                            const maxTotal = cumulative.cityBreakdown[0]?.total || 1;
+                            const pct = Math.round((c.total / maxTotal) * 100);
+                            return (
+                              <div key={c.city}>
+                                <div className="flex items-center justify-between text-xs mb-0.5">
+                                  <span className="font-medium text-foreground">{c.city}</span>
+                                  <span className="text-muted">{c.total.toLocaleString()}건</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"
+                                    style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ── Footer links ── */}
           <div className="flex gap-3 pt-1">
             <Link
-              href="/proposals?type=report"
+              href="/reports"
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-bold hover:bg-orange-100 transition-colors"
             >
               🚨 불편제보 보기
             </Link>
             <Link
-              href="/proposals?type=proposal"
+              href="/suggestions"
               className="flex-1 flex items-center justify-center gap-1 py-3 rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-colors"
             >
               💡 공약제안 보기
