@@ -47,6 +47,7 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
 const STATUS_CONFIG = [
   { value: "접수됨",        label: "📋 접수됨",        bg: "bg-gray-100",   text: "text-gray-700",   border: "border-gray-300" },
   { value: "검토 중",       label: "🔍 검토 중",       bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300" },
+  { value: "민원 해결",     label: "🏛️ 민원 해결",    bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300" },
   { value: "공약 반영 예정", label: "📝 공약 반영 예정", bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300" },
   { value: "공약 반영 완료", label: "✅ 공약 반영 완료", bg: "bg-green-100",  text: "text-green-700",  border: "border-green-300" },
   { value: "반영 불가",     label: "❌ 반영 불가",     bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300" },

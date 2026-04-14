@@ -7,8 +7,16 @@ import { apiError, apiSuccess } from "@/lib/api-utils";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const VALID_STATUSES = ["접수됨", "검토 중", "공약 반영 예정", "공약 반영 완료", "반영 불가"] as const;
+const VALID_STATUSES = ["접수됨", "검토 중", "민원 해결", "공약 반영 예정", "공약 반영 완료", "반영 불가"] as const;
 type ResponseStatus = (typeof VALID_STATUSES)[number];
+
+// Maps response status → adminStatus on the ProposalPost
+const ADMIN_STATUS_MAP: Partial<Record<ResponseStatus, string>> = {
+  "민원 해결":     "complaint_resolved",
+  "공약 반영 예정": "planned",
+  "공약 반영 완료": "adopted",
+  "반영 불가":     "rejected",
+};
 
 /** GET /api/proposals/[id]/responses — list candidate responses for a proposal */
 export async function GET(_req: NextRequest, { params }: RouteContext) {
@@ -112,6 +120,16 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
     console.error("[POST /api/proposals/[id]/responses]", result.error);
     return apiError("답변 등록에 실패했습니다", 500);
+  }
+
+  // Sync adminStatus on the post when response status maps to a stage
+  const mappedAdminStatus = ADMIN_STATUS_MAP[payload.status as ResponseStatus];
+  if (mappedAdminStatus !== undefined) {
+    await supabaseAdmin
+      .from("ProposalPost")
+      .update({ adminStatus: mappedAdminStatus })
+      .eq("id", proposalId)
+      .then(() => {}); // fire-and-forget — don't fail the request if this errors
   }
 
   return apiSuccess(result.data, existing ? 200 : 201);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import StatusStepper from "@/components/proposals/StatusStepper";
 
 const MeTooSection = dynamic(
@@ -179,17 +180,39 @@ export default function ProposalDetailClient({ post }: Props) {
     }
   };
 
+  const isMinwon = post.postType === "민원";
+  const boardHref = isMinwon ? "/reports" : "/suggestions";
+  const boardLabel = isMinwon ? "🚨 불편제보 게시판" : "💡 공약제안 게시판";
+  const accentColor = isMinwon ? "text-orange-600" : "text-amber-600";
+  const accentBorder = isMinwon ? "border-orange-200" : "border-amber-200";
+  const accentBg = isMinwon ? "bg-orange-50" : "bg-amber-50";
+
   return (
-    <article className="bg-surface border border-border rounded-2xl p-6 space-y-5">
+    <article className="bg-surface border border-border rounded-2xl overflow-hidden">
+      {/* Colored top bar */}
+      <div className={`px-5 py-3 border-b ${accentBorder} ${accentBg} flex items-center justify-between`}>
+        <Link
+          href={boardHref}
+          className={`flex items-center gap-1 text-xs font-semibold ${accentColor} hover:underline`}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {boardLabel}
+        </Link>
+        <span className="text-xs text-muted">{relativeTime(post.createdAt)}</span>
+      </div>
+
+      <div className="p-5 space-y-4">
       {/* Header */}
       <div className="space-y-3">
         {/* Type badge */}
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-              post.postType === "민원"
-                ? "bg-red-50 text-red-700 border border-red-200"
-                : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+              isMinwon
+                ? "bg-orange-50 text-orange-700 border border-orange-200"
+                : "bg-amber-50 text-amber-700 border border-amber-200"
             }`}
           >
             {typeEmoji} {typeLabel}
@@ -241,9 +264,6 @@ export default function ProposalDetailClient({ post }: Props) {
             <span className="text-sm font-medium text-muted">{post.authorName}</span>
           )}
           <div className="flex items-center gap-2 ml-auto">
-            <time className="text-xs text-muted" dateTime={post.createdAt}>
-              {relativeTime(post.createdAt)}
-            </time>
             {viewCount != null && viewCount > 0 && (
               <span className="flex items-center gap-1 text-xs text-muted">
                 <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -256,13 +276,12 @@ export default function ProposalDetailClient({ post }: Props) {
         </div>
       </div>
 
-      {/* Progress stepper — only for 민원 type */}
-      {post.postType === "민원" && (
-        <StatusStepper
-          adminStatus={post.adminStatus}
-          className="pt-1"
-        />
-      )}
+      {/* Progress stepper */}
+      <StatusStepper
+        adminStatus={post.adminStatus}
+        postType={post.postType}
+        className="pt-1"
+      />
 
       {/* Divider */}
       <hr className="border-border" />
@@ -527,6 +546,7 @@ export default function ProposalDetailClient({ post }: Props) {
           originalPostId={post.parentId ?? null}
         />
       )}
+      </div>{/* end inner p-5 */}
     </article>
   );
 }

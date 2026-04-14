@@ -250,16 +250,6 @@ export default function WeeklyStatsPage() {
 
   return (
     <div className="max-w-xl mx-auto pb-12">
-      {/* ── Mode Tab Bar ── */}
-      <div className="flex rounded-xl overflow-hidden border border-border text-xs font-bold mb-1">
-        {(["weekly", "daily", "total"] as const).map(m => (
-          <button key={m} onClick={() => setMode(m)}
-            className={`flex-1 py-2.5 transition-colors ${mode === m ? "bg-orange-500 text-white" : "bg-surface text-muted hover:bg-background"}`}>
-            {m === "weekly" ? "📅 주간" : m === "daily" ? "📆 일간" : "📊 전체"}
-          </button>
-        ))}
-      </div>
-
       {/* ── Date Navigation (weekly/daily only) ── */}
       {mode === "total" ? (
         <div className="flex items-center justify-center py-3 mb-2">

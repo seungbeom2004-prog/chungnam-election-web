@@ -54,8 +54,8 @@ interface Props {
   weekOffset: number;
   targetMonday: Date;
   targetSunday: Date;
-  mode?: "daily" | "weekly";
-  onModeChange?: (m: "daily" | "weekly") => void;
+  mode?: "daily" | "weekly" | "total";
+  onModeChange?: (m: "daily" | "weekly" | "total") => void;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -707,6 +707,7 @@ export default function WeeklyCardNewsCarousel({ data, weekOffset, targetMonday,
             <div style={{ display: "flex", gap: 6 }}>
               <FilterChip label="📊 주간" active={mode === "weekly"} onClick={() => onModeChange("weekly")} />
               <FilterChip label="📅 일간" active={mode === "daily"} onClick={() => onModeChange("daily")} />
+              <FilterChip label="📈 전체" active={mode === "total"} onClick={() => onModeChange("total")} />
             </div>
           </div>
         )}
