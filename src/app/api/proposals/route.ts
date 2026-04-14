@@ -4,8 +4,9 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+// All DB access uses the service-role client (server-side only)
+const supabase = supabaseAdmin;
 import { createProposalSchema } from "@/lib/validations";
 import { apiSuccess, apiError, apiValidationError } from "@/lib/api-utils";
 import { verifyRecaptcha } from "@/app/api/captcha/route";

@@ -169,7 +169,8 @@ export default function ProposalBoardClient({ candidates }: Props) {
         <span className="font-black text-red-500 text-sm">📢 불편제보</span>
         {minwonCount !== null && <span className="text-xs text-muted bg-background border border-border rounded-full px-2 py-0.5">{minwonCount}건</span>}
         {(todayMinwonCount ?? 0) > 0 && <span className="text-[10px] text-green-600 font-semibold">오늘 +{todayMinwonCount}</span>}
-        {selectedCity && <button onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }} className="ml-auto text-xs text-muted hover:text-foreground">✕ {selectedCity}</button>}
+        <Link href="/reports" className="ml-auto text-[10px] text-orange-500 font-bold hover:underline whitespace-nowrap">게시판 →</Link>
+        {selectedCity && <button onClick={() => { setSelectedCity(""); setSelectedCandidateId(""); }} className="text-xs text-muted hover:text-foreground">✕ {selectedCity}</button>}
       </div>
 
       {/* City filter buttons */}
@@ -200,6 +201,9 @@ export default function ProposalBoardClient({ candidates }: Props) {
       </button>
       <ProposalRanking postType="민원" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(1); listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
       <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="민원" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} search={search || undefined} />
+      <Link href="/reports" className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600 text-xs font-bold transition-colors">
+        📋 불편제보 게시판 전체 보기 →
+      </Link>
     </div>
   );
 
@@ -210,6 +214,7 @@ export default function ProposalBoardClient({ candidates }: Props) {
         <span className="font-black text-amber-500 text-sm">💡 공약제안</span>
         {proposalCount !== null && <span className="text-xs text-muted bg-background border border-border rounded-full px-2 py-0.5">{proposalCount}건</span>}
         {(todayProposalCount ?? 0) > 0 && <span className="text-[10px] text-green-600 font-semibold">오늘 +{todayProposalCount}</span>}
+        <Link href="/suggestions" className="text-[10px] text-amber-500 font-bold hover:underline whitespace-nowrap">게시판 →</Link>
         {/* Candidate filter */}
         <div className="ml-auto">
           <select value={selectedCandidateId} onChange={e => setSelectedCandidateId(e.target.value)}
@@ -229,6 +234,9 @@ export default function ProposalBoardClient({ candidates }: Props) {
       </button>
       <ProposalRanking postType="제안" refreshKey={rankingRefreshKey} onSelect={() => { setActiveTab(2); }} />
       <ProposalList candidateId={selectedCandidateId || undefined} city={selectedCity || undefined} postType="제안" showForm={false} onRankingRefresh={() => setRankingRefreshKey(k => k + 1)} isCandidate={isCandidate} candidateName={candidateName} search={search || undefined} />
+      <Link href="/suggestions" className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-bold transition-colors">
+        📋 공약제안 게시판 전체 보기 →
+      </Link>
     </div>
   );
 

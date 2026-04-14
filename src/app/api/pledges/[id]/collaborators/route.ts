@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+const supabase = supabaseAdmin;
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
 // GET /api/pledges/[id]/collaborators — List collaborators for a pledge
