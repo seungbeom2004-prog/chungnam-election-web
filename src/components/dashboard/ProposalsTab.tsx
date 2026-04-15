@@ -47,7 +47,11 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
 const STATUS_CONFIG = [
   { value: "접수됨",        label: "📋 접수됨",        bg: "bg-gray-100",   text: "text-gray-700",   border: "border-gray-300" },
   { value: "검토 중",       label: "🔍 검토 중",       bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300" },
+  // ── 민원 해결 트랙 ─────────────────────────────────────────────
+  { value: "민원 접수",     label: "📨 민원 접수",     bg: "bg-indigo-100", text: "text-indigo-700", border: "border-indigo-300" },
   { value: "민원 해결",     label: "🏛️ 민원 해결",    bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300" },
+  { value: "민원 실패",     label: "⚠️ 민원 실패",    bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300" },
+  // ── 공약 반영 트랙 ─────────────────────────────────────────────
   { value: "공약 반영 예정", label: "📝 공약 반영 예정", bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300" },
   { value: "공약 반영 완료", label: "✅ 공약 반영 완료", bg: "bg-green-100",  text: "text-green-700",  border: "border-green-300" },
   { value: "반영 불가",     label: "❌ 반영 불가",     bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300" },
@@ -65,6 +69,26 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── 답변 패널 ───────────────────────────────────────────────────────────────
+
+// 민원 트랙과 공약 트랙을 분리한 상태 그룹
+const STATUS_GROUPS_MINWON = [
+  {
+    label: "🏛️ 민원 직접 해결 트랙",
+    items: STATUS_CONFIG.filter(s => ["접수됨","검토 중","민원 접수","민원 해결","민원 실패"].includes(s.value)),
+  },
+  {
+    label: "📋 공약으로 해결 트랙",
+    items: STATUS_CONFIG.filter(s => ["공약 반영 예정","공약 반영 완료","반영 불가"].includes(s.value)),
+  },
+];
+
+const STATUS_GROUPS_PLEDGE = [
+  {
+    label: "처리 상태",
+    items: STATUS_CONFIG.filter(s => !["민원 접수","민원 해결","민원 실패"].includes(s.value)),
+  },
+];
+
 function ResponsePanel({
   proposalId,
   pledgeProposalId,
@@ -72,6 +96,7 @@ function ResponsePanel({
   pledges,
   onSaved,
   onClose,
+  postType,
 }: {
   proposalId?: string;
   pledgeProposalId?: string;
@@ -79,6 +104,7 @@ function ResponsePanel({
   pledges: Pledge[];
   onSaved: () => void;
   onClose: () => void;
+  postType?: string | null;
 }) {
   const [loading, setLoading] = useState(!initialResponse && !!pledgeProposalId);
   const [existing, setExisting] = useState<ProposalResponse | undefined>(initialResponse);
@@ -158,25 +184,29 @@ function ResponsePanel({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-2.5">
-        {/* Status buttons */}
-        <div>
-          <p className="text-[11px] text-muted mb-1.5 font-medium">처리 상태</p>
-          <div className="flex flex-wrap gap-1.5">
-            {STATUS_CONFIG.map(s => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => setStatus(s.value)}
-                className={`px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors ${
-                  status === s.value
-                    ? `${s.bg} ${s.text} ${s.border}`
-                    : "bg-surface text-muted border-border hover:bg-background"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+        {/* Status buttons — grouped by track */}
+        <div className="space-y-2">
+          {(postType === "민원" ? STATUS_GROUPS_MINWON : STATUS_GROUPS_PLEDGE).map(group => (
+            <div key={group.label}>
+              <p className="text-[10px] text-muted mb-1 font-semibold">{group.label}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.items.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setStatus(s.value)}
+                    className={`px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors ${
+                      status === s.value
+                        ? `${s.bg} ${s.text} ${s.border}`
+                        : "bg-surface text-muted border-border hover:bg-background"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Pledge link (공약 반영 완료) */}
@@ -363,6 +393,7 @@ function MinwonCard({
           proposalId={proposal.id}
           initialResponse={myResponse}
           pledges={pledges}
+          postType={proposal.postType ?? "민원"}
           onSaved={() => { setShowResponsePanel(false); onRefresh(); }}
           onClose={() => setShowResponsePanel(false)}
         />

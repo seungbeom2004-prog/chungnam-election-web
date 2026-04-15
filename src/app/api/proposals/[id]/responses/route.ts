@@ -7,15 +7,24 @@ import { apiError, apiSuccess } from "@/lib/api-utils";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const VALID_STATUSES = ["접수됨", "검토 중", "민원 해결", "공약 반영 예정", "공약 반영 완료", "반영 불가"] as const;
+const VALID_STATUSES = [
+  "접수됨", "검토 중",
+  "민원 접수",   // complaint submitted to city hall
+  "민원 해결",   // complaint resolved by city
+  "민원 실패",   // city failed to resolve
+  "공약 반영 예정", "공약 반영 완료",
+  "반영 불가",
+] as const;
 type ResponseStatus = (typeof VALID_STATUSES)[number];
 
 // Maps response status → adminStatus on the ProposalPost
 const ADMIN_STATUS_MAP: Partial<Record<ResponseStatus, string>> = {
-  "민원 해결":     "complaint_resolved",
+  "민원 접수":    "complaint_received",
+  "민원 해결":    "complaint_resolved",
+  "민원 실패":    "complaint_failed",
   "공약 반영 예정": "planned",
   "공약 반영 완료": "adopted",
-  "반영 불가":     "rejected",
+  "반영 불가":    "rejected",
 };
 
 /** GET /api/proposals/[id]/responses — list candidate responses for a proposal */
