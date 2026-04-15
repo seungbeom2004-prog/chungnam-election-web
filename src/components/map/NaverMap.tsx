@@ -17,6 +17,7 @@ export interface ProposalMapItem {
   likeCount: number;
   postType?: string;
   createdAt?: string;
+  adminStatus?: string | null;
   candidateId?: string | null;
   candidateName?: string | null;
 }
@@ -377,16 +378,17 @@ function isAtCityCenter(lat: number, lng: number): string | null {
 }
 
 /** Citizen proposal/민원 pin — simple dot at low zoom, icon+title at high zoom */
-function buildProposalDotHTML(postType?: string): string {
+function buildProposalDotHTML(postType?: string, opacity = 1): string {
   const color = postType === "민원" ? "#EF4444" : "#FACC15";
+  const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
   return (
-    `<div style="width:20px;height:20px;border-radius:50%;background:${color};` +
+    `<div style="${opacityStyle}width:20px;height:20px;border-radius:50%;background:${color};` +
     `border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);cursor:pointer;` +
     `animation:markerFadeIn 0.15s ease-out both;"></div>`
   );
 }
 
-function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null): string {
+function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null, opacity = 1): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
   const textColor = isMinwon ? "white" : "#111";
@@ -397,8 +399,9 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     ? `<div style="margin-top:2px;background:#3B82F6;color:white;font-size:8px;font-weight:700;` +
       `padding:1px 5px;border-radius:4px;white-space:nowrap;">후보자 작성</div>`
     : "";
+  const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
   return (
-    `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
+    `<div style="${opacityStyle}display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="position:relative;width:36px;height:36px;background:${color};border-radius:50%;` +
@@ -1124,9 +1127,17 @@ export default function NaverMap({
           // Individual marker
           const proposal = cluster.properties.proposal;
           const isSelected = selectedId === proposal.id;
+
+          // Fade older 불편제보 — 0 days = 1.0, 90+ days = 0.35
+          const ageOpacity = (() => {
+            if (!proposal.createdAt) return 1;
+            const daysOld = (Date.now() - new Date(proposal.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+            return Math.max(0.35, 1 - daysOld * (0.65 / 90));
+          })();
+
           const markerHtml = (showLabel || isSelected)
-            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId)
-            : buildProposalDotHTML(proposal.postType);
+            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId, ageOpacity)
+            : buildProposalDotHTML(proposal.postType, ageOpacity);
           const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
           const marker = new naver.maps.Marker({
             map,
