@@ -57,7 +57,8 @@ export async function GET() {
 
     if (recentErr) throw recentErr;
 
-    return NextResponse.json({
+    // Cache at Vercel Edge for 2 min, stale for 5 min
+    const res = NextResponse.json({
       topIssues: topIssues ?? [],
       cityBreakdown,
       categoryBreakdown,
@@ -65,6 +66,8 @@ export async function GET() {
       totalReports,
       recentIssues: recentIssues ?? [],
     });
+    res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+    return res;
   } catch (err: unknown) {
     console.error("[GET /api/issues/stats] Error:", err);
     const message = err instanceof Error ? err.message : String(err);

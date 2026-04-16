@@ -8,9 +8,13 @@ const rateStore = new Map<string, { count: number; resetAt: number }>();
 function edgeRateLimit(key: string, max: number, windowMs: number): boolean {
   const now = Date.now();
   const rec = rateStore.get(key);
+  // Evict oldest 20% when store grows too large (O(1) amortised — no full scan)
   if (rateStore.size > 5000) {
-    for (const [k, v] of rateStore) {
-      if (now > v.resetAt) rateStore.delete(k);
+    const toDelete = Math.ceil(rateStore.size * 0.2);
+    let deleted = 0;
+    for (const k of rateStore.keys()) {
+      rateStore.delete(k);
+      if (++deleted >= toDelete) break;
     }
   }
   if (!rec || now > rec.resetAt) {
@@ -36,7 +40,7 @@ function checkAuthBan(ip: string): boolean {
   return true; // IP is still banned
 }
 
-// ── Security event in-memory log (last 500 events) ──────────
+// ── Security event in-memory log (last 500 events, circular buffer) ─────────
 interface SecurityEvent {
   type: string;
   ip: string;
@@ -45,22 +49,45 @@ interface SecurityEvent {
   details: string;
   timestamp: number;
 }
-const securityLog: SecurityEvent[] = [];
 const MAX_LOG = 500;
+const securityLog: (SecurityEvent | undefined)[] = new Array(MAX_LOG);
+let _logHead = 0; // next write index (wraps around)
+let _logCount = 0; // total events written (capped at MAX_LOG)
 
 function logSecurity(event: Omit<SecurityEvent, "timestamp">) {
-  securityLog.push({ ...event, timestamp: Date.now() });
-  if (securityLog.length > MAX_LOG) securityLog.shift();
+  securityLog[_logHead] = { ...event, timestamp: Date.now() };
+  _logHead = (_logHead + 1) % MAX_LOG;
+  if (_logCount < MAX_LOG) _logCount++;
+}
+
+/** Read all valid entries from the circular buffer in chronological order */
+function readSecurityLog(): SecurityEvent[] {
+  const entries: SecurityEvent[] = [];
+  if (_logCount < MAX_LOG) {
+    // Buffer not yet full — entries are from index 0 to _logCount-1
+    for (let i = 0; i < _logCount; i++) {
+      const e = securityLog[i];
+      if (e) entries.push(e);
+    }
+  } else {
+    // Buffer is full — oldest entry is at _logHead, newest is at _logHead-1
+    for (let i = 0; i < MAX_LOG; i++) {
+      const e = securityLog[(_logHead + i) % MAX_LOG];
+      if (e) entries.push(e);
+    }
+  }
+  return entries;
 }
 
 // Export for the security report API
 export function getSecurityLog(): SecurityEvent[] {
-  return [...securityLog];
+  return readSecurityLog();
 }
 
 export function getSecurityStats() {
   const now = Date.now();
-  const last24h = securityLog.filter((e) => now - e.timestamp < 86_400_000);
+  const allEntries = readSecurityLog();
+  const last24h = allEntries.filter((e) => now - e.timestamp < 86_400_000);
   const last1h = last24h.filter((e) => now - e.timestamp < 3_600_000);
 
   const byType: Record<string, number> = {};

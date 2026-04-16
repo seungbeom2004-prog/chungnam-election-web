@@ -34,7 +34,10 @@ export async function GET() {
     };
     checks.status = "healthy";
 
-    return NextResponse.json(checks);
+    // Cache health check at edge for 60s — no need to hit DB on every monitoring ping
+    const res = NextResponse.json(checks);
+    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    return res;
   } catch (error) {
     checks.database = {
       connected: false,

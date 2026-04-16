@@ -305,5 +305,13 @@ export async function GET(request: NextRequest) {
     } catch { /* ignore cache write failures */ }
   }
 
-  return NextResponse.json(responsePayload);
+  const res = NextResponse.json(responsePayload);
+  if (isPastWeek) {
+    // Past weeks never change — cache at Vercel Edge for 24h
+    res.headers.set("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800");
+  } else {
+    // Current week — short cache (2 min) so fresh data shows quickly
+    res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+  }
+  return res;
 }

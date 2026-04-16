@@ -158,13 +158,21 @@ export async function GET(request: NextRequest) {
       enriched.sort((a, b) => (b.likeCount as number) - (a.likeCount as number));
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       data: enriched,
       total: count ?? 0,
       limit,
       offset,
     });
+
+    // Cache public list queries at Vercel Edge for 30s.
+    // Skip caching for candidate-specific or search queries (private/dynamic).
+    if (!candidateId && !search) {
+      res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    }
+
+    return res;
   } catch (error) {
     console.error("[GET /api/proposals]", error);
     return apiError("제안 목록을 불러올 수 없습니다", 500);

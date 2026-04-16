@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   try {
     // 1. Total post counts by type
@@ -74,7 +72,8 @@ export async function GET() {
       .map(([date, v]) => ({ date, ...v }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    return NextResponse.json({
+    // Cache at Vercel Edge for 3 min — cumulative stats don't need real-time precision
+    const res = NextResponse.json({
       totalReports,
       totalProposals,
       totalPosts: totalReports + totalProposals,
@@ -84,6 +83,8 @@ export async function GET() {
       cityBreakdown,
       dailyTrend,
     });
+    res.headers.set("Cache-Control", "public, s-maxage=180, stale-while-revalidate=360");
+    return res;
   } catch (err) {
     console.error("[GET /api/cumulative-stats]", err);
     return NextResponse.json({ error: "통계 로드 실패" }, { status: 500 });
