@@ -70,6 +70,9 @@ export default function AdminProposalsPage() {
   // Anonymize state
   const [anonymizeLoading, setAnonymizeLoading] = useState<string | null>(null);
 
+  // Bulk action state
+  const [bulkLoading, setBulkLoading] = useState<string | null>(null);
+
   // Link modal state
   const [linkTarget, setLinkTarget] = useState<Proposal | null>(null);
   const [linkSearch, setLinkSearch] = useState("");
@@ -317,6 +320,68 @@ export default function AdminProposalsPage() {
     });
   };
 
+  const toggleSelectAll = () => {
+    if (mergeSelected.size === proposals.length) {
+      setMergeSelected(new Set());
+    } else {
+      setMergeSelected(new Set(proposals.map((p) => p.id)));
+    }
+  };
+
+  const bulkAction = async (action: string, ids: string[]) => {
+    if (ids.length === 0) return;
+    const confirmMessages: Record<string, string> = {
+      delete: `선택한 ${ids.length}개 글을 삭제하시겠습니까?`,
+    };
+    if (confirmMessages[action] && !confirm(confirmMessages[action])) return;
+
+    setBulkLoading(action);
+
+    // Optimistic UI — update local state immediately
+    setProposals((prev) => {
+      switch (action) {
+        case "hide":        return prev.map((p) => ids.includes(p.id) ? { ...p, status: "hidden" }  : p);
+        case "restore":     return prev.map((p) => ids.includes(p.id) ? { ...p, status: "pending" } : p);
+        case "delete":      return prev.filter((p) => !ids.includes(p.id));
+        case "hide_stats":  return prev.map((p) => ids.includes(p.id) ? { ...p, adminStatus: "hide_stats" } : p);
+        case "show_stats":  return prev.map((p) => ids.includes(p.id) && p.adminStatus === "hide_stats" ? { ...p, adminStatus: null } : p);
+        default:            return prev;
+      }
+    });
+
+    // Deselect and close detail if it was one of the affected posts
+    setMergeSelected(new Set());
+    if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+
+    try {
+      const res = await fetch("/api/admin/proposals/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, action }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const actionLabels: Record<string, string> = {
+          hide: "숨김 처리",
+          restore: "복원",
+          delete: "삭제",
+          hide_stats: "현황판 제외",
+          show_stats: "현황판 표시",
+        };
+        showMessage(`${actionLabels[action] ?? action} 완료: ${json.updated ?? ids.length}개`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showMessage(err.error ?? "일괄 처리에 실패했습니다.");
+        fetchProposals(); // rollback
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+      fetchProposals();
+    } finally {
+      setBulkLoading(null);
+    }
+  };
+
   const submitMerge = async () => {
     if (mergeSelected.size < 2) return;
     setMergeLoading(true);
@@ -383,34 +448,76 @@ export default function AdminProposalsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-foreground">게시판 관리</h1>
-        <div className="flex gap-2">
+        <button
+          onClick={fetchProposals}
+          className="text-xs text-muted hover:text-foreground px-3 py-1.5 border border-border rounded-lg"
+        >
+          새로고침
+        </button>
+      </div>
+
+      {/* ── Bulk action toolbar — shown when anything is selected ── */}
+      {mergeSelected.size > 0 && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-xl flex-wrap">
+          <span className="text-xs font-bold text-primary shrink-0">{mergeSelected.size}개 선택됨</span>
+          <div className="w-px h-4 bg-primary/20 shrink-0" />
+          {/* Status actions */}
+          <button
+            onClick={() => bulkAction("hide", Array.from(mergeSelected))}
+            disabled={!!bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading === "hide" ? "처리 중..." : "🙈 숨김"}
+          </button>
+          <button
+            onClick={() => bulkAction("restore", Array.from(mergeSelected))}
+            disabled={!!bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading === "restore" ? "처리 중..." : "♻️ 복원"}
+          </button>
+          <button
+            onClick={() => bulkAction("hide_stats", Array.from(mergeSelected))}
+            disabled={!!bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading === "hide_stats" ? "처리 중..." : "📊 현황판 제외"}
+          </button>
+          <button
+            onClick={() => bulkAction("show_stats", Array.from(mergeSelected))}
+            disabled={!!bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading === "show_stats" ? "처리 중..." : "📊 현황판 표시"}
+          </button>
+          <button
+            onClick={() => bulkAction("delete", Array.from(mergeSelected))}
+            disabled={!!bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+          >
+            {bulkLoading === "delete" ? "처리 중..." : "🗑️ 삭제"}
+          </button>
+          <div className="w-px h-4 bg-primary/20 shrink-0" />
+          {/* Merge (existing feature) */}
           {mergeSelected.size >= 2 && (
             <button
               onClick={submitMerge}
-              disabled={mergeLoading}
-              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
+              disabled={mergeLoading || !!bulkLoading}
+              className="text-xs bg-blue-600 text-white px-2.5 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
             >
-              {mergeLoading ? "병합 중..." : `선택 병합 (${mergeSelected.size}개)`}
-            </button>
-          )}
-          {mergeSelected.size > 0 && (
-            <button
-              onClick={() => setMergeSelected(new Set())}
-              className="text-xs text-muted border border-border px-3 py-1.5 rounded-lg"
-            >
-              선택 해제
+              {mergeLoading ? "병합 중..." : "🔀 병합"}
             </button>
           )}
           <button
-            onClick={fetchProposals}
-            className="text-xs text-muted hover:text-foreground px-3 py-1.5 border border-border rounded-lg"
+            onClick={() => setMergeSelected(new Set())}
+            className="text-xs text-muted border border-border px-2.5 py-1.5 rounded-lg hover:text-foreground ml-auto"
           >
-            새로고침
+            선택 해제
           </button>
         </div>
-      </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -440,31 +547,60 @@ export default function AdminProposalsPage() {
       ) : (
         <div className="flex gap-4" style={{ minHeight: "calc(100vh - 220px)" }}>
           {/* ── Left: Compact List ──────────────────────────── */}
-          <div className="w-[420px] shrink-0 overflow-y-auto border border-border rounded-xl bg-white" style={{ maxHeight: "calc(100vh - 220px)" }}>
-            {proposals.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedId(p.id)}
-                className={`w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors hover:bg-primary/5 ${
-                  selectedId === p.id ? "bg-primary/10 border-l-2 border-l-primary" : ""
-                } ${mergeSelected.has(p.id) ? "ring-1 ring-inset ring-blue-400" : ""}`}
-              >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <input
-                    type="checkbox"
-                    checked={mergeSelected.has(p.id)}
-                    onChange={(e) => { e.stopPropagation(); toggleMergeSelect(p.id); }}
-                    className="shrink-0"
-                    title="병합 선택"
-                  />
-                  {postTypeBadge(p.postType)}
-                  {statusLabel(p.status)}
-                  <span className="text-[10px] text-muted ml-auto">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
+          <div className="w-[420px] shrink-0 flex flex-col border border-border rounded-xl bg-white overflow-hidden" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            {/* List header with select-all */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 bg-gray-50 shrink-0">
+              <input
+                type="checkbox"
+                checked={proposals.length > 0 && mergeSelected.size === proposals.length}
+                ref={(el) => { if (el) el.indeterminate = mergeSelected.size > 0 && mergeSelected.size < proposals.length; }}
+                onChange={toggleSelectAll}
+                className="shrink-0 accent-primary cursor-pointer"
+                title="전체 선택"
+              />
+              <span className="text-[11px] text-muted flex-1">
+                {mergeSelected.size > 0 ? `${mergeSelected.size}개 선택됨` : `총 ${proposals.length}개`}
+              </span>
+              {mergeSelected.size > 0 && (
+                <span className="text-[10px] text-primary font-semibold">↑ 위 툴바에서 일괄 처리</span>
+              )}
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {proposals.map((p) => (
+                <div
+                  key={p.id}
+                  className={`flex items-stretch border-b border-border/50 transition-colors hover:bg-primary/5 ${
+                    selectedId === p.id ? "bg-primary/10" : ""
+                  } ${mergeSelected.has(p.id) ? "bg-primary/8 border-l-2 border-l-primary" : ""}`}
+                >
+                  {/* Checkbox column */}
+                  <label className="flex items-center px-2.5 cursor-pointer shrink-0 hover:bg-primary/10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={mergeSelected.has(p.id)}
+                      onChange={() => toggleMergeSelect(p.id)}
+                      className="accent-primary cursor-pointer"
+                    />
+                  </label>
+                  {/* Content button */}
+                  <button
+                    className="flex-1 text-left px-2 py-2.5 min-w-0"
+                    onClick={() => setSelectedId(p.id === selectedId ? null : p.id)}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      {postTypeBadge(p.postType)}
+                      {statusLabel(p.status)}
+                      {p.adminStatus === "hide_stats" && (
+                        <span className="px-1.5 py-0.5 text-[9px] bg-orange-100 text-orange-600 rounded-full">현황판 제외</span>
+                      )}
+                      <span className="text-[10px] text-muted ml-auto">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
+                    </div>
+                    <p className="text-sm font-medium text-foreground truncate">{p.title || p.content.slice(0, 40)}</p>
+                    <p className="text-[11px] text-muted truncate">{p.authorName} · {p.city ?? "미지정"}</p>
+                  </button>
                 </div>
-                <p className="text-sm font-medium text-foreground truncate">{p.title || p.content.slice(0, 40)}</p>
-                <p className="text-[11px] text-muted truncate">{p.authorName} · {p.city ?? "미지정"}</p>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* ── Right: Detail Panel ────────────────────────── */}
