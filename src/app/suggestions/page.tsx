@@ -28,6 +28,7 @@ interface Post {
   createdAt: string;
   latitude?: number | null;
   longitude?: number | null;
+  responses?: { candidateId: string; candidateName: string | null }[];
 }
 
 function formatRelative(dateString: string): string {
@@ -228,10 +229,15 @@ function BoardPage() {
                   <tr key={post.id} className="border-b border-border hover:bg-amber-50/40 transition-colors group">
                     <td className="py-1.5 px-2 text-center text-muted hidden sm:table-cell">{num}</td>
                     <td className="py-1.5 px-2">
-                      <Link href={`/proposals/${post.id}`}
-                        className="font-medium text-foreground group-hover:text-amber-600 transition-colors line-clamp-1 block">
-                        {getTitle(post)}
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <Link href={`/proposals/${post.id}`}
+                          className="font-medium text-foreground group-hover:text-amber-600 transition-colors line-clamp-1">
+                          {getTitle(post)}
+                        </Link>
+                        {post.responses && post.responses.length > 0 && (
+                          <span className="shrink-0 text-[10px] text-green-600 font-semibold whitespace-nowrap">✅ 후보자 답변완료</span>
+                        )}
+                      </div>
                       {post.dong && <span className="text-muted text-[10px]">📍 {post.dong}</span>}
                     </td>
                     <td className="py-1.5 px-2 text-center text-muted hidden sm:table-cell">

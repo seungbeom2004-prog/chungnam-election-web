@@ -402,6 +402,157 @@ function MinwonCard({
   );
 }
 
+// ─── 민원 테이블 행 (compact list view) ─────────────────────────────────────
+function MinwonRow({
+  proposal,
+  candidateId,
+  index,
+  pledges,
+  onAction,
+  isPending,
+  onRefresh,
+  onReply,
+  onRegisterAsPledge,
+  isExpanded,
+  onToggle,
+}: {
+  proposal: ProposalPost;
+  candidateId: string;
+  index: number;
+  pledges: Pledge[];
+  onAction: (id: string, action: "accept" | "delete") => void;
+  isPending: boolean;
+  onRefresh: () => void;
+  onReply?: (proposal: ProposalPost) => void;
+  onRegisterAsPledge?: (data: { title: string; description: string }) => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const myResponse = proposal.responses?.find(r => r.candidateId === candidateId);
+  const [showResponsePanel, setShowResponsePanel] = useState(false);
+
+  useEffect(() => {
+    if (!isExpanded) setShowResponsePanel(false);
+  }, [isExpanded]);
+
+  const title = proposal.title
+    ? proposal.title
+    : proposal.content.length > 40 ? proposal.content.slice(0, 40) + "…" : proposal.content;
+
+  return (
+    <>
+      <tr
+        onClick={onToggle}
+        className={`border-b border-border cursor-pointer transition-colors select-none ${
+          isExpanded ? "bg-red-50" : "hover:bg-red-50/40"
+        }`}
+      >
+        <td className="py-1.5 px-2 text-center text-muted hidden sm:table-cell">{index}</td>
+        <td className="py-1.5 px-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-medium text-foreground line-clamp-1 flex-1 min-w-0">{title}</span>
+            <span className="shrink-0">
+              {myResponse
+                ? <StatusBadge status={myResponse.status} />
+                : <span className="text-[10px] text-muted border border-border rounded-full px-1.5 py-0.5">미답변</span>
+              }
+            </span>
+          </div>
+          {proposal.dong && <span className="text-muted text-[10px]">📍 {proposal.dong}</span>}
+        </td>
+        <td className="py-1.5 px-2 text-center text-muted hidden sm:table-cell">
+          {proposal.city ? proposal.city.replace("시", "").replace("군", "") : "-"}
+        </td>
+        <td className="py-1.5 px-2 text-center text-muted truncate max-w-[64px]">{proposal.authorName}</td>
+        <td className="py-1.5 px-2 text-center text-muted whitespace-nowrap">{relativeTime(proposal.createdAt)}</td>
+        <td className="py-1.5 px-2 text-center text-muted">{(proposal.likeCount ?? 0) > 0 ? proposal.likeCount : ""}</td>
+      </tr>
+      {isExpanded && (
+        <tr className="bg-red-50/60 border-b border-red-200">
+          <td colSpan={6} className="px-3 py-3" onClick={e => e.stopPropagation()}>
+            {/* Full content */}
+            <div className="mb-3">
+              {proposal.title && (
+                <h4 className="text-sm font-bold text-foreground mb-1">{proposal.title}</h4>
+              )}
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{proposal.content}</p>
+              {proposal.likeCount != null && proposal.likeCount > 0 && (
+                <p className="text-xs text-muted mt-1">공감 {proposal.likeCount}명</p>
+              )}
+            </div>
+
+            {/* Existing response preview */}
+            {myResponse && !showResponsePanel && (
+              <div className="mb-3 p-2.5 bg-white rounded-lg border border-red-100 text-xs text-foreground">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <StatusBadge status={myResponse.status} />
+                  <span className="text-muted">내 답변</span>
+                </div>
+                <p className="whitespace-pre-wrap line-clamp-3">{myResponse.content}</p>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2 flex-wrap mb-2">
+              {proposal.status !== "accepted" && (
+                <button
+                  onClick={() => onAction(proposal.id, "accept")}
+                  disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
+                >채택</button>
+              )}
+              <button
+                onClick={() => setShowResponsePanel(v => !v)}
+                disabled={isPending}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-60 ${
+                  myResponse
+                    ? "text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
+                    : "text-foreground border-border bg-white hover:bg-background"
+                }`}
+              >
+                {showResponsePanel ? "✕ 닫기" : myResponse ? "💬 답변 수정" : "💬 답변하기"}
+              </button>
+              {onReply && (
+                <button
+                  onClick={() => onReply(proposal)}
+                  disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-60"
+                >💡 공약 제안</button>
+              )}
+              {onRegisterAsPledge && (
+                <button
+                  onClick={() => onRegisterAsPledge({
+                    title: proposal.title || proposal.content.slice(0, 40),
+                    description: proposal.content,
+                  })}
+                  disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-60"
+                >📋 공약 등록</button>
+              )}
+              <button
+                onClick={() => onAction(proposal.id, "delete")}
+                disabled={isPending}
+                className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
+              >삭제</button>
+            </div>
+
+            {showResponsePanel && (
+              <ResponsePanel
+                proposalId={proposal.id}
+                initialResponse={myResponse}
+                pledges={pledges}
+                postType={proposal.postType ?? "민원"}
+                onSaved={() => { setShowResponsePanel(false); onRefresh(); }}
+                onClose={() => setShowResponsePanel(false)}
+              />
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 // ─── 공약 제안 카드 ──────────────────────────────────────────────────────────
 function PledgeProposalCard({
   item,
@@ -787,6 +938,8 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [replyToMinwon, setReplyToMinwon] = useState<ProposalPost | null>(null);
   const [proposalFormError, setProposalFormError] = useState<string | null>(null);
+  const [expandedMinwonId, setExpandedMinwonId] = useState<string | null>(null);
+  const [showOnlyUnanswered, setShowOnlyUnanswered] = useState(false);
 
   // ── 근처 게시물 ────────────────────────────────────────────────────────────
   const [candidateLat, setCandidateLat] = useState<number | null>(pinLat ?? null);
@@ -926,6 +1079,8 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
 
   const minwons          = proposals.filter((p) => p.postType === "민원");
   const generalProposals = proposals.filter((p) => p.postType !== "민원");
+  const unansweredMinwons = minwons.filter(p => !p.responses?.some(r => r.candidateId === candidateId));
+  const displayedMinwons = showOnlyUnanswered ? unansweredMinwons : minwons;
   const visitorPledgeProposals   = pledgeProposals.filter((p) => p.authorType === "visitor");
   const candidatePledgeProposals = pledgeProposals.filter((p) => p.authorType === "candidate");
 
@@ -986,33 +1141,76 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
       {/* ── 민원 탭 ─────────────────────────────────────────────────────── */}
       {activeTab === "minwon" && (
         <section>
+          {/* 필터 바 */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => setShowOnlyUnanswered(false)}
+              className={`px-2.5 py-1 text-xs rounded-full font-semibold transition-colors border ${
+                !showOnlyUnanswered
+                  ? "bg-red-500 border-red-500 text-white"
+                  : "border-border text-muted hover:border-red-300 hover:text-red-600"
+              }`}
+            >
+              전체 {minwons.length}
+            </button>
+            <button
+              onClick={() => setShowOnlyUnanswered(true)}
+              className={`px-2.5 py-1 text-xs rounded-full font-semibold transition-colors border ${
+                showOnlyUnanswered
+                  ? "bg-red-500 border-red-500 text-white"
+                  : "border-border text-muted hover:border-red-300 hover:text-red-600"
+              }`}
+            >
+              미답변 {unansweredMinwons.length}
+            </button>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : minwons.length === 0 ? (
+          ) : displayedMinwons.length === 0 ? (
             <div className="py-8 text-center border border-border rounded-xl bg-surface">
-              <p className="text-sm text-muted">받은 민원이 없습니다.</p>
+              <p className="text-sm text-muted">
+                {showOnlyUnanswered ? "미답변 민원이 없습니다. 👏" : "받은 민원이 없습니다."}
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {minwons.map((p) => (
-                <MinwonCard
-                  key={p.id}
-                  proposal={p}
-                  candidateId={candidateId}
-                  pledges={pledges}
-                  onAction={handleProposalAction}
-                  isPending={actionPending.has(p.id)}
-                  onRefresh={fetchProposals}
-                  onReply={(minwon) => {
-                    setReplyToMinwon(minwon);
-                    setShowProposalForm(true);
-                    setProposalFormError(null);
-                  }}
-                  onRegisterAsPledge={onRegisterAsPledge}
-                />
-              ))}
+            <div className="border border-border rounded-xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-red-50 border-b border-border text-muted">
+                    <th className="py-2 px-2 text-center font-semibold w-10 hidden sm:table-cell">번호</th>
+                    <th className="py-2 px-2 text-left font-semibold">제목 / 답변상태</th>
+                    <th className="py-2 px-2 text-center font-semibold w-14 hidden sm:table-cell">지역</th>
+                    <th className="py-2 px-2 text-center font-semibold w-14">작성자</th>
+                    <th className="py-2 px-2 text-center font-semibold w-12">날짜</th>
+                    <th className="py-2 px-2 text-center font-semibold w-8">👍</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedMinwons.map((p, idx) => (
+                    <MinwonRow
+                      key={p.id}
+                      proposal={p}
+                      candidateId={candidateId}
+                      index={displayedMinwons.length - idx}
+                      pledges={pledges}
+                      onAction={handleProposalAction}
+                      isPending={actionPending.has(p.id)}
+                      onRefresh={fetchProposals}
+                      isExpanded={expandedMinwonId === p.id}
+                      onToggle={() => setExpandedMinwonId(v => v === p.id ? null : p.id)}
+                      onReply={(minwon) => {
+                        setReplyToMinwon(minwon);
+                        setShowProposalForm(true);
+                        setProposalFormError(null);
+                      }}
+                      onRegisterAsPledge={onRegisterAsPledge}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
