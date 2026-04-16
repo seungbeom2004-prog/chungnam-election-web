@@ -78,6 +78,8 @@ export default function AdminIssuesPage() {
   const [postSearch, setPostSearch] = useState("");
   const [postsLoading, setPostsLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState<string | null>(null);
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [bulkAssignLoading, setBulkAssignLoading] = useState(false);
 
   // Inline expand for assigned posts
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
@@ -205,6 +207,8 @@ export default function AdminIssuesPage() {
     });
     setEditTab("info");
     setAssignTarget(issue);
+    setSelectedPostIds(new Set());
+    setPostSearch("");
     fetchPosts();
   };
 
@@ -325,19 +329,55 @@ export default function AdminIssuesPage() {
     }
   };
 
+  const togglePostSelection = (id: string) => {
+    setSelectedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkAssignPosts = async () => {
+    if (!assignTarget || selectedPostIds.size === 0) return;
+    setBulkAssignLoading(true);
+    try {
+      const res = await fetch(`/api/admin/issues/${assignTarget.id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postIds: [...selectedPostIds] }),
+      });
+      if (res.ok) {
+        showMessage(`${selectedPostIds.size}개 게시물이 배정되었습니다.`);
+        setSelectedPostIds(new Set());
+        await refreshAssignTarget(assignTarget.id);
+        // Refresh posts list so issueId is up to date
+        const postsRes = await fetch("/api/admin/proposals?limit=200");
+        const postsJson = await postsRes.json();
+        setPosts(postsJson.data ?? []);
+      } else {
+        const json = await res.json();
+        showMessage(json.error ?? "배정에 실패했습니다.");
+      }
+    } catch {
+      showMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setBulkAssignLoading(false);
+    }
+  };
+
   const assignedPostIds = new Set(assignTarget?.assignedPosts?.map((p) => p.id) ?? []);
 
-  const filteredPosts = postSearch
-    ? posts.filter(
-        (p) =>
-          !assignedPostIds.has(p.id) &&
-          ((p.title ?? "").toLowerCase().includes(postSearch.toLowerCase()) ||
-            p.content.toLowerCase().includes(postSearch.toLowerCase()))
-      )
-    : [];
+  const filteredPosts = posts.filter(
+    (p) =>
+      !assignedPostIds.has(p.id) &&
+      (postSearch
+        ? (p.title ?? "").toLowerCase().includes(postSearch.toLowerCase()) ||
+          p.content.toLowerCase().includes(postSearch.toLowerCase())
+        : true)
+  );
 
-  // Orphan posts (not assigned to any issue)
-  const orphanPosts = posts.filter((p) => !p.issueId);
+  // Orphan posts (not assigned to any issue) — already filtered by search above when postSearch is set
+  const orphanPosts = posts.filter((p) => !p.issueId && !assignedPostIds.has(p.id));
 
   // ── AI Functions ──────────────────────────────────────────────────
   const generateAiSummary = async () => {
@@ -967,76 +1007,109 @@ export default function AdminIssuesPage() {
                     )}
                   </div>
 
+                  {/* Bulk action bar */}
+                  {selectedPostIds.size > 0 && (
+                    <div className="flex items-center gap-3 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+                      <span className="text-xs font-semibold text-primary flex-1">
+                        {selectedPostIds.size}개 선택됨
+                      </span>
+                      <button
+                        onClick={() => setSelectedPostIds(new Set())}
+                        className="text-xs text-muted hover:text-foreground transition-colors"
+                      >
+                        선택 해제
+                      </button>
+                      <button
+                        onClick={bulkAssignPosts}
+                        disabled={bulkAssignLoading}
+                        className="px-3 py-1.5 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {bulkAssignLoading ? "배정 중..." : `+ ${selectedPostIds.size}개 이슈에 추가`}
+                      </button>
+                    </div>
+                  )}
+
                   {/* Search posts to assign */}
                   <div>
-                    <p className="text-xs font-semibold text-foreground mb-2">게시물 검색 & 배정</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-xs font-semibold text-foreground flex-1">게시물 검색 & 배정</p>
+                      {postsLoading && <span className="text-[10px] text-muted">불러오는 중...</span>}
+                    </div>
                     <input
                       type="text"
-                      placeholder="제목 또는 내용으로 게시물 검색..."
+                      placeholder="제목 또는 내용 검색 (비워두면 전체 표시)..."
                       value={postSearch}
                       onChange={(e) => setPostSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground mb-2"
                     />
-                    {postsLoading && <p className="text-xs text-muted mt-2">게시물 불러오는 중...</p>}
-                    {postSearch && (
-                      <div className="space-y-1 mt-2 max-h-48 overflow-y-auto">
-                        {filteredPosts.length === 0 ? (
-                          <p className="text-xs text-muted text-center py-3">일치하는 게시물이 없습니다</p>
-                        ) : (
-                          filteredPosts.slice(0, 20).map((p) => (
-                            <button
-                              key={p.id}
-                              onClick={() => assignPost(p.id)}
-                              disabled={assignLoading === p.id}
-                              className="w-full text-left px-3 py-2 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
-                            >
-                              <div className="flex items-center gap-2">
-                                {postTypeBadge(p.postType)}
-                                <p className="text-xs font-medium text-foreground line-clamp-1 flex-1">
-                                  {p.title || p.content.slice(0, 50)}
-                                </p>
-                              </div>
-                              <p className="text-[10px] text-muted mt-0.5">
-                                {p.authorName} &middot;{" "}
-                                {new Date(p.createdAt).toLocaleDateString("ko-KR")}
-                              </p>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Orphan posts (not assigned to any issue) */}
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-2">
-                      미배정 게시물 ({orphanPosts.length}개)
-                    </p>
-                    <div className="space-y-1 max-h-60 overflow-y-auto">
-                      {orphanPosts.length === 0 ? (
-                        <p className="text-xs text-muted py-2">모든 게시물이 배정되었습니다.</p>
-                      ) : (
-                        orphanPosts.slice(0, 30).map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => assignPost(p.id)}
-                            disabled={assignLoading === p.id}
-                            className="w-full text-left px-3 py-2 rounded-lg border border-amber-200 bg-amber-50/50 hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
-                          >
-                            <div className="flex items-center gap-2">
-                              {postTypeBadge(p.postType)}
-                              <p className="text-xs font-medium text-foreground line-clamp-1 flex-1">
-                                {p.title || p.content.slice(0, 50)}
-                              </p>
-                            </div>
-                            <p className="text-[10px] text-muted mt-0.5">
-                              {p.authorName} &middot;{" "}
-                              {new Date(p.createdAt).toLocaleDateString("ko-KR")}
-                            </p>
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    {/* search results */}
+                    {(() => {
+                      const visible = filteredPosts.slice(0, 50);
+                      if (visible.length === 0) return (
+                        <p className="text-xs text-muted text-center py-3">
+                          {postSearch ? "일치하는 게시물이 없습니다" : "미배정 게시물이 없습니다"}
+                        </p>
+                      );
+                      const allVisibleSelected = visible.every(p => selectedPostIds.has(p.id));
+                      return (
+                        <>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={allVisibleSelected}
+                                ref={el => { if (el) el.indeterminate = !allVisibleSelected && visible.some(p => selectedPostIds.has(p.id)); }}
+                                onChange={() => {
+                                  if (allVisibleSelected) {
+                                    setSelectedPostIds(prev => { const n = new Set(prev); visible.forEach(p => n.delete(p.id)); return n; });
+                                  } else {
+                                    setSelectedPostIds(prev => { const n = new Set(prev); visible.forEach(p => n.add(p.id)); return n; });
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 accent-primary"
+                              />
+                              <span className="text-[11px] text-muted font-medium">전체 선택 ({visible.length}개)</span>
+                            </label>
+                            {postSearch && filteredPosts.length > 50 && (
+                              <span className="text-[10px] text-muted ml-auto">{filteredPosts.length}개 중 50개 표시</span>
+                            )}
+                          </div>
+                          <div className="space-y-1 max-h-56 overflow-y-auto">
+                            {visible.map((p) => {
+                              const isSelected = selectedPostIds.has(p.id);
+                              return (
+                                <label
+                                  key={p.id}
+                                  className={`flex items-start gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors select-none ${
+                                    isSelected
+                                      ? "border-primary bg-primary/5"
+                                      : "border-border hover:border-primary/50 hover:bg-background"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => togglePostSelection(p.id)}
+                                    className="mt-0.5 w-3.5 h-3.5 accent-primary shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {postTypeBadge(p.postType)}
+                                      <p className="text-xs font-medium text-foreground line-clamp-1">
+                                        {p.title || p.content.slice(0, 50)}
+                                      </p>
+                                    </div>
+                                    <p className="text-[10px] text-muted mt-0.5">
+                                      {p.authorName} · {new Date(p.createdAt).toLocaleDateString("ko-KR")}
+                                    </p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
