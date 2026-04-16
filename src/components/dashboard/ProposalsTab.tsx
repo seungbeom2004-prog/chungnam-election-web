@@ -58,6 +58,7 @@ const STATUS_CONFIG = [
 ] as const;
 
 type StatusValue = (typeof STATUS_CONFIG)[number]["value"];
+type DraftData = { status: StatusValue; content: string; pledgeId: string };
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG.find(s => s.value === status) ?? STATUS_CONFIG[0];
@@ -410,11 +411,14 @@ function MinwonRow({
   pledges,
   onAction,
   isPending,
-  onRefresh,
   onReply,
   onRegisterAsPledge,
   isExpanded,
   onToggle,
+  draft,
+  onDraftChange,
+  onImmediateSubmit,
+  isSubmitting,
 }: {
   proposal: ProposalPost;
   candidateId: string;
@@ -422,22 +426,38 @@ function MinwonRow({
   pledges: Pledge[];
   onAction: (id: string, action: "accept" | "delete") => void;
   isPending: boolean;
-  onRefresh: () => void;
   onReply?: (proposal: ProposalPost) => void;
   onRegisterAsPledge?: (data: { title: string; description: string }) => void;
   isExpanded: boolean;
   onToggle: () => void;
+  draft: DraftData | undefined;
+  onDraftChange: (id: string, d: DraftData) => void;
+  onImmediateSubmit: (id: string) => Promise<void>;
+  isSubmitting: boolean;
 }) {
   const myResponse = proposal.responses?.find(r => r.candidateId === candidateId);
-  const [showResponsePanel, setShowResponsePanel] = useState(false);
+  const hasDraftContent = (draft?.content.trim().length ?? 0) >= 5;
 
+  // Initialise draft state when row first opens (or when response updates externally)
   useEffect(() => {
-    if (!isExpanded) setShowResponsePanel(false);
+    if (!isExpanded || draft !== undefined) return;
+    onDraftChange(proposal.id, {
+      status: (myResponse?.status as StatusValue) ?? "접수됨",
+      content: myResponse?.content ?? "",
+      pledgeId: myResponse?.pledgeId ?? "",
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
   const title = proposal.title
     ? proposal.title
     : proposal.content.length > 40 ? proposal.content.slice(0, 40) + "…" : proposal.content;
+
+  const curStatus  = draft?.status   ?? (myResponse?.status   as StatusValue) ?? "접수됨";
+  const curContent = draft?.content  ?? myResponse?.content   ?? "";
+  const curPledge  = draft?.pledgeId ?? myResponse?.pledgeId  ?? "";
+
+  const hasPendingDraft = !!(draft && draft.content.trim().length >= 5);
 
   return (
     <>
@@ -451,6 +471,9 @@ function MinwonRow({
         <td className="py-1.5 px-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-medium text-foreground line-clamp-1 flex-1 min-w-0">{title}</span>
+            {hasPendingDraft && (
+              <span className="shrink-0 text-[10px] text-blue-600 border border-blue-300 rounded-full px-1.5 py-0.5 bg-blue-50 whitespace-nowrap">✏️ 작성중</span>
+            )}
             <span className="shrink-0">
               {myResponse
                 ? <StatusBadge status={myResponse.status} />
@@ -470,82 +493,99 @@ function MinwonRow({
       {isExpanded && (
         <tr className="bg-red-50/60 border-b border-red-200">
           <td colSpan={6} className="px-3 py-3" onClick={e => e.stopPropagation()}>
+
             {/* Full content */}
             <div className="mb-3">
-              {proposal.title && (
-                <h4 className="text-sm font-bold text-foreground mb-1">{proposal.title}</h4>
-              )}
+              {proposal.title && <h4 className="text-sm font-bold text-foreground mb-1">{proposal.title}</h4>}
               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{proposal.content}</p>
-              {proposal.likeCount != null && proposal.likeCount > 0 && (
+              {(proposal.likeCount ?? 0) > 0 && (
                 <p className="text-xs text-muted mt-1">공감 {proposal.likeCount}명</p>
               )}
             </div>
 
-            {/* Existing response preview */}
-            {myResponse && !showResponsePanel && (
-              <div className="mb-3 p-2.5 bg-white rounded-lg border border-red-100 text-xs text-foreground">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <StatusBadge status={myResponse.status} />
-                  <span className="text-muted">내 답변</span>
-                </div>
-                <p className="whitespace-pre-wrap line-clamp-3">{myResponse.content}</p>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-2 flex-wrap mb-2">
+            {/* Row-level action buttons */}
+            <div className="flex gap-2 flex-wrap mb-3">
               {proposal.status !== "accepted" && (
-                <button
-                  onClick={() => onAction(proposal.id, "accept")}
-                  disabled={isPending}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
-                >채택</button>
+                <button onClick={() => onAction(proposal.id, "accept")} disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60">채택</button>
               )}
-              <button
-                onClick={() => setShowResponsePanel(v => !v)}
-                disabled={isPending}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-60 ${
-                  myResponse
-                    ? "text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
-                    : "text-foreground border-border bg-white hover:bg-background"
-                }`}
-              >
-                {showResponsePanel ? "✕ 닫기" : myResponse ? "💬 답변 수정" : "💬 답변하기"}
-              </button>
               {onReply && (
-                <button
-                  onClick={() => onReply(proposal)}
-                  disabled={isPending}
-                  className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-60"
-                >💡 공약 제안</button>
+                <button onClick={() => onReply(proposal)} disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-60">💡 공약 제안</button>
               )}
               {onRegisterAsPledge && (
-                <button
-                  onClick={() => onRegisterAsPledge({
-                    title: proposal.title || proposal.content.slice(0, 40),
-                    description: proposal.content,
-                  })}
-                  disabled={isPending}
-                  className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-60"
-                >📋 공약 등록</button>
+                <button onClick={() => onRegisterAsPledge({ title: proposal.title || proposal.content.slice(0, 40), description: proposal.content })} disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-60">📋 공약 등록</button>
               )}
-              <button
-                onClick={() => onAction(proposal.id, "delete")}
-                disabled={isPending}
-                className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
-              >삭제</button>
+              <button onClick={() => onAction(proposal.id, "delete")} disabled={isPending}
+                className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60">삭제</button>
             </div>
 
-            {showResponsePanel && (
-              <ResponsePanel
-                proposalId={proposal.id}
-                initialResponse={myResponse}
-                pledges={pledges}
-                postType={proposal.postType ?? "민원"}
-                onSaved={() => { setShowResponsePanel(false); onRefresh(); }}
-                onClose={() => setShowResponsePanel(false)}
-              />
-            )}
+            {/* ── 인라인 답변 폼 ── */}
+            <div className="pt-3 border-t border-dashed border-gray-200 space-y-2.5">
+              <p className="text-xs font-semibold text-foreground">
+                💬 {myResponse ? "답변 수정" : "답변 작성"}
+                {myResponse && <span className="ml-2 font-normal text-[10px] text-muted">저장된 답변이 있습니다</span>}
+              </p>
+
+              {/* 상태 그룹 버튼 */}
+              <div className="space-y-2">
+                {STATUS_GROUPS_MINWON.map(group => (
+                  <div key={group.label}>
+                    <p className="text-[10px] text-muted mb-1 font-semibold">{group.label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.items.map(s => (
+                        <button key={s.value} type="button"
+                          onClick={() => onDraftChange(proposal.id, { status: s.value, content: curContent, pledgeId: curPledge })}
+                          className={`px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors ${
+                            curStatus === s.value
+                              ? `${s.bg} ${s.text} ${s.border}`
+                              : "bg-surface text-muted border-border hover:bg-background"
+                          }`}
+                        >{s.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 연결 공약 */}
+              {curStatus === "공약 반영 완료" && pledges.length > 0 && (
+                <div>
+                  <label className="text-[11px] text-muted mb-1 block font-medium">연결 공약 (선택)</label>
+                  <select value={curPledge}
+                    onChange={e => onDraftChange(proposal.id, { status: curStatus, content: curContent, pledgeId: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">연결할 공약 선택</option>
+                    {pledges.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* 답변 내용 */}
+              <div>
+                <textarea
+                  value={curContent}
+                  onChange={e => onDraftChange(proposal.id, { status: curStatus, content: e.target.value, pledgeId: curPledge })}
+                  placeholder="제보자에게 전달할 답변을 작성하세요 (5자 이상)"
+                  rows={3}
+                  maxLength={2000}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                />
+                <p className="text-[10px] text-muted text-right mt-0.5">{curContent.length}/2000</p>
+              </div>
+
+              {/* 바로 등록 버튼 */}
+              <button
+                type="button"
+                onClick={() => onImmediateSubmit(proposal.id)}
+                disabled={isSubmitting || !hasDraftContent}
+                className="w-full py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-60"
+              >
+                {isSubmitting ? "저장 중…" : myResponse ? "✅ 바로 수정" : "✅ 바로 등록"}
+              </button>
+            </div>
           </td>
         </tr>
       )}
@@ -940,6 +980,8 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
   const [proposalFormError, setProposalFormError] = useState<string | null>(null);
   const [expandedMinwonId, setExpandedMinwonId] = useState<string | null>(null);
   const [showOnlyUnanswered, setShowOnlyUnanswered] = useState(false);
+  const [rowDrafts, setRowDrafts] = useState<Map<string, DraftData>>(() => new Map());
+  const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set());
 
   // ── 근처 게시물 ────────────────────────────────────────────────────────────
   const [candidateLat, setCandidateLat] = useState<number | null>(pinLat ?? null);
@@ -1077,10 +1119,67 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
     finally { setPpActionPending((s) => { const n = new Set(s); n.delete(id); return n; }); }
   };
 
+  // ── 드래프트 관리 ────────────────────────────────────────────────────────────
+  const setDraft = useCallback((id: string, data: DraftData) => {
+    setRowDrafts(prev => new Map(prev).set(id, data));
+  }, []);
+
+  // 로컬 상태에 응답 즉시 반영 (서버 재조회 없이)
+  const applyResponseLocally = useCallback((id: string, data: DraftData) => {
+    setProposals(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const others = (p.responses ?? []).filter(r => r.candidateId !== candidateId);
+      const next: ProposalResponse = {
+        id: p.responses?.find(r => r.candidateId === candidateId)?.id ?? `local-${Date.now()}`,
+        proposalId: id,
+        candidateId,
+        candidateName: candidateName ?? "",
+        candidateProfileImage: null,
+        status: data.status,
+        content: data.content,
+        pledgeId: data.status === "공약 반영 완료" ? (data.pledgeId || null) : null,
+        createdAt: new Date().toISOString(),
+      };
+      return { ...p, responses: [...others, next] };
+    }));
+  }, [candidateId, candidateName]);
+
+  // 단일 행 즉시 등록
+  const submitRow = useCallback(async (id: string) => {
+    const draft = rowDrafts.get(id);
+    if (!draft || draft.content.trim().length < 5) return;
+    setSubmittingIds(s => new Set(s).add(id));
+    try {
+      const res = await fetch(`/api/proposals/${id}/responses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: draft.status,
+          content: draft.content.trim(),
+          pledgeId: draft.status === "공약 반영 완료" ? (draft.pledgeId || null) : null,
+        }),
+      });
+      if (res.ok) {
+        applyResponseLocally(id, draft);
+        setRowDrafts(prev => { const n = new Map(prev); n.delete(id); return n; });
+      }
+    } catch { /* ignore */ }
+    finally { setSubmittingIds(s => { const n = new Set(s); n.delete(id); return n; }); }
+  }, [rowDrafts, applyResponseLocally]);
+
+  // 전부 등록
+  const submitAllDrafts = async () => {
+    const validIds = [...rowDrafts.entries()]
+      .filter(([, d]) => d.content.trim().length >= 5)
+      .map(([id]) => id);
+    await Promise.all(validIds.map(id => submitRow(id)));
+  };
+
   const minwons          = proposals.filter((p) => p.postType === "민원");
   const generalProposals = proposals.filter((p) => p.postType !== "민원");
   const unansweredMinwons = minwons.filter(p => !p.responses?.some(r => r.candidateId === candidateId));
   const displayedMinwons = showOnlyUnanswered ? unansweredMinwons : minwons;
+  const submittableDraftsCount = [...rowDrafts.values()].filter(d => d.content.trim().length >= 5).length;
   const visitorPledgeProposals   = pledgeProposals.filter((p) => p.authorType === "visitor");
   const candidatePledgeProposals = pledgeProposals.filter((p) => p.authorType === "candidate");
 
@@ -1142,7 +1241,7 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
       {activeTab === "minwon" && (
         <section>
           {/* 필터 바 */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <button
               onClick={() => setShowOnlyUnanswered(false)}
               className={`px-2.5 py-1 text-xs rounded-full font-semibold transition-colors border ${
@@ -1163,6 +1262,24 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
             >
               미답변 {unansweredMinwons.length}
             </button>
+            <div className="ml-auto flex items-center gap-2">
+              {submittableDraftsCount > 0 && (
+                <button
+                  onClick={submitAllDrafts}
+                  disabled={submittingIds.size > 0}
+                  className="px-3 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1"
+                >
+                  ✅ 전부 등록 ({submittableDraftsCount})
+                </button>
+              )}
+              <button
+                onClick={fetchProposals}
+                disabled={loading}
+                className="px-3 py-1 text-xs font-semibold text-muted border border-border rounded-lg hover:bg-background transition-colors disabled:opacity-60"
+              >
+                {loading ? "⏳" : "🔄"} 목록 업데이트
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -1198,9 +1315,12 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                       pledges={pledges}
                       onAction={handleProposalAction}
                       isPending={actionPending.has(p.id)}
-                      onRefresh={fetchProposals}
                       isExpanded={expandedMinwonId === p.id}
                       onToggle={() => setExpandedMinwonId(v => v === p.id ? null : p.id)}
+                      draft={rowDrafts.get(p.id)}
+                      onDraftChange={setDraft}
+                      onImmediateSubmit={submitRow}
+                      isSubmitting={submittingIds.has(p.id)}
                       onReply={(minwon) => {
                         setReplyToMinwon(minwon);
                         setShowProposalForm(true);
