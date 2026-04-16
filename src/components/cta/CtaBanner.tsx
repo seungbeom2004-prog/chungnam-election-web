@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+
+function matchesPage(targetPages: string[], pathname: string): boolean {
+  for (const pattern of targetPages) {
+    if (pattern === "*") return true;
+    if (pattern === pathname) return true;
+    if (pattern.endsWith("*") && pathname.startsWith(pattern.slice(0, -1))) return true;
+  }
+  return false;
+}
 
 interface Issue {
   id: string;
@@ -57,11 +66,30 @@ function markShown(configId: string): void {
   }
 }
 
+// Module-level cache: single fetch result reused across route changes.
+// TTL matches server s-maxage (60 s) so we don't over-fetch.
+let _configsCache: { configs: CtaConfig[]; fetchedAt: number } | null = null;
+const CONFIGS_TTL_MS = 60_000;
+
+async function fetchAllConfigs(): Promise<CtaConfig[]> {
+  const now = Date.now();
+  if (_configsCache && now - _configsCache.fetchedAt < CONFIGS_TTL_MS) {
+    return _configsCache.configs;
+  }
+  const res = await fetch("/api/cta/config");
+  if (!res.ok) return [];
+  const data = await res.json();
+  const configs: CtaConfig[] = data.configs ?? [];
+  _configsCache = { configs, fetchedAt: now };
+  return configs;
+}
+
 export default function CtaBanner() {
   const pathname = usePathname();
   const [config, setConfig] = useState<CtaConfig | null>(null);
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isExcluded =
     pathname.startsWith("/admin") ||
@@ -80,33 +108,29 @@ export default function CtaBanner() {
     setConfig(null);
     setVisible(false);
     setDismissed(false);
-
-    let timer: ReturnType<typeof setTimeout>;
+    if (timerRef.current) clearTimeout(timerRef.current);
 
     const init = async () => {
       try {
-        const res = await fetch(
-          `/api/cta/config?page=${encodeURIComponent(pathname)}`
+        // One fetch for all pages — client-side page matching
+        const allConfigs = await fetchAllConfigs();
+        const matching = allConfigs.find((cfg) =>
+          matchesPage(cfg.targetPages ?? ["*"], pathname)
         );
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data.config) return;
+        if (!matching || !canShow(matching)) return;
 
-        const cfg: CtaConfig = data.config;
-        if (!canShow(cfg)) return;
-
-        timer = setTimeout(() => {
-          setConfig(cfg);
+        timerRef.current = setTimeout(() => {
+          setConfig(matching);
           setVisible(true);
-          markShown(cfg.id);
-        }, cfg.triggerDelay * 1000);
+          markShown(matching.id);
+        }, matching.triggerDelay * 1000);
       } catch {
         // silent fail
       }
     };
 
     init();
-    return () => clearTimeout(timer);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [pathname, isExcluded]);
 
   if (isExcluded || dismissed || !config) return null;

@@ -1,21 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const dynamic = "force-dynamic";
-
-function matchesPage(targetPages: string[], pathname: string): boolean {
-  for (const pattern of targetPages) {
-    if (pattern === "*") return true;
-    if (pattern === pathname) return true;
-    if (pattern.endsWith("*") && pathname.startsWith(pattern.slice(0, -1))) return true;
-  }
-  return false;
-}
-
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const page = searchParams.get("page") || "/";
-
+// Return ALL active CTA configs + their issues in one cached response.
+// Page-matching is done client-side, so this endpoint has a single cache key
+// instead of one per URL — dramatically reducing Fluid Active CPU usage.
+export async function GET() {
   const { data: configs, error } = await supabaseAdmin
     .from("CtaConfig")
     .select("*")
@@ -23,19 +12,15 @@ export async function GET(request: NextRequest) {
     .order("createdAt", { ascending: false });
 
   if (error || !configs || configs.length === 0) {
-    return NextResponse.json({ config: null });
+    const res = NextResponse.json({ configs: [] });
+    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    return res;
   }
 
-  const matching = configs.find((cfg) =>
-    matchesPage(cfg.targetPages ?? ["*"], page)
-  );
-
-  if (!matching) {
-    return NextResponse.json({ config: null });
-  }
-
+  // Fetch issues for configs that need them (single query, all issue IDs)
+  const needsIssues = configs.some((c) => c.showIssues);
   let issues: { id: string; title: string; city: string | null; reportCount: number }[] = [];
-  if (matching.showIssues) {
+  if (needsIssues) {
     const { data: issueData } = await supabaseAdmin
       .from("Issue")
       .select("id, title, city, reportCount")
@@ -45,5 +30,13 @@ export async function GET(request: NextRequest) {
     issues = issueData ?? [];
   }
 
-  return NextResponse.json({ config: { ...matching, issues } });
+  const result = configs.map((cfg) => ({
+    ...cfg,
+    issues: cfg.showIssues ? issues : [],
+  }));
+
+  const res = NextResponse.json({ configs: result });
+  // Cache at CDN for 60 s — single cache key for all pages
+  res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+  return res;
 }

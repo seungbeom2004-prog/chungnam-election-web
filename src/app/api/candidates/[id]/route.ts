@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
@@ -32,7 +32,10 @@ export async function GET(
       .eq("visible", true)
       .order("createdAt", { ascending: false });
 
-    return apiSuccess({ ...candidate, pledges: pledges ?? [] });
+    const res = NextResponse.json({ success: true, data: { ...candidate, pledges: pledges ?? [] } });
+    // Candidate profiles and pledges change infrequently — cache at CDN for 2 min
+    res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+    return res;
   } catch (error) {
     console.error("[GET /api/candidates/:id]", error);
     return apiError("후보 정보를 불러올 수 없습니다", 500);

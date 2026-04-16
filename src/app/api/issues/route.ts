@@ -55,5 +55,8 @@ export async function GET(request: NextRequest) {
     proposalCount: proposalCounts[issue.id] ?? 0,
   }));
 
-  return NextResponse.json({ data: result });
+  const res = NextResponse.json({ data: result });
+  // Issues change infrequently — cache at CDN for 60 s
+  res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+  return res;
 }
