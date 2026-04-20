@@ -51,15 +51,21 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
       .map(([ip, count]) => ({ ip, count }));
 
-    // Security configuration summary
+    // Security configuration summary (mirrors middleware.ts PUBLIC_API_RATE_LIMITS)
     const securityConfig = {
       rateLimits: {
-        globalPerMinute: 200,
-        pledgesPerMinute: 60,
-        candidatesPerMinute: 60,
-        registrationsPerHour: 5,
-        authPerMinute: 20,
-        uploadsPerMinute: 10,
+        "전체 (글로벌)": "200 req/min",
+        "인증 (/api/auth)": "20 req/min",
+        "업로드 (/api/upload)": "10 req/min",
+        "회원가입 (/api/register)": "5 req/hour",
+        "AI 엔드포인트 (/api/ai)": "8 req/min",
+        "제안·민원 (/api/proposals)": "30 req/min",
+        "공약 제안 (/api/pledge-proposals)": "30 req/min",
+        "reCAPTCHA (/api/recaptcha)": "20 req/min",
+        "페이지 추적 (/api/track)": "60 req/min",
+        "공약 (/api/pledges)": "60 req/min",
+        "후보 (/api/candidates)": "60 req/min",
+        "NEC API (/api/nec)": "30 req/min",
       },
       protections: {
         csp: true,
@@ -73,6 +79,11 @@ export async function GET(request: NextRequest) {
         inputValidation: "Zod schema validation",
         passwordHashing: "bcryptjs (cost: 12)",
         sessionStrategy: "JWT (30-min expiry)",
+        captchaSecret: "env var (no hardcoded fallback)",
+        aiEndpointAuth: "admin session required",
+        necApiKey: "env var only (no hardcoded fallback)",
+        backupPathTraversal: "regex whitelist",
+        adminSecretFailClosed: true,
       },
       blockedPatterns: {
         userAgents: [
@@ -86,6 +97,50 @@ export async function GET(request: NextRequest) {
           "etc/passwd", "cgi-bin",
         ],
       },
+      patches: [
+        {
+          date: "2026-04-20",
+          severity: "critical",
+          file: "api/captcha/route.ts",
+          description: "하드코딩된 CAPTCHA fallback 시크릿 제거 — 프로덕션 fail-closed 처리",
+        },
+        {
+          date: "2026-04-20",
+          severity: "critical",
+          file: "api/admin/nec-sync/route.ts",
+          description: "소스코드에 노출된 NEC API 키 하드코딩 제거 — env var 전용으로 변경",
+        },
+        {
+          date: "2026-04-20",
+          severity: "critical",
+          file: "api/admin/backup/route.ts",
+          description: "백업 파일명 path traversal 방어 강화 — 정규식 whitelist 적용",
+        },
+        {
+          date: "2026-04-20",
+          severity: "critical",
+          file: "api/admin/security/route.ts",
+          description: "ADMIN_SECRET 미설정 시 x-admin-secret 헤더 인증 fail-closed 처리",
+        },
+        {
+          date: "2026-04-20",
+          severity: "high",
+          file: "api/ai/summarize-issue/route.ts",
+          description: "Gemini AI 호출 엔드포인트에 관리자 세션 인증 추가",
+        },
+        {
+          date: "2026-04-20",
+          severity: "high",
+          file: "api/ai/suggest-new-issues/route.ts",
+          description: "Gemini AI 호출 엔드포인트에 관리자 세션 인증 추가",
+        },
+        {
+          date: "2026-04-20",
+          severity: "high",
+          file: "middleware.ts",
+          description: "/api/ai (8/min), /api/proposals (30/min), /api/recaptcha (20/min), /api/track (60/min) rate limit 신규 추가",
+        },
+      ],
     };
 
     return apiSuccess({
