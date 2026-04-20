@@ -84,6 +84,9 @@ export async function GET(request: NextRequest) {
         necApiKey: "env var only (no hardcoded fallback)",
         backupPathTraversal: "regex whitelist",
         adminSecretFailClosed: true,
+        slowlorisConnectionFlood: "40 req/5s → 5분 자동 차단 + Connection: close",
+        slowlorisConnectionClose: "모든 429 응답에 Connection: close 헤더",
+        slowlorisCustomServer: "server.ts — headersTimeout 10s / requestTimeout 30s / keepAlive 5s / maxConn 500",
       },
       blockedPatterns: {
         userAgents: [
@@ -139,6 +142,18 @@ export async function GET(request: NextRequest) {
           severity: "high",
           file: "middleware.ts",
           description: "/api/ai (8/min), /api/proposals (30/min), /api/recaptcha (20/min), /api/track (60/min) rate limit 신규 추가",
+        },
+        {
+          date: "2026-04-20",
+          severity: "high",
+          file: "middleware.ts",
+          description: "Slowloris 방어: 5초 내 40회 초과 요청 IP → 5분 자동 차단 + Connection: close 헤더, 모든 429 응답에 Connection: close 추가",
+        },
+        {
+          date: "2026-04-20",
+          severity: "high",
+          file: "server.ts",
+          description: "커스텀 Node.js 서버 추가 (VPS/로컬용): headersTimeout 10s, requestTimeout 30s, keepAliveTimeout 5s, maxConnections 500",
         },
       ],
     };

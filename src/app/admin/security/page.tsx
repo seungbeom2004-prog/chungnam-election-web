@@ -47,6 +47,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   suspicious_path: "의심 경로",
   payload_blocked: "페이로드 차단",
   unauthorized_access: "미승인 접근",
+  connection_flood: "연결 폭주 (Slowloris)",
   suspicious: "의심 활동",
 };
 
@@ -58,6 +59,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   suspicious_path: "bg-purple-100 text-purple-800",
   payload_blocked: "bg-pink-100 text-pink-800",
   unauthorized_access: "bg-orange-100 text-orange-800",
+  connection_flood: "bg-red-200 text-red-900",
   suspicious: "bg-gray-100 text-gray-800",
 };
 
@@ -85,6 +87,9 @@ const PROTECTION_LABELS: Record<string, string> = {
   necApiKey: "NEC API 키 보관",
   backupPathTraversal: "백업 파일명 검증",
   adminSecretFailClosed: "관리자 시크릿 fail-closed",
+  slowlorisConnectionFlood: "Slowloris 연결 폭주 감지·차단",
+  slowlorisConnectionClose: "429 응답 Connection: close",
+  slowlorisCustomServer: "커스텀 서버 타임아웃 (VPS/로컬)",
 };
 
 // Checklist items that are always shown regardless of API data
@@ -105,6 +110,9 @@ const STATIC_CHECKLIST = [
   { done: true,  text: "NEC API 키 env var 전용 (소스코드 노출 제거)" },
   { done: true,  text: "백업 파일명 정규식 whitelist (path traversal 차단)" },
   { done: true,  text: "관리자 시크릿 미설정 시 fail-closed 처리" },
+  { done: true,  text: "Slowloris: 5초 내 40회 초과 IP → 5분 자동 ban" },
+  { done: true,  text: "Slowloris: 모든 429 응답에 Connection: close 헤더" },
+  { done: true,  text: "Slowloris: 커스텀 서버 타임아웃 설정 (server.ts)" },
   { done: false, text: "macOS 방화벽 활성화 (스텔스 모드 권장)" },
   { done: false, text: "NEC API 키 재발급 (기존 키 소스 노출 이력)" },
 ];
@@ -180,8 +188,8 @@ export default function SecurityPage() {
           <p className="text-2xl font-bold text-yellow-600">{data.stats.byType["rate_limit"] ?? 0}</p>
         </Card>
         <Card>
-          <p className="text-xs text-muted mb-1">의심 경로</p>
-          <p className="text-2xl font-bold text-purple-600">{data.stats.byType["suspicious_path"] ?? 0}</p>
+          <p className="text-xs text-muted mb-1">연결 폭주 (Slowloris)</p>
+          <p className="text-2xl font-bold text-red-800">{data.stats.byType["connection_flood"] ?? 0}</p>
         </Card>
       </div>
 
@@ -338,6 +346,59 @@ export default function SecurityPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          </Card>
+
+          {/* Slowloris Protection */}
+          <Card>
+            <h2 className="text-sm font-semibold text-foreground mb-1">Slowloris DDoS 방어</h2>
+            <p className="text-xs text-muted mb-3">
+              Slowloris는 수백 개의 HTTP 연결을 느리게 열어 서버 연결 풀을 고갈시키는 공격입니다.
+              다층 방어로 차단합니다.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Layer 1 */}
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1.5">
+                <p className="text-xs font-semibold text-red-800">레이어 1 — Edge 연결 폭주 감지</p>
+                <div className="space-y-1 text-xs text-red-700">
+                  <div className="flex justify-between"><span>감지 창</span><code className="font-mono">5초</code></div>
+                  <div className="flex justify-between"><span>임계값</span><code className="font-mono">40 req/창</code></div>
+                  <div className="flex justify-between"><span>자동 차단</span><code className="font-mono">5분 ban</code></div>
+                  <div className="flex justify-between"><span>응답 헤더</span><code className="font-mono">Connection: close</code></div>
+                </div>
+                <p className="text-[10px] text-red-600 mt-1">미들웨어에서 처리 · Vercel Edge에서 동작</p>
+              </div>
+              {/* Layer 2 */}
+              <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl space-y-1.5">
+                <p className="text-xs font-semibold text-orange-800">레이어 2 — 모든 429 응답 연결 종료</p>
+                <div className="space-y-1 text-xs text-orange-700">
+                  <div className="flex justify-between"><span>적용 범위</span><code className="font-mono">모든 rate-limit 응답</code></div>
+                  <div className="flex justify-between"><span>헤더</span><code className="font-mono">Connection: close</code></div>
+                  <div className="flex justify-between"><span>효과</span><span>TCP 소켓 즉시 해제</span></div>
+                </div>
+                <p className="text-[10px] text-orange-600 mt-1">연결 풀 점유 방지</p>
+              </div>
+              {/* Layer 3 */}
+              <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-xl space-y-1.5">
+                <p className="text-xs font-semibold text-yellow-800">레이어 3 — Node.js 서버 타임아웃 <span className="font-normal">(VPS/로컬)</span></p>
+                <div className="space-y-1 text-xs text-yellow-700">
+                  <div className="flex justify-between"><span>헤더 수신 제한</span><code className="font-mono">10초</code></div>
+                  <div className="flex justify-between"><span>요청 전체 제한</span><code className="font-mono">30초</code></div>
+                  <div className="flex justify-between"><span>Keep-Alive 유지</span><code className="font-mono">5초</code></div>
+                  <div className="flex justify-between"><span>최대 동시 연결</span><code className="font-mono">500개</code></div>
+                </div>
+                <p className="text-[10px] text-yellow-600 mt-1">server.ts · Vercel은 인프라에서 처리</p>
+              </div>
+              {/* Vercel note */}
+              <div className="p-3 bg-green-50 border border-green-100 rounded-xl space-y-1.5">
+                <p className="text-xs font-semibold text-green-800">Vercel 인프라 기본 보호</p>
+                <div className="space-y-1 text-xs text-green-700">
+                  <div className="flex items-start gap-1.5"><span className="shrink-0">✓</span><span>TCP 연결 관리 (Edge Network)</span></div>
+                  <div className="flex items-start gap-1.5"><span className="shrink-0">✓</span><span>DDoS 자동 완화</span></div>
+                  <div className="flex items-start gap-1.5"><span className="shrink-0">✓</span><span>함수 실행 시간 제한 (maxDuration)</span></div>
+                </div>
+                <p className="text-[10px] text-green-600 mt-1">레이어 1·2가 애플리케이션 레벨 보완</p>
+              </div>
             </div>
           </Card>
 

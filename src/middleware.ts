@@ -40,6 +40,50 @@ function checkAuthBan(ip: string): boolean {
   return true; // IP is still banned
 }
 
+// ── Slowloris / connection-flood detection ────────────────────
+// Slowloris sends many partial/slow HTTP requests to exhaust connection pools.
+// We track the number of requests each IP makes within a short window (5 s).
+// Real users rarely exceed SLOWLORIS_MAX_REQ requests in 5 seconds; automated
+// floods always do. Detected IPs are auto-banned for 5 minutes.
+const SLOWLORIS_WINDOW_MS  = 5_000;  // sliding window length
+const SLOWLORIS_MAX_REQ    = 40;     // max requests per IP per window
+const SLOWLORIS_BAN_MS     = 300_000; // 5-minute auto-ban on detection
+
+// Also track MISSING Host header — Slowloris tools often omit it
+const SLOWLORIS_BAN_REASON = "Slowloris/connection-flood detected";
+
+const connFloodStore = new Map<string, { count: number; windowEnd: number }>();
+
+function detectConnectionFlood(ip: string): boolean {
+  const now = Date.now();
+  // Periodic eviction — keep map bounded
+  if (connFloodStore.size > 3_000) {
+    const toDelete = Math.ceil(connFloodStore.size * 0.25);
+    let n = 0;
+    for (const k of connFloodStore.keys()) {
+      connFloodStore.delete(k);
+      if (++n >= toDelete) break;
+    }
+  }
+  const rec = connFloodStore.get(ip);
+  if (!rec || now > rec.windowEnd) {
+    connFloodStore.set(ip, { count: 1, windowEnd: now + SLOWLORIS_WINDOW_MS });
+    return false;
+  }
+  rec.count++;
+  return rec.count > SLOWLORIS_MAX_REQ;
+}
+
+export function getSlowlorisStats() {
+  return {
+    windowMs: SLOWLORIS_WINDOW_MS,
+    maxReqPerWindow: SLOWLORIS_MAX_REQ,
+    banDurationMs: SLOWLORIS_BAN_MS,
+    trackedIps: connFloodStore.size,
+    bannedIps: authFailures.size,
+  };
+}
+
 // ── Security event in-memory log (last 500 events, circular buffer) ─────────
 interface SecurityEvent {
   type: string;
@@ -226,9 +270,36 @@ export async function middleware(request: NextRequest) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // ── 3. Check IP ban (brute-force protection) ───────────────
+  // ── 3. Check IP ban (brute-force / slowloris) ─────────────
   if (checkAuthBan(ip)) {
-    return new NextResponse("Too Many Requests", { status: 429 });
+    return new NextResponse("Too Many Requests", {
+      status: 429,
+      headers: { "Retry-After": "300", "Connection": "close" },
+    });
+  }
+
+  // ── 3.5 Slowloris / connection-flood detection ─────────────
+  // Only gate API + page requests — skip static assets
+  if (pathname.startsWith("/api") || !pathname.includes(".")) {
+    if (detectConnectionFlood(ip)) {
+      // Auto-ban this IP for 5 minutes
+      authFailures.set(ip, { count: 99, blockedUntil: Date.now() + SLOWLORIS_BAN_MS });
+      logSecurity({
+        type: "connection_flood",
+        ip,
+        path: pathname,
+        userAgent: ua,
+        details: `${SLOWLORIS_BAN_REASON}: >${SLOWLORIS_MAX_REQ} req/${SLOWLORIS_WINDOW_MS / 1000}s → 5-min ban`,
+      });
+      return new NextResponse("Too Many Requests", {
+        status: 429,
+        headers: {
+          "Retry-After": "300",
+          "Connection": "close",  // forces TCP teardown, drains pool
+          "X-Block-Reason": "connection-flood",
+        },
+      });
+    }
   }
 
   // ── 4. Block oversized request bodies ──────────────────────
@@ -255,7 +326,7 @@ export async function middleware(request: NextRequest) {
     });
     return new NextResponse("Too Many Requests", {
       status: 429,
-      headers: { "Retry-After": "60" },
+      headers: { "Retry-After": "60", "Connection": "close" },
     });
   }
 
@@ -276,6 +347,7 @@ export async function middleware(request: NextRequest) {
           headers: {
             "Retry-After": String(Math.ceil(limit.windowMs / 1000)),
             "X-RateLimit-Limit": String(limit.max),
+            "Connection": "close",
           },
         });
       }
@@ -297,7 +369,10 @@ export async function middleware(request: NextRequest) {
         userAgent: ua,
         details: "IP banned for 15 min after 10 failed auth attempts",
       });
-      return new NextResponse("Too Many Requests", { status: 429 });
+      return new NextResponse("Too Many Requests", {
+        status: 429,
+        headers: { "Connection": "close" },
+      });
     }
   }
 
