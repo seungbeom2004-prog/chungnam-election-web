@@ -1,7 +1,18 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
-const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || "reform-captcha-2024";
+/** Returns the CAPTCHA_SECRET env var, throws if not set in production. */
+function getCaptchaSecret(): string {
+  const s = process.env.CAPTCHA_SECRET;
+  if (!s) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("CAPTCHA_SECRET env var is not set");
+    }
+    // Dev-only fallback — never reachable in production
+    return "dev-only-captcha-secret";
+  }
+  return s;
+}
 
 /** Returns current 5-minute time window (changes every 5 min). */
 function timeWindow() {
@@ -11,7 +22,7 @@ function timeWindow() {
 /** HMAC-sign the expected answer so server can verify without storing state. */
 export function makeCaptchaToken(answer: number, tw: number): string {
   return crypto
-    .createHmac("sha256", CAPTCHA_SECRET)
+    .createHmac("sha256", getCaptchaSecret())
     .update(`${answer}:${tw}`)
     .digest("hex")
     .slice(0, 24);

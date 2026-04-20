@@ -110,13 +110,14 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Only accept from internal calls (middleware or server actions)
+    // Only accept from internal calls (middleware or server actions).
+    // x-admin-secret is only valid when ADMIN_SECRET env var is set AND matches.
+    // If env var is unset we fail closed — never trust an empty/null secret.
     const adminSecret = request.headers.get("x-admin-secret");
-    if (adminSecret !== process.env.ADMIN_SECRET) {
-      // Also check admin session
-      if (!(await isAdmin(request))) {
-        return apiError("권한이 없습니다", 403);
-      }
+    const envSecret = process.env.ADMIN_SECRET;
+    const headerAuthOk = !!envSecret && adminSecret === envSecret;
+    if (!headerAuthOk && !(await isAdmin(request))) {
+      return apiError("권한이 없습니다", 403);
     }
 
     const body = await request.json();

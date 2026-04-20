@@ -3,7 +3,6 @@ import { isAdmin } from "@/lib/admin-auth";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
-const NEC_API_KEY = process.env.NEC_API_KEY || "40c8fb3f3f39e2d88885f91bbfc25aaa397229a6b344944116d973f594ffbd92";
 const NEC_BASE_URL = "http://apis.data.go.kr/9760000/CommonCodeService";
 const LOCAL_ELECTION_SGID = "20260603";
 
@@ -17,9 +16,12 @@ interface NecGusigunItem {
 }
 
 async function fetchAllChungnamDistricts(): Promise<NecGusigunItem[]> {
+  const apiKey = process.env.NEC_API_KEY;
+  if (!apiKey) throw new Error("NEC_API_KEY 환경변수가 설정되지 않았습니다");
+
   const pageRequests = [1, 2, 3].map((pageNo) =>
     fetch(
-      `${NEC_BASE_URL}/getCommonGusigunCodeList?sgId=${LOCAL_ELECTION_SGID}&pageNo=${pageNo}&numOfRows=100&resultType=json&serviceKey=${NEC_API_KEY}`,
+      `${NEC_BASE_URL}/getCommonGusigunCodeList?sgId=${LOCAL_ELECTION_SGID}&pageNo=${pageNo}&numOfRows=100&resultType=json&serviceKey=${apiKey}`,
       { cache: "no-store" }
     ).then((r) => r.json())
   );

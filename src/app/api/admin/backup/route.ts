@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
     if (action === "restore") {
       const filename: string = body.filename ?? "";
       if (!filename) return apiError("filename이 필요합니다", 400);
-      // Basic path traversal guard
-      if (filename.includes("/") || filename.includes("..")) {
+      // Strict whitelist: only allow backup-<timestamp>.json (alphanumeric, hyphens, dots)
+      if (!/^backup-[\w.-]+\.json$/.test(filename) || filename.includes("..")) {
         return apiError("잘못된 파일 이름입니다", 400);
       }
       await restoreBackup(filename);

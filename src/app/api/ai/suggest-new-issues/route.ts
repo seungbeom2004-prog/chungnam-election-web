@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { suggestNewIssues } from "@/lib/gemini";
 
 export const maxDuration = 30; // Allow up to 30s for Gemini retries
 
 export async function POST() {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== "admin") {
+    return NextResponse.json({ error: "관리자 권한이 필요합니다" }, { status: 403 });
+  }
+
   // Fetch unassigned, non-deleted posts
   const { data: posts, error } = await supabaseAdmin
     .from("ProposalPost")

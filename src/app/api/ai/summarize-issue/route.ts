@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { generateIssueSummary } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user?.role !== "admin") {
+      return NextResponse.json({ error: "관리자 권한이 필요합니다" }, { status: 403 });
+    }
+
     const { issueId } = await req.json();
     if (!issueId || typeof issueId !== "string") {
       return NextResponse.json({ error: "issueId is required" }, { status: 400 });

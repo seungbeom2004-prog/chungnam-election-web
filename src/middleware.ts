@@ -181,6 +181,14 @@ const PUBLIC_API_RATE_LIMITS: Record<string, { max: number; windowMs: number }> 
   "/api/nec":             { max: 30,  windowMs: 60_000 },
   "/api/map-settings":    { max: 60,  windowMs: 60_000 },
   "/api/health":          { max: 30,  windowMs: 60_000 },
+  // AI endpoints call paid Gemini API — strict limit to prevent cost abuse
+  "/api/ai":              { max: 8,   windowMs: 60_000 },
+  // Write endpoints that accept guest content
+  "/api/proposals":       { max: 30,  windowMs: 60_000 },
+  "/api/pledge-proposals":{ max: 30,  windowMs: 60_000 },
+  // Analytics tracking — lightweight but high-volume
+  "/api/track":           { max: 60,  windowMs: 60_000 },
+  "/api/recaptcha":       { max: 20,  windowMs: 60_000 },
 };
 
 // Global rate limit: max 200 requests per IP per minute across ALL endpoints
