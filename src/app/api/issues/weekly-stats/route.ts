@@ -79,8 +79,7 @@ export async function GET(request: NextRequest) {
       .select("id, postType, city, dong, issueId, createdAt, title, content, authorName, viewCount")
       .gte("createdAt", startISO)
       .lte("createdAt", endISO)
-      .is("deletedAt", null)
-      .or("adminStatus.is.null,adminStatus.neq.hide_stats");
+      .is("deletedAt", null);
 
     if (!e1 && d1) {
       posts = d1;
@@ -91,8 +90,7 @@ export async function GET(request: NextRequest) {
         .select("id, postType, city, createdAt, title, content, authorName")
         .gte("createdAt", startISO)
         .lte("createdAt", endISO)
-        .is("deletedAt", null)
-        .or("adminStatus.is.null,adminStatus.neq.hide_stats");
+        .is("deletedAt", null);
 
       if (!e2 && d2) {
         posts = d2;
@@ -123,8 +121,7 @@ export async function GET(request: NextRequest) {
     .select("id, postType")
     .gte("createdAt", prevStart.toISOString())
     .lte("createdAt", prevEnd.toISOString())
-    .is("deletedAt", null)
-    .or("adminStatus.is.null,adminStatus.neq.hide_stats");
+    .is("deletedAt", null);
 
   const prevWeekReports = (prevPosts ?? []).filter((p) => REPORT_TYPES.includes(p.postType)).length;
   const prevWeekProposals = (prevPosts ?? []).filter((p) => PROPOSAL_TYPES.includes(p.postType)).length;

@@ -7,8 +7,7 @@ export async function GET() {
     const { data: postCounts } = await supabaseAdmin
       .from("ProposalPost")
       .select("postType")
-      .is("deletedAt", null)
-      .or("adminStatus.is.null,adminStatus.neq.hide_stats");
+      .is("deletedAt", null);
 
     const REPORT_TYPES = ["불편제보", "민원"];
     const PROPOSAL_TYPES = ["공약제안", "제안", "공약"];
@@ -58,8 +57,7 @@ export async function GET() {
       .from("ProposalPost")
       .select("postType, createdAt")
       .gte("createdAt", thirtyDaysAgo.toISOString())
-      .is("deletedAt", null)
-      .or("adminStatus.is.null,adminStatus.neq.hide_stats");
+      .is("deletedAt", null);
 
     const dailyMap: Record<string, { reports: number; proposals: number }> = {};
     for (const p of recentPosts ?? []) {
