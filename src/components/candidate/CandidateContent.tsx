@@ -101,6 +101,22 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
     ...(candidate.sharedPledges ?? []).map((p) => ({ ...p, isBylaw: p.pledgeType === "bylaws", isShared: true })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  const [pledgeSearch, setPledgeSearch] = useState("");
+  const [pledgeCategoryFilter, setPledgeCategoryFilter] = useState<string>("all");
+
+  const pledgeCategories = Array.from(
+    new Set(allPledges.map(p => p.category?.name).filter(Boolean))
+  ) as string[];
+
+  const filteredPledges = allPledges.filter(p => {
+    const matchCat = pledgeCategoryFilter === "all" || p.category?.name === pledgeCategoryFilter;
+    const q = pledgeSearch.trim().toLowerCase();
+    const matchSearch = !q ||
+      p.title.toLowerCase().includes(q) ||
+      (p.description ?? "").toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+
   return (
     <div className="max-w-screen-xl mx-auto px-4 pt-8 pb-24 md:pb-8">
       {/* Bio */}
@@ -187,8 +203,57 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           {allPledges.length === 0 ? (
             <p className="text-center text-muted py-12">등록된 공약이 없습니다.</p>
           ) : (
+            <>
+              {/* Search + category filter */}
+              <div className="mb-4 space-y-2">
+                {/* Search */}
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    value={pledgeSearch}
+                    onChange={e => setPledgeSearch(e.target.value)}
+                    placeholder="공약 검색..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                {/* Category filter pills */}
+                {pledgeCategories.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setPledgeCategoryFilter("all")}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                        pledgeCategoryFilter === "all"
+                          ? "bg-primary text-white border-primary"
+                          : "border-border text-muted hover:text-foreground hover:border-foreground/30"
+                      }`}
+                    >
+                      전체 ({allPledges.length})
+                    </button>
+                    {pledgeCategories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setPledgeCategoryFilter(pledgeCategoryFilter === cat ? "all" : cat)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                          pledgeCategoryFilter === cat
+                            ? "bg-primary text-white border-primary"
+                            : "border-border text-muted hover:text-foreground hover:border-foreground/30"
+                        }`}
+                      >
+                        {cat} ({allPledges.filter(p => p.category?.name === cat).length})
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {filteredPledges.length === 0 ? (
+                <p className="text-center text-muted py-12">검색 결과가 없습니다.</p>
+              ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {allPledges.map((pledge, index) => (
+              {filteredPledges.map((pledge, index) => (
                 <div
                   key={`${pledge.id}-${pledge.isShared ? "shared" : "own"}`}
                   className={`p-5 border rounded-xl bg-surface ${
@@ -288,6 +353,8 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
                 </div>
               ))}
             </div>
+              )}
+            </>
           )}
 
           {/* CTA — 공약을 다 본 사람에게 민원/제안 유도 */}

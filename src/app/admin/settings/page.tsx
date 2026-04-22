@@ -91,6 +91,13 @@ export default function AdminSettingsPage() {
   const [pinMessage, setPinMessage] = useState("");
   const [pinLoading, setPinLoading] = useState(true);
 
+  // Map default layer visibility
+  const [mapDefaultMinwon, setMapDefaultMinwon] = useState(true);
+  const [mapDefaultProposal, setMapDefaultProposal] = useState(true);
+  const [mapDefaultPledge, setMapDefaultPledge] = useState(true);
+  const [mapDefaultSaving, setMapDefaultSaving] = useState(false);
+  const [mapDefaultMessage, setMapDefaultMessage] = useState("");
+
   // Default zoom (map scale)
   const [defaultZoom, setDefaultZoom] = useState(9);
 
@@ -198,10 +205,14 @@ export default function AdminSettingsPage() {
       .then((r) => r.json())
       .then((json) => {
         if (json.data) {
-          setPinEmoji(json.data.emoji ?? "📍");
-          setPinColor(json.data.color ?? "#FF5A00");
-          setDefaultZoom(json.data.defaultZoom ?? 9);
-          setDefaultDistrict(json.data.defaultDistrict ?? null);
+          const data = json.data;
+          setPinEmoji(data.emoji ?? "📍");
+          setPinColor(data.color ?? "#FF5A00");
+          setDefaultZoom(data.defaultZoom ?? 9);
+          setDefaultDistrict(data.defaultDistrict ?? null);
+          if (typeof data.defaultShowMinwon === "boolean") setMapDefaultMinwon(data.defaultShowMinwon);
+          if (typeof data.defaultShowProposal === "boolean") setMapDefaultProposal(data.defaultShowProposal);
+          if (typeof data.defaultShowPledge === "boolean") setMapDefaultPledge(data.defaultShowPledge);
         }
       })
       .catch(() => {
@@ -323,6 +334,29 @@ export default function AdminSettingsPage() {
       setPinMessage("네트워크 오류가 발생했습니다.");
     }
     setPinSaving(false);
+  };
+
+  const handleSaveMapDefaults = async () => {
+    setMapDefaultSaving(true);
+    setMapDefaultMessage("");
+    try {
+      const res = await fetch("/api/admin/map-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defaultShowMinwon: mapDefaultMinwon,
+          defaultShowProposal: mapDefaultProposal,
+          defaultShowPledge: mapDefaultPledge,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setMapDefaultMessage(json.error ?? "저장에 실패했습니다."); return; }
+      setMapDefaultMessage("지도 기본 설정이 저장되었습니다.");
+    } catch {
+      setMapDefaultMessage("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMapDefaultSaving(false);
+    }
   };
 
   return (
@@ -547,6 +581,42 @@ export default function AdminSettingsPage() {
             </Button>
           </form>
         )}
+      </Card>
+
+      {/* Map Layer Defaults Card */}
+      <Card className="mt-6 p-6 space-y-4">
+        <h2 className="text-base font-bold text-foreground">🗺️ 공약지도 기본 레이어 설정</h2>
+        <p className="text-xs text-muted">사용자가 처음 지도를 열 때 어떤 레이어가 활성화되어 있을지 설정합니다.</p>
+        <div className="space-y-3">
+          {[
+            { label: "📢 불편 제보 핀", value: mapDefaultMinwon, set: setMapDefaultMinwon },
+            { label: "💡 공약 제안 핀", value: mapDefaultProposal, set: setMapDefaultProposal },
+            { label: "📌 정식 공약 핀", value: mapDefaultPledge, set: setMapDefaultPledge },
+          ].map(({ label, value, set }) => (
+            <label key={label} className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={value}
+                onChange={e => set(e.target.checked)}
+                className="w-4 h-4 accent-primary"
+              />
+              <span className="text-sm font-medium text-foreground">{label}</span>
+              <span className={`ml-auto text-xs font-semibold ${value ? "text-green-600" : "text-muted"}`}>
+                {value ? "기본 활성" : "기본 비활성"}
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={handleSaveMapDefaults} disabled={mapDefaultSaving}>
+            {mapDefaultSaving ? "저장 중..." : "저장"}
+          </Button>
+          {mapDefaultMessage && (
+            <span className={`text-xs ${mapDefaultMessage.startsWith("지도") ? "text-green-600" : "text-red-500"}`}>
+              {mapDefaultMessage}
+            </span>
+          )}
+        </div>
       </Card>
 
       {/* UI Text Customization Card */}

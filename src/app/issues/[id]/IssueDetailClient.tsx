@@ -289,6 +289,9 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
   const [showMap, setShowMap] = useState(false);
   const [activePostTab, setActivePostTab] = useState<"all" | "민원" | "제안">("all");
 
+  const POSTS_PER_PAGE = 10;
+  const [postsPage, setPostsPage] = useState(1);
+
   // Emoji state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiUpdating, setEmojiUpdating] = useState(false);
@@ -367,6 +370,9 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
     : activePostTab === "민원"
     ? minwonPosts
     : proposalPosts;
+
+  const pagedPosts = displayedPosts.slice((postsPage - 1) * POSTS_PER_PAGE, postsPage * POSTS_PER_PAGE);
+  const totalPages = Math.ceil(displayedPosts.length / POSTS_PER_PAGE);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -551,7 +557,7 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
           {minwonPosts.length > 0 && proposalPosts.length > 0 && (
             <div className="flex gap-1 bg-background border border-border rounded-lg p-0.5">
               {(["all", "민원", "제안"] as const).map(t => (
-                <button key={t} onClick={() => setActivePostTab(t)}
+                <button key={t} onClick={() => { setActivePostTab(t); setPostsPage(1); }}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                     activePostTab === t
                       ? t === "민원" ? "bg-red-500 text-white" : t === "제안" ? "bg-amber-400 text-gray-900" : "bg-primary text-white"
@@ -568,7 +574,29 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
           <p className="text-sm text-muted">연결된 게시물이 없습니다.</p>
         ) : (
           <div className="space-y-3">
-            {displayedPosts.map(post => <PostCard key={post.id} post={post} />)}
+            {pagedPosts.map(post => <PostCard key={post.id} post={post} />)}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <button
+              onClick={() => setPostsPage(p => Math.max(1, p - 1))}
+              disabled={postsPage === 1}
+              className="px-3 py-1.5 text-xs font-medium border border-border rounded-lg text-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← 이전
+            </button>
+            <span className="text-xs text-muted font-medium">
+              {postsPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPostsPage(p => Math.min(totalPages, p + 1))}
+              disabled={postsPage === totalPages}
+              className="px-3 py-1.5 text-xs font-medium border border-border rounded-lg text-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              다음 →
+            </button>
           </div>
         )}
       </div>

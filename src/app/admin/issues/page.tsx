@@ -17,6 +17,7 @@ interface Issue {
   adminStatus: string | null;
   assignedPosts?: { id: string; title: string | null; content: string; authorName: string; postType?: string }[];
   createdAt: string;
+  emoji?: string | null;
 }
 
 interface Post {
@@ -57,12 +58,12 @@ export default function AdminIssuesPage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: "", summary: "", category: "", city: "", dong: "" });
+  const [createForm, setCreateForm] = useState({ title: "", summary: "", category: "", city: "", dong: "", emoji: "" });
   const [createLoading, setCreateLoading] = useState(false);
 
   // Edit modal
   const [editTarget, setEditTarget] = useState<Issue | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", summary: "", category: "", city: "", dong: "", status: "" });
+  const [editForm, setEditForm] = useState({ title: "", summary: "", category: "", city: "", dong: "", status: "", emoji: "" });
   const [editLoading, setEditLoading] = useState(false);
   const [editTab, setEditTab] = useState<"info" | "posts">("info");
 
@@ -176,12 +177,13 @@ export default function AdminIssuesPage() {
           category: createForm.category || null,
           city: createForm.city || null,
           dong: createForm.dong || null,
+          emoji: createForm.emoji || null,
         }),
       });
       if (res.ok) {
         showMessage("이슈가 생성되었습니다.");
         setShowCreate(false);
-        setCreateForm({ title: "", summary: "", category: "", city: "", dong: "" });
+        setCreateForm({ title: "", summary: "", category: "", city: "", dong: "", emoji: "" });
         fetchIssues();
       } else {
         const json = await res.json();
@@ -204,6 +206,7 @@ export default function AdminIssuesPage() {
       city: issue.city ?? "",
       dong: issue.dong ?? "",
       status: issue.status,
+      emoji: issue.emoji ?? "",
     });
     setEditTab("info");
     setAssignTarget(issue);
@@ -226,6 +229,7 @@ export default function AdminIssuesPage() {
           city: editForm.city || null,
           dong: editForm.dong || null,
           status: editForm.status,
+          emoji: editForm.emoji || null,
         }),
       });
       if (res.ok) {
@@ -663,7 +667,10 @@ export default function AdminIssuesPage() {
                         {new Date(issue.createdAt).toLocaleDateString("ko-KR")}
                       </span>
                     </div>
-                    <p className="text-sm font-semibold text-foreground">{issue.title}</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {issue.emoji && <span className="mr-1">{issue.emoji}</span>}
+                      {issue.title}
+                    </p>
                     {issue.summary && (
                       <p className="text-sm text-muted mt-1 break-words line-clamp-2">{issue.summary}</p>
                     )}
@@ -766,6 +773,23 @@ export default function AdminIssuesPage() {
                   className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
                   placeholder="이슈 제목"
                 />
+              </div>
+              {/* Emoji */}
+              <div>
+                <label className="text-xs font-medium text-muted block mb-1">이슈 이모지</label>
+                <div className="flex items-center gap-2">
+                  <div className="text-3xl w-10 h-10 flex items-center justify-center rounded-lg border border-border bg-background">
+                    {createForm.emoji || "🔲"}
+                  </div>
+                  <input
+                    type="text"
+                    value={createForm.emoji}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, emoji: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                    placeholder="이모지 입력 (예: 🏙️ 🛣️ 🌳)"
+                    maxLength={4}
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted block mb-1">요약</label>
@@ -886,6 +910,23 @@ export default function AdminIssuesPage() {
                       onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
                       className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
                     />
+                  </div>
+                  {/* Emoji */}
+                  <div>
+                    <label className="text-xs font-medium text-muted block mb-1">이슈 이모지</label>
+                    <div className="flex items-center gap-2">
+                      <div className="text-3xl w-10 h-10 flex items-center justify-center rounded-lg border border-border bg-background">
+                        {editForm.emoji || "🔲"}
+                      </div>
+                      <input
+                        type="text"
+                        value={editForm.emoji}
+                        onChange={(e) => setEditForm((f) => ({ ...f, emoji: e.target.value }))}
+                        className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground"
+                        placeholder="이모지 입력 (예: 🏙️ 🛣️ 🌳)"
+                        maxLength={4}
+                      />
+                    </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">

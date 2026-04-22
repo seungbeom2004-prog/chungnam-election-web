@@ -23,6 +23,12 @@ CREATE TABLE IF NOT EXISTS "IssuePledge" (
   UNIQUE ("issueId", "pledgeId")
 );
 
+-- 4. MapPinSettings: 지도 기본 레이어 표시 여부 컬럼 추가
+ALTER TABLE "MapPinSettings"
+  ADD COLUMN IF NOT EXISTS "defaultShowMinwon"   BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "defaultShowProposal" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "defaultShowPledge"   BOOLEAN NOT NULL DEFAULT true;
+
 -- RLS: 읽기는 공개, 쓰기는 앱 레이어에서 인증
 ALTER TABLE "IssuePledge" ENABLE ROW LEVEL SECURITY;
 

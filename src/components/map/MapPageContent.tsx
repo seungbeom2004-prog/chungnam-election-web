@@ -367,9 +367,6 @@ export default function MapPageContent() {
   const [showMinwon, setShowMinwon] = useState(true);
   const [showProposal, setShowProposal] = useState(true);
   const [showPledge, setShowPledge] = useState(true);
-  const [darkMap, setDarkMap] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [heatmapData, setHeatmapData] = useState<{ city: string; total: number }[]>([]);
   const layerSettingsRef = useRef<HTMLDivElement>(null);
 
   const districtDropdownRef = useRef<HTMLDivElement>(null);
@@ -614,16 +611,18 @@ export default function MapPageContent() {
     setMapResizeTrigger((n) => n + 1);
   }, [panelOpen]);
 
-  // Fetch heatmap data when showHeatmap becomes true
+  // Load map layer defaults from admin settings
   useEffect(() => {
-    if (!showHeatmap) return;
-    fetch("/api/proposals/neighborhood")
-      .then((r) => r.json())
-      .then((json) => {
-        if (Array.isArray(json.byCity)) setHeatmapData(json.byCity);
+    fetch("/api/admin/map-settings")
+      .then(r => r.json())
+      .then(json => {
+        const s = json.data ?? json;
+        if (typeof s.defaultShowMinwon === "boolean") setShowMinwon(s.defaultShowMinwon);
+        if (typeof s.defaultShowProposal === "boolean") setShowProposal(s.defaultShowProposal);
+        if (typeof s.defaultShowPledge === "boolean") setShowPledge(s.defaultShowPledge);
       })
-      .catch(() => {});
-  }, [showHeatmap]);
+      .catch(() => {}); // fail silently
+  }, []);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -1091,7 +1090,7 @@ export default function MapPageContent() {
             <button
               onClick={() => setLayerSettingsOpen((o) => !o)}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border shadow-sm transition-colors ${
-                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap || showHeatmap
+                layerSettingsOpen || !showMinwon || !showProposal || !showPledge
                   ? "bg-primary/10 text-primary border-primary/30"
                   : "bg-white/90 backdrop-blur-sm text-foreground border-border/50"
               }`}
@@ -1103,7 +1102,7 @@ export default function MapPageContent() {
         </div>
 
         {/* Map canvas wrapper — flex-1 fills remaining height */}
-        <div className="flex-1 relative min-w-0 overflow-hidden min-h-0" style={darkMap ? { filter: "invert(0.93) hue-rotate(180deg) saturate(0.9)" } : undefined}>
+        <div className="flex-1 relative min-w-0 overflow-hidden min-h-0">
 
         {/* Map rendering */}
         {mapReady && !mapError ? (
@@ -1124,8 +1123,6 @@ export default function MapPageContent() {
             selectedProposalId={selectedProposal?.id ?? null}
             resizeTrigger={mapResizeTrigger}
             showPledges={showPledge}
-            showHeatmap={showHeatmap}
-            heatmapData={heatmapData}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-background">
@@ -1242,7 +1239,7 @@ export default function MapPageContent() {
             <button
               onClick={() => setLayerSettingsOpen((o) => !o)}
               className={`flex items-center gap-2 px-3.5 py-2.5 bg-white/97 backdrop-blur-sm rounded-xl border shadow-md text-sm font-semibold transition-colors ${
-                layerSettingsOpen || !showMinwon || !showProposal || !showPledge || darkMap || showHeatmap
+                layerSettingsOpen || !showMinwon || !showProposal || !showPledge
                   ? "border-primary/50 text-primary bg-primary/5"
                   : "border-border/50 text-foreground hover:bg-white"
               }`}
@@ -1267,19 +1264,6 @@ export default function MapPageContent() {
                       <Toggle value={value} onChange={() => set((v) => !v)} />
                     </div>
                   ))}
-                </div>
-                <div className="px-4 py-3 border-t border-border/50 space-y-1">
-                  <p className="text-xs font-bold text-foreground mb-2">지도 스타일</p>
-                  <div className="flex items-center gap-3 px-3 py-2.5">
-                    <span className="text-base shrink-0">{darkMap ? "🌙" : "☀️"}</span>
-                    <span className={`flex-1 text-sm font-medium ${darkMap ? "text-foreground" : "text-muted"}`}>{darkMap ? "다크 모드" : "라이트 모드"}</span>
-                    <Toggle value={darkMap} onChange={() => setDarkMap((v) => !v)} />
-                  </div>
-                  <div className="flex items-center gap-3 px-3 py-2.5">
-                    <span className="text-base shrink-0">🌡️</span>
-                    <span className={`flex-1 text-sm font-medium ${showHeatmap ? "text-foreground" : "text-muted"}`}>밀도 히트맵</span>
-                    <Toggle value={showHeatmap} onChange={() => setShowHeatmap((v) => !v)} />
-                  </div>
                 </div>
               </div>
             )}
@@ -1387,17 +1371,6 @@ export default function MapPageContent() {
                     <Toggle value={value} onChange={() => set((v: boolean) => !v)} />
                   </div>
                 ))}
-                <p className="text-[11px] font-bold text-muted uppercase tracking-wider mt-4 mb-2">지도 스타일</p>
-                <div className="flex items-center gap-3 py-3 border-b border-border/30">
-                  <span className="text-xl shrink-0">{darkMap ? "🌙" : "☀️"}</span>
-                  <span className={`flex-1 text-sm font-medium ${darkMap ? "text-foreground" : "text-muted"}`}>{darkMap ? "다크 모드" : "라이트 모드"}</span>
-                  <Toggle value={darkMap} onChange={() => setDarkMap((v) => !v)} />
-                </div>
-                <div className="flex items-center gap-3 py-3 border-b border-border/30">
-                  <span className="text-xl shrink-0">🌡️</span>
-                  <span className={`flex-1 text-sm font-medium ${showHeatmap ? "text-foreground" : "text-muted"}`}>밀도 히트맵</span>
-                  <Toggle value={showHeatmap} onChange={() => setShowHeatmap((v) => !v)} />
-                </div>
                 <div className="pt-3">
                   <FontSizeCompact horizontal />
                 </div>
