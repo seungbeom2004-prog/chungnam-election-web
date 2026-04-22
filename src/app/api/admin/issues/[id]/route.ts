@@ -55,6 +55,7 @@ export async function PATCH(
     "city",
     "status",
     "adminStatus",
+    "emoji",
   ];
   const updates: Record<string, unknown> = {};
   for (const field of allowedFields) {

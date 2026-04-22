@@ -152,11 +152,27 @@ export interface ProposalResponse {
   candidateId: string;
   candidateName: string;
   candidateProfileImage: string | null;
-  /** "접수됨" | "검토 중" | "공약 반영 예정" | "공약 반영 완료" | "반영 불가" */
+  /** "접수됨" | "검토 중" | "민원 접수" | "민원 해결" | "민원 실패" | "공약 반영 예정" | "공약 반영 완료" | "반영 불가" */
   status: string;
   content: string;
   pledgeId: string | null;
+  /** 관공서 공식 답변 첨부 텍스트 (민원 해결/실패 단계) */
+  officialResponse?: string | null;
   createdAt: string;
+}
+
+export interface IssuePledge {
+  id: string;
+  issueId: string;
+  pledgeId: string;
+  candidateId: string | null;
+  createdAt: string;
+  pledge?: {
+    id: string;
+    title: string;
+    candidate?: { id: string; name: string; district: string } | null;
+    category?: { name: string } | null;
+  } | null;
 }
 
 export interface ProposalPost {

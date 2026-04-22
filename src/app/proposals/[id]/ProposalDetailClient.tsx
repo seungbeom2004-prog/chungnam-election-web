@@ -536,7 +536,7 @@ export default function ProposalDetailClient({ post }: Props) {
       )}
 
       {/* Candidate Response Section */}
-      <CandidateResponseSection proposalId={post.id} />
+      <CandidateResponseSection proposalId={post.id} postType={post.postType} />
 
       {/* Me Too Section — for 민원 with location */}
       {post.postType === "민원" && (

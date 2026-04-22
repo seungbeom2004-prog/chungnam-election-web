@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 
   const { data, error } = await supabase
     .from("ProposalResponse")
-    .select("id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt")
+    .select("id, candidateId, candidateName, candidateProfileImage, status, content, officialResponse, pledgeId, createdAt")
     .eq("proposalId", proposalId)
     .neq("status", "revision_suggestion")
     .order("createdAt", { ascending: true });
@@ -63,10 +63,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { status, content, pledgeId } = body as {
+  const { status, content, pledgeId, officialResponse } = body as {
     status?: string;
     content?: string;
     pledgeId?: string;
+    officialResponse?: string | null;
   };
 
   if (!content || typeof content !== "string" || content.trim().length < 5) {
@@ -95,6 +96,12 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     .maybeSingle();
 
   const now = new Date().toISOString();
+  // officialResponse: only relevant for "민원 해결" / "민원 실패"
+  const officialResponseValue =
+    (status === "민원 해결" || status === "민원 실패")
+      ? (typeof officialResponse === "string" ? officialResponse.trim() || null : null)
+      : null;
+
   const payload = {
     proposalId,
     candidateId: user.id,
@@ -102,6 +109,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     candidateProfileImage: candidateRow?.profileImage ?? null,
     status: (status as ResponseStatus) ?? "접수됨",
     content: content.trim(),
+    officialResponse: officialResponseValue,
     pledgeId: pledgeId ?? null,
     updatedAt: now,
   };
