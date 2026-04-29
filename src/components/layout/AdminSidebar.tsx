@@ -226,6 +226,22 @@ const navItems = [
     ),
   },
   {
+    href: "/admin/qr",
+    label: "QR 추적",
+    shortLabel: "QR",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="4" y="4" width="3" height="3" fill="currentColor" />
+        <rect x="11" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="13" y="4" width="3" height="3" fill="currentColor" />
+        <rect x="2" y="11" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="4" y="13" width="3" height="3" fill="currentColor" />
+        <path d="M11 11h2v2h-2zM15 11h2v2h-2zM13 13h2v2h-2zM11 15h2v2h-2zM15 15h2v2h-2z" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/backup",
     label: "백업/복구",
     shortLabel: "백업",

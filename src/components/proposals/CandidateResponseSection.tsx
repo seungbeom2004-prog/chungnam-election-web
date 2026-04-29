@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import type { ProposalResponse } from "@/types";
+import PledgeLinkButton from "./PledgeLinkButton";
 
 // ─── 전체 상태 설정 (8가지) ───────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -79,7 +80,12 @@ export default function CandidateResponseSection({ proposalId, postType, initial
   const isMinwon = postType === "민원";
   const statusGroups = isMinwon ? MINWON_STATUSES : PLEDGE_STATUSES;
   const showOfficialResponse = OFFICIAL_RESPONSE_STATUSES.includes(status);
-  const myResponse = isCandidate && user?.id ? responses.find(r => r.candidateId === user.id) : null;
+  // 다단계: 같은 후보자의 답변 여러 개 가능 — 모두 표시
+  const myResponses = isCandidate && user?.id ? responses.filter(r => r.candidateId === user.id) : [];
+  // 현재 폼이 가리키는 status에 이미 답변이 있는지 확인 (수정 vs 신규)
+  const editingResponse = isCandidate && user?.id
+    ? responses.find(r => r.candidateId === user.id && r.status === status)
+    : null;
 
   useEffect(() => {
     if (initialResponses) return;
@@ -90,16 +96,19 @@ export default function CandidateResponseSection({ proposalId, postType, initial
       .finally(() => setLoading(false));
   }, [proposalId, initialResponses]);
 
-  // Pre-fill form if candidate already has a response
+  // 폼이 열릴 때나 status가 바뀔 때, 해당 status의 기존 답변을 pre-fill
   useEffect(() => {
     if (!isCandidate || !user?.id || !showForm) return;
-    const mine = responses.find(r => r.candidateId === user.id);
-    if (mine) {
-      setContent(mine.content);
-      setStatus((mine.status as StatusKey) ?? "접수됨");
-      setOfficialResponse(mine.officialResponse ?? "");
+    const existing = responses.find(r => r.candidateId === user.id && r.status === status);
+    if (existing) {
+      setContent(existing.content);
+      setOfficialResponse(existing.officialResponse ?? "");
+    } else {
+      // 새 단계로 전환 — 비어 있는 폼
+      setContent("");
+      setOfficialResponse("");
     }
-  }, [showForm, responses, isCandidate, user?.id]);
+  }, [showForm, status, responses, isCandidate, user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,10 +128,11 @@ export default function CandidateResponseSection({ proposalId, postType, initial
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "답변 등록에 실패했습니다"); return; }
-      // Optimistic update
+      // Optimistic update — 같은 (candidate, status) 답변만 교체, 다른 단계 답변은 보존
       setResponses(prev => {
-        const others = prev.filter(r => r.candidateId !== user?.id);
-        return [...others, json.data ?? { ...json, candidateId: user?.id, candidateName: "", candidateProfileImage: null }];
+        const others = prev.filter(r => !(r.candidateId === user?.id && r.status === status));
+        const updated = json.data ?? { ...json, candidateId: user?.id, candidateName: "", candidateProfileImage: null };
+        return [...others, updated];
       });
       setShowForm(false);
       setSubmitSuccess(true);
@@ -191,14 +201,23 @@ export default function CandidateResponseSection({ proposalId, postType, initial
         </p>
       )}
 
-      {/* ── 후보자 답변 버튼 / 폼 ────────────────────────────── */}
+      {/* ── 후보자 답변 / 공약 연결 버튼 ────────────────────────────── */}
       {isCandidate && !showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="text-xs font-semibold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-full transition-colors"
-        >
-          {myResponse ? "✏️ 답변 수정하기" : "💬 후보자 답변 달기"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowForm(true)}
+            className="text-xs font-semibold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-full transition-colors"
+          >
+            {myResponses.length > 0 ? "✏️ 단계별 답변 추가/수정" : "💬 후보자 답변 달기"}
+          </button>
+          <PledgeLinkButton proposalId={proposalId} candidateId={user?.id ?? ""} onLinked={(pid) => {
+            // 자동으로 "공약 반영 완료" 답변이 추가되므로 응답 목록 새로고침
+            fetch(`/api/proposals/${proposalId}/responses`)
+              .then(r => r.json())
+              .then(j => setResponses(j.data ?? []));
+            void pid;
+          }} />
+        </div>
       )}
 
       {isCandidate && showForm && (
@@ -283,7 +302,7 @@ export default function CandidateResponseSection({ proposalId, postType, initial
             <button type="submit" disabled={submitting || content.trim().length < 5}
               className="px-4 py-1.5 text-xs font-bold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
               {submitting && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {submitting ? "등록 중..." : myResponse ? "수정하기" : "답변 등록"}
+              {submitting ? "등록 중..." : editingResponse ? `'${editingResponse.status}' 단계 수정` : `'${status}' 단계 답변 등록`}
             </button>
           </div>
         </form>

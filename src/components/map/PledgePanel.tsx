@@ -121,12 +121,14 @@ function PledgePanelContent({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"description" | "sns" | "comments">("description");
+  const [activeTab, setActiveTab] = useState<"description" | "sns" | "comments" | "complaints">("description");
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
   const [collaborators, setCollaborators] = useState<PledgeCollaboration[]>([]);
   const [collabLoading, setCollabLoading] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
+  const [linkedPosts, setLinkedPosts] = useState<Array<{ id: string; title: string | null; content: string; authorName: string; postType: string | null; createdAt: string; city: string | null }>>([]);
+  const [linkedLoading, setLinkedLoading] = useState(false);
 
   const embedUrl = pledge.youtubeUrl || "";
   const mediaType = embedUrl ? detectMediaType(embedUrl) : null;
@@ -151,6 +153,17 @@ function PledgePanelContent({
       .then((json) => setCollaborators(json.data ?? []))
       .catch(() => {})
       .finally(() => setCollabLoading(false));
+  }, [pledge.id]);
+
+  // Fetch linked complaints (불편 제보 / 공약 제안) for this pledge
+  useEffect(() => {
+    setLinkedPosts([]);
+    setLinkedLoading(true);
+    fetch(`/api/pledges/${pledge.id}`)
+      .then((r) => r.json())
+      .then((json) => setLinkedPosts(json.data?.linkedPosts ?? []))
+      .catch(() => {})
+      .finally(() => setLinkedLoading(false));
   }, [pledge.id]);
 
   // Track pledge view
@@ -242,7 +255,55 @@ function PledgePanelContent({
         >
           💬 댓글{commentCount !== null && commentCount > 0 ? ` (${commentCount})` : ""}
         </button>
+        <button
+          id="tab-btn-complaints"
+          role="tab"
+          aria-selected={activeTab === "complaints"}
+          aria-controls="tab-complaints"
+          onClick={() => setActiveTab("complaints")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            activeTab === "complaints"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-foreground"
+          }`}
+        >
+          🔗 연결된 제보{linkedPosts.length > 0 ? ` (${linkedPosts.length})` : ""}
+        </button>
       </div>
+
+      {/* ── 연결된 불편 제보 tab ──────────────────────────────────────── */}
+      {activeTab === "complaints" && (
+        <div id="tab-complaints" role="tabpanel" aria-labelledby="tab-btn-complaints" className="space-y-2">
+          {linkedLoading ? (
+            <p className="text-xs text-muted">불러오는 중...</p>
+          ) : linkedPosts.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-xs text-muted">아직 연결된 제보·제안이 없습니다.</p>
+              <p className="text-[10px] text-muted mt-1">후보자가 게시글 상세페이지에서 &quot;정식 공약과 연결하기&quot;로 연결할 수 있습니다.</p>
+            </div>
+          ) : (
+            linkedPosts.map((post) => (
+              <button
+                key={post.id}
+                onClick={() => {
+                  onClose();
+                  router.push(`/proposals/${post.id}`);
+                }}
+                className="w-full text-left px-3 py-2.5 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${post.postType === "민원" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}`}>
+                    {post.postType === "민원" ? "📢 불편제보" : "💡 공약제안"}
+                  </span>
+                  {post.city && <span className="text-[10px] text-muted">{post.city}</span>}
+                </div>
+                <p className="text-xs font-semibold text-foreground line-clamp-1">{post.title || post.content.slice(0, 40)}</p>
+                <p className="text-[10px] text-muted mt-0.5">{post.authorName} · {new Date(post.createdAt).toLocaleDateString("ko-KR")}</p>
+              </button>
+            ))
+          )}
+        </div>
+      )}
 
       {/* ── 공약 설명 tab ──────────────────────────────────────────────────── */}
       {activeTab === "description" && (

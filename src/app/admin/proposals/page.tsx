@@ -175,28 +175,6 @@ export default function AdminProposalsPage() {
     }
   };
 
-  const toggleStatsHidden = async (id: string, currentAdminStatus: string | null) => {
-    const newStatus = currentAdminStatus === "hide_stats" ? null : "hide_stats";
-    setAdminStatusLoading(id);
-    try {
-      const res = await fetch(`/api/admin/proposals/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminStatus: newStatus }),
-      });
-      if (res.ok) {
-        showMessage(newStatus === "hide_stats" ? "현황판에서 숨겼습니다." : "현황판에 다시 표시합니다.");
-        fetchProposals();
-      } else {
-        showMessage("처리에 실패했습니다.");
-      }
-    } catch {
-      showMessage("네트워크 오류가 발생했습니다.");
-    } finally {
-      setAdminStatusLoading(null);
-    }
-  };
-
   const anonymizePost = async (id: string) => {
     setAnonymizeLoading(id);
     try {
@@ -343,8 +321,6 @@ export default function AdminProposalsPage() {
         case "hide":        return prev.map((p) => ids.includes(p.id) ? { ...p, status: "hidden" }  : p);
         case "restore":     return prev.map((p) => ids.includes(p.id) ? { ...p, status: "pending" } : p);
         case "delete":      return prev.filter((p) => !ids.includes(p.id));
-        case "hide_stats":  return prev.map((p) => ids.includes(p.id) ? { ...p, adminStatus: "hide_stats" } : p);
-        case "show_stats":  return prev.map((p) => ids.includes(p.id) && p.adminStatus === "hide_stats" ? { ...p, adminStatus: null } : p);
         default:            return prev;
       }
     });
@@ -365,8 +341,6 @@ export default function AdminProposalsPage() {
           hide: "숨김 처리",
           restore: "복원",
           delete: "삭제",
-          hide_stats: "현황판 제외",
-          show_stats: "현황판 표시",
         };
         showMessage(`${actionLabels[action] ?? action} 완료: ${json.updated ?? ids.length}개`);
       } else {
@@ -479,20 +453,6 @@ export default function AdminProposalsPage() {
             {bulkLoading === "restore" ? "처리 중..." : "♻️ 복원"}
           </button>
           <button
-            onClick={() => bulkAction("hide_stats", Array.from(mergeSelected))}
-            disabled={!!bulkLoading}
-            className="text-xs px-2.5 py-1.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
-          >
-            {bulkLoading === "hide_stats" ? "처리 중..." : "📊 현황판 제외"}
-          </button>
-          <button
-            onClick={() => bulkAction("show_stats", Array.from(mergeSelected))}
-            disabled={!!bulkLoading}
-            className="text-xs px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-          >
-            {bulkLoading === "show_stats" ? "처리 중..." : "📊 현황판 표시"}
-          </button>
-          <button
             onClick={() => bulkAction("delete", Array.from(mergeSelected))}
             disabled={!!bulkLoading}
             className="text-xs px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
@@ -590,9 +550,6 @@ export default function AdminProposalsPage() {
                     <div className="flex items-center gap-1.5 mb-0.5">
                       {postTypeBadge(p.postType)}
                       {statusLabel(p.status)}
-                      {p.adminStatus === "hide_stats" && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-orange-100 text-orange-600 rounded-full">현황판 제외</span>
-                      )}
                       <span className="text-[10px] text-muted ml-auto">{new Date(p.createdAt).toLocaleDateString("ko-KR")}</span>
                     </div>
                     <p className="text-sm font-medium text-foreground truncate">{p.title || p.content.slice(0, 40)}</p>
@@ -659,17 +616,6 @@ export default function AdminProposalsPage() {
                   <button onClick={() => openSplit(selectedProposal)} className="px-3 py-2 text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors text-center">✂️ 분할</button>
                   <button onClick={() => { setLinkTarget(selectedProposal); setLinkSearch(""); }} className="px-3 py-2 text-xs bg-teal-50 text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors text-center">🔗 연결</button>
                   <button onClick={() => setIssueModalTarget(selectedProposal)} className="px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-center">🏷️ 이슈</button>
-                  <button
-                    onClick={() => toggleStatsHidden(selectedProposal.id, selectedProposal.adminStatus)}
-                    disabled={adminStatusLoading === selectedProposal.id}
-                    className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors disabled:opacity-50 ${
-                      selectedProposal.adminStatus === "hide_stats"
-                        ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {selectedProposal.adminStatus === "hide_stats" ? "📊 현황판 표시" : "📊 현황판 제외"}
-                  </button>
                   {selectedProposal.candidateId && (
                     <button onClick={() => { if (confirm("익명으로 변환?")) anonymizePost(selectedProposal.id); }} disabled={anonymizeLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors text-center disabled:opacity-50">👤 익명</button>
                   )}

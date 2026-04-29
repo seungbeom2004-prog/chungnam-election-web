@@ -20,7 +20,43 @@ export async function GET(
       .eq("visible", true)
       .single();
     if (error || !pledge) return apiError("공약을 찾을 수 없습니다", 404);
-    return apiSuccess(pledge);
+
+    // Fetch linked complaints/proposals (정식 공약 ↔ 민원/제안 연결)
+    const { supabaseAdmin: adminClient } = await import("@/lib/supabaseAdmin");
+    const linkedMinwonsRes = await adminClient
+      .from("PledgeToMinwon")
+      .select("minwonId, createdAt")
+      .eq("pledgeId", id);
+    const minwonIds = (linkedMinwonsRes.data ?? []).map(r => r.minwonId);
+
+    const linkedProposalsRes = await adminClient
+      .from("PledgeToProposal")
+      .select("pledgeProposalId, createdAt")
+      .eq("pledgeId", id);
+    const ppIds = (linkedProposalsRes.data ?? []).map(r => r.pledgeProposalId);
+
+    // For 제안 mid-layer, follow PledgeProposalMinwon back to ProposalPost ids
+    let proposalPostIds: string[] = [];
+    if (ppIds.length > 0) {
+      const { data: ppMinwons } = await adminClient
+        .from("PledgeProposalMinwon")
+        .select("minwonId")
+        .in("pledgeProposalId", ppIds);
+      proposalPostIds = (ppMinwons ?? []).map(r => r.minwonId);
+    }
+
+    const allLinkedPostIds = [...new Set([...minwonIds, ...proposalPostIds])];
+    let linkedPosts: Array<{ id: string; title: string | null; content: string; authorName: string; postType: string | null; createdAt: string; city: string | null }> = [];
+    if (allLinkedPostIds.length > 0) {
+      const { data: posts } = await adminClient
+        .from("ProposalPost")
+        .select("id, title, content, authorName, postType, createdAt, city")
+        .in("id", allLinkedPostIds)
+        .neq("status", "deleted");
+      linkedPosts = posts ?? [];
+    }
+
+    return apiSuccess({ ...pledge, linkedPosts });
   } catch (error) {
     console.error("[GET /api/pledges/:id]", error);
     return apiError("공약을 불러올 수 없습니다", 500);

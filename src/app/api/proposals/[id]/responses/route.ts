@@ -87,12 +87,16 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     .eq("id", user.id)
     .single();
 
-  // Upsert: one response per candidate per proposal
+  const finalStatus = (status as ResponseStatus) ?? "접수됨";
+
+  // Multi-stage: one response per (proposal, candidate, status).
+  // 같은 단계에 또 답변하면 그 단계의 답변만 update — 이전 단계는 보존.
   const { data: existing } = await supabaseAdmin
     .from("ProposalResponse")
     .select("id")
     .eq("proposalId", proposalId)
     .eq("candidateId", user.id)
+    .eq("status", finalStatus)
     .maybeSingle();
 
   const now = new Date().toISOString();
@@ -107,7 +111,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     candidateId: user.id,
     candidateName: candidateRow?.name ?? user.name ?? "후보자",
     candidateProfileImage: candidateRow?.profileImage ?? null,
-    status: (status as ResponseStatus) ?? "접수됨",
+    status: finalStatus,
     content: content.trim(),
     officialResponse: officialResponseValue,
     pledgeId: pledgeId ?? null,

@@ -185,7 +185,8 @@ model ProposalLike {
   @@index([proposalId])
 }
 
-/// 후보자가 제보/제안 게시물에 남기는 공식 답변
+/// 후보자가 제보/제안 게시물에 남기는 공식 답변 (단계별 N개 가능)
+/// (proposalId, candidateId, status) 조합으로 unique — 같은 후보자가 단계마다 1개 답변
 model ProposalResponse {
   id                    String   @id @default(cuid())
   proposalId            String
@@ -193,16 +194,51 @@ model ProposalResponse {
   candidateId           String
   candidateName         String
   candidateProfileImage String?
-  /// "접수됨" | "검토 중" | "공약 반영 예정" | "공약 반영 완료" | "반영 불가"
+  /// "접수됨" | "검토 중" | "민원 접수" | "민원 해결" | "민원 실패"
+  /// "공약 반영 예정" | "공약 반영 완료" | "반영 불가"
   status                String   @default("접수됨")
   content               String   @db.Text
-  /// 공약 반영 완료일 때 연결된 정식 공약 ID
+  /// 관공서 공식 답변 첨부 (민원 해결/실패 시)
+  officialResponse      String?  @db.Text
+  /// 공약 반영 완료 또는 정식 공약 연결 시 해당 공약 ID
   pledgeId              String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  @@unique([proposalId, candidateId, status])
   @@index([proposalId])
   @@index([candidateId])
+}
+
+/// QR 코드 추적 — 사이트 내부 경로에 대해 여러 별명을 만들고 유입 카운트
+model QrCode {
+  id          String    @id @default(cuid())
+  code        String    @unique        // short slug
+  name        String                   // label ("현수막", "전단지" 등)
+  targetPath  String                   // internal path
+  ownerType   String    @default("admin") // "admin" | "candidate"
+  ownerId     String?                  // candidate id (null for admin)
+  hitCount    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  hits        QrHit[]
+
+  @@index([ownerId])
+  @@index([ownerType])
+  @@index([code])
+}
+
+model QrHit {
+  id          BigInt    @id @default(autoincrement())
+  qrId        String
+  qr          QrCode    @relation(fields: [qrId], references: [id], onDelete: Cascade)
+  ipHash      String?
+  userAgent   String?
+  referrer    String?
+  createdAt   DateTime  @default(now())
+
+  @@index([qrId])
+  @@index([createdAt])
 }
 
 model CandidateLike {

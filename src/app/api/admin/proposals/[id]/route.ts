@@ -13,6 +13,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const body = await request.json();
   const { status, postType, title, content, city, latitude, longitude, categoryId, adminStatus, parentId, issueId, anonymize } = body;
 
+  // hide_stats / show_stats are deprecated — '현황판 제외' was merged into '숨김' (status='hidden')
+  if (adminStatus === "hide_stats") {
+    return NextResponse.json({ error: "'현황판 제외' is deprecated — use status='hidden' instead" }, { status: 400 });
+  }
+
   // Anonymize: remove candidateId and set authorName to "익명"
   if (anonymize === true) {
     const { error } = await supabaseAdmin

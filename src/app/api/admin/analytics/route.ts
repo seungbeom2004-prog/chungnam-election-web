@@ -105,12 +105,18 @@ export async function GET(request: NextRequest) {
 
     const allRows = rows ?? [];
 
+    // Accurate "all-time total" via HEAD count — Supabase row cap can truncate selects,
+    // but count='exact' returns the true table count regardless.
+    const { count: trueAllCount } = await supabaseAdmin
+      .from("PageView")
+      .select("*", { count: "exact", head: true });
+
     // Summary counts for all time brackets
     const hourCount  = allRows.filter((r) => new Date(r.createdAt) >= hour1Start).length;
     const dayCount   = allRows.filter((r) => new Date(r.createdAt) >= hour24Start).length;
     const weekCount  = allRows.filter((r) => new Date(r.createdAt) >= week7Start).length;
     const monthCount = allRows.filter((r) => new Date(r.createdAt) >= month30Start).length;
-    const allCount   = allRows.length; // Only accurate when range=all; otherwise shows count within range
+    const allCount   = trueAllCount ?? allRows.length;
     const periodCount = allRows.length;
 
     // Daily counts (last 30 days within the queried range)
@@ -180,7 +186,7 @@ export async function GET(request: NextRequest) {
       data: {
         range,
         hourCount, dayCount, weekCount, monthCount,
-        allCount: range === "all" ? allRows.length : allCount,
+        allCount,
         periodCount,
         dailyCounts, hourlyBuckets,
         topPages, topReferrers, cityDistribution,

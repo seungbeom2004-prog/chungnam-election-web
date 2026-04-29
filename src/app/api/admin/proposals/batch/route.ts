@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 /**
  * POST /api/admin/proposals/batch
- * Body: { ids: string[], action: "hide" | "restore" | "delete" | "hide_stats" | "show_stats" }
+ * Body: { ids: string[], action: "hide" | "restore" | "delete" }
  *
  * Applies the same action to all given proposal IDs in a single DB call.
  * Returns { success: true, updated: number }
@@ -51,33 +51,11 @@ export async function POST(request: NextRequest) {
     case "delete":
       updateData = { status: "deleted" };
       break;
-    case "hide_stats":
-      updateData = { adminStatus: "hide_stats" };
-      break;
-    case "show_stats":
-      // Clear hide_stats only — don't touch other adminStatus values
-      // We do a conditional update: only update rows where adminStatus IS hide_stats
-      break;
     default:
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
   try {
-    if (action === "show_stats") {
-      // Only clear hide_stats on rows that currently have it
-      const { error, count } = await supabaseAdmin
-        .from("ProposalPost")
-        .update({ adminStatus: null })
-        .in("id", validIds)
-        .eq("adminStatus", "hide_stats");
-
-      if (error) {
-        console.error("[batch] show_stats error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-      return NextResponse.json({ success: true, updated: count ?? validIds.length });
-    }
-
     const { error, count } = await supabaseAdmin
       .from("ProposalPost")
       .update(updateData!)
