@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       let q = supabase
         .from("ProposalPost")
         .select(selectStr, { count: "exact" })
-        .neq("status", "deleted")
+        .not("status", "in", "(deleted,hidden)")
         .order("createdAt", { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
         .from("ProposalPost")
         .select("id", { count: "exact", head: true })
         .eq("ipHash", ipHash)
-        .neq("status", "deleted")
+        .not("status", "in", "(deleted,hidden)")
         .gte("createdAt", oneHourAgo);
 
       if (countError) {
