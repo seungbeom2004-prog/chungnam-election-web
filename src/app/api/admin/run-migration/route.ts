@@ -53,6 +53,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ dryRun: true, host: dbHost, port: dbPort, hasDirect: !!process.env.DIRECT_URL, hasDatabase: !!process.env.DATABASE_URL });
   }
 
+  // PROBE mode: iterate through pooler regions until one accepts the connection
+  if (req.nextUrl.searchParams.get("probeRegion") === "1") {
+    const legacy = connectionString.match(/postgres(?:ql)?:\/\/postgres:([^@]+)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/postgres/);
+    if (!legacy) return NextResponse.json({ error: "URL is not legacy db.* format", host: dbHost });
+    const [, pwd, ref] = legacy;
+    const regions = ["ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "us-east-1", "us-east-2", "us-west-1", "us-west-2", "eu-west-1", "eu-west-2", "eu-central-1", "sa-east-1"];
+    const results: Array<{ region: string; ok: boolean; err?: string }> = [];
+    for (const r of regions) {
+      const url = `postgresql://postgres.${ref}:${pwd}@aws-0-${r}.pooler.supabase.com:5432/postgres`;
+      const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000, statement_timeout: 5000 });
+      try {
+        await c.connect();
+        await c.query("SELECT 1");
+        await c.end();
+        results.push({ region: r, ok: true });
+        return NextResponse.json({ matchedRegion: r, all: results });
+      } catch (e) {
+        try { await c.end(); } catch {}
+        results.push({ region: r, ok: false, err: String(e).slice(0, 120) });
+      }
+    }
+    return NextResponse.json({ matchedRegion: null, all: results });
+  }
+
   // Vercel may have legacy `db.{ref}.supabase.co` host, which is no longer reachable.
   // Auto-convert to the modern session-mode pooler.
   const legacyMatch = connectionString.match(/postgres(?:ql)?:\/\/postgres:([^@]+)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/postgres/);
