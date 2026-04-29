@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { Client } from "pg";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+/**
+ * POST /api/admin/run-migration
+ * Body: { file?: string }   // default: "005_unify_hidden_qr_pledge_link.sql"
+ *
+ * Runs a manual migration SQL file against the production DB using DIRECT_URL.
+ * Admin-only. One-shot endpoint — DELETE THIS FILE after migration succeeds.
+ */
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as { role?: string })?.role;
+  if (role !== "admin") {
+    // Allow with shared secret as fallback (for one-shot bootstrap)
+    const secret = req.headers.get("x-migrate-secret");
+    if (!secret || secret !== process.env.NEXTAUTH_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const fileName = typeof body.file === "string" && /^[a-z0-9_.-]+\.sql$/i.test(body.file)
+    ? body.file
+    : "005_unify_hidden_qr_pledge_link.sql";
+
+  const sqlPath = resolve(process.cwd(), "prisma", "migrations-manual", fileName);
+
+  let sql: string;
+  try {
+    sql = readFileSync(sqlPath, "utf8");
+  } catch (e) {
+    return NextResponse.json({ error: `Could not read SQL file: ${(e as Error).message}` }, { status: 404 });
+  }
+
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!connectionString) {
+    return NextResponse.json({ error: "DIRECT_URL or DATABASE_URL not set" }, { status: 500 });
+  }
+
+  // Strip ?pgbouncer=true (we want direct connection for DDL)
+  const cleanUrl = connectionString.replace(/[?&]pgbouncer=true/, "").replace(/[?&]pooler/, "");
+
+  const client = new Client({
+    connectionString: cleanUrl,
+    ssl: { rejectUnauthorized: false },
+    statement_timeout: 60_000,
+  });
+
+  try {
+    await client.connect();
+    await client.query(sql);
+    await client.end();
+    return NextResponse.json({ success: true, file: fileName, length: sql.length });
+  } catch (e) {
+    try { await client.end(); } catch {}
+    return NextResponse.json({ error: String(e), sqlPreview: sql.slice(0, 500) }, { status: 500 });
+  }
+}
