@@ -37,12 +37,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Could not read SQL file: ${(e as Error).message}` }, { status: 404 });
   }
 
-  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  let connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!connectionString) {
     return NextResponse.json({ error: "DIRECT_URL or DATABASE_URL not set" }, { status: 500 });
   }
 
-  // Strip ?pgbouncer=true (we want direct connection for DDL)
+  // Vercel may have legacy `db.{ref}.supabase.co` host, which is no longer reachable.
+  // Auto-convert to the modern session-mode pooler. Region inferred from the
+  // public Supabase URL host (cf-ray = ICN → ap-northeast-2 for this project).
+  const legacyMatch = connectionString.match(/postgres(?:ql)?:\/\/postgres:([^@]+)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/postgres/);
+  if (legacyMatch) {
+    const [, password, ref] = legacyMatch;
+    connectionString = `postgresql://postgres.${ref}:${password}@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres`;
+  }
+
+  // Strip ?pgbouncer=true (we want direct/session connection for DDL)
   const cleanUrl = connectionString.replace(/[?&]pgbouncer=true/, "").replace(/[?&]pooler/, "");
 
   const client = new Client({
