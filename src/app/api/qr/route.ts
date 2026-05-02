@@ -58,9 +58,24 @@ export async function POST(request: NextRequest) {
   let code: string = typeof body.code === "string" ? body.code.trim() : "";
 
   if (!name || name.length > 50) return apiError("이름을 1~50자로 입력해주세요", 400);
-  if (!targetPath || !targetPath.startsWith("/") || targetPath.length > 300) {
-    return apiError("경로는 / 로 시작하는 1~300자여야 합니다", 400);
+  if (!targetPath || targetPath.length > 1000) {
+    return apiError("목적지를 1~1000자로 입력해주세요", 400);
   }
+  // Accept either internal path "/..." or external absolute URL "http(s)://..."
+  const isInternalPath = targetPath.startsWith("/");
+  let isExternalUrl = false;
+  if (!isInternalPath) {
+    try {
+      const u = new URL(targetPath);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        return apiError("외부 URL은 http:// 또는 https:// 로 시작해야 합니다", 400);
+      }
+      isExternalUrl = true;
+    } catch {
+      return apiError("올바른 URL이 아닙니다 (내부 경로는 /로, 외부는 http(s)://로 시작)", 400);
+    }
+  }
+  void isExternalUrl;
 
   // Generate code if missing — 6 char alnum
   if (!code) {

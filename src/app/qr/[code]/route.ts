@@ -56,12 +56,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     })
     .then(() => {});
 
-  // Build final URL — prepend origin so absolute redirect works
-  let target = qr.targetPath;
-  if (!target.startsWith("/")) target = "/" + target;
-  // Append a marker so internal analytics can distinguish QR traffic from organic
-  const sep = target.includes("?") ? "&" : "?";
-  const finalUrl = origin + target + `${sep}qr=${encodeURIComponent(code)}`;
+  // Build final URL — internal path or external absolute URL.
+  // Append `qr=<code>` marker so analytics can distinguish QR traffic from organic.
+  let finalUrl: string;
+  const target = qr.targetPath;
+
+  if (/^https?:\/\//i.test(target)) {
+    // External URL — append qr param without breaking existing query string
+    try {
+      const u = new URL(target);
+      u.searchParams.set("qr", code);
+      finalUrl = u.toString();
+    } catch {
+      finalUrl = target; // malformed but stored; redirect as-is
+    }
+  } else {
+    // Internal path — prepend origin
+    const path = target.startsWith("/") ? target : "/" + target;
+    const sep = path.includes("?") ? "&" : "?";
+    finalUrl = origin + path + `${sep}qr=${encodeURIComponent(code)}`;
+  }
 
   return NextResponse.redirect(finalUrl, 302);
 }

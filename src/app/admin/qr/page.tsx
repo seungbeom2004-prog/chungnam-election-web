@@ -218,25 +218,27 @@ export default function AdminQRPage() {
                 <p className="text-[10px] text-muted mt-0.5">A/B 테스트하려면 같은 경로에 다른 이름의 QR을 만드세요.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted mb-1">목적지 경로 *</label>
+                <label className="block text-xs font-medium text-muted mb-1">목적지 *</label>
                 <input
                   type="text"
                   value={targetPath}
                   onChange={e => setTargetPath(e.target.value)}
-                  placeholder="/"
-                  maxLength={300}
+                  placeholder="/  또는  https://www.example.com"
+                  maxLength={1000}
                   required
-                  pattern="^/.*"
                   className="w-full px-3 py-2 text-sm border border-border rounded-lg font-mono"
                 />
-                <p className="text-[10px] text-muted mt-0.5">예: <code>/</code> (메인), <code>/issues</code> (이슈맵), <code>/candidates/abc123</code> (특정 후보)</p>
+                <p className="text-[10px] text-muted mt-0.5">
+                  내부: <code>/</code>(메인) · <code>/issues</code> · <code>/candidates/abc123</code><br/>
+                  외부: <code>https://www.naver.com</code> · <code>https://youtu.be/xxx</code> 등 모든 URL 지원
+                </p>
               </div>
               {error && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
             </div>
             <div className="flex gap-2 px-5 py-4 border-t">
               <button
                 type="submit"
-                disabled={submitting || !name.trim() || !targetPath.startsWith("/")}
+                disabled={submitting || !name.trim() || !(targetPath.startsWith("/") || /^https?:\/\//i.test(targetPath))}
                 className="flex-1 px-4 py-2 text-sm font-bold bg-primary text-white rounded-lg disabled:opacity-50"
               >
                 {submitting ? "생성 중..." : "QR 생성"}

@@ -186,25 +186,26 @@ export default function QRPage() {
                 <p className="text-[10px] text-muted mt-0.5">통계를 구분하는 데만 쓰입니다 — 사용자에게는 보이지 않습니다.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted mb-1">목적지 경로 *</label>
+                <label className="block text-xs font-medium text-muted mb-1">목적지 *</label>
                 <input
                   type="text"
                   value={targetPath}
                   onChange={e => setTargetPath(e.target.value)}
-                  placeholder="/candidates/내후보ID"
-                  maxLength={300}
+                  placeholder="/candidates/내후보ID  또는  https://www.naver.com"
+                  maxLength={1000}
                   required
-                  pattern="^/.*"
                   className="w-full px-3 py-2 text-sm border border-border rounded-lg font-mono"
                 />
-                <p className="text-[10px] text-muted mt-0.5">사이트 내부 경로 (/로 시작). 기본값: 내 프로필 페이지.</p>
+                <p className="text-[10px] text-muted mt-0.5">
+                  사이트 내부 경로(<code>/</code>로 시작) 또는 외부 URL(<code>https://</code>로 시작) 모두 가능. 기본값: 내 프로필 페이지.
+                </p>
               </div>
               {error && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
             </div>
             <div className="flex gap-2 px-5 py-4 border-t">
               <button
                 type="submit"
-                disabled={submitting || !name.trim() || !targetPath.startsWith("/")}
+                disabled={submitting || !name.trim() || !(targetPath.startsWith("/") || /^https?:\/\//i.test(targetPath))}
                 className="flex-1 px-4 py-2 text-sm font-bold bg-primary text-white rounded-lg disabled:opacity-50"
               >
                 {submitting ? "생성 중..." : "QR 생성"}
