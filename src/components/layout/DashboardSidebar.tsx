@@ -55,6 +55,17 @@ const navItems = [
     ),
   },
   {
+    href: "/dashboard/feed",
+    label: "AI 피드",
+    shortLabel: "AI피드",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 5h14M3 10h14M3 15h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="16" cy="15" r="2" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/qr",
     label: "QR 코드",
     shortLabel: "QR",
