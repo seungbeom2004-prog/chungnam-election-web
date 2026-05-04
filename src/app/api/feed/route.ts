@@ -3,14 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiError } from "@/lib/api-utils";
-import { reverseGeocodeDong } from "@/lib/reverse-geocode";
 
 /**
- * GET /api/feed?postType=&candidateId=&limit=
+ * GET /api/feed?postType=&candidateId=&city=&dong=&issueId=&limit=
  *
- * AI-friendly aggregated feed for dashboards. Returns posts (불편제보·공약제안)
- * with their candidate responses, linked pledges, and best-effort
- * 행정동/법정동 enrichment (via Naver reverse geocoding).
+ * AI-friendly aggregated feed for dashboards. Reads legalDong/admDong directly
+ * from DB (populated at insert time via reverse-geocode + 006 backfill) — no
+ * runtime API calls, so this is fast even at 200+ posts.
  *
  * Auth: candidate or admin only.
  */
@@ -22,21 +21,27 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "100", 10), 500);
-  const postType = searchParams.get("postType"); // "민원" | "제안" | null
+  const limit = Math.min(parseInt(searchParams.get("limit") ?? "200", 10), 500);
+  const postType = searchParams.get("postType");      // "민원" | "제안" | null
   const candidateFilter = searchParams.get("candidateId"); // admin only
+  const cityFilter = searchParams.get("city");         // 시군구
+  const dongFilter = searchParams.get("dong");         // 읍면동 (legal or adm 매칭)
+  const issueFilter = searchParams.get("issueId");
 
-  // Posts query — exclude deleted, include hidden (admin can review)
+  // Posts query — exclude deleted, include hidden (dashboards can audit them)
   let q = supabaseAdmin
     .from("ProposalPost")
-    .select("id, title, content, authorName, postType, status, adminStatus, city, dong, latitude, longitude, candidateId, parentId, createdAt")
+    .select("id, title, content, authorName, postType, status, adminStatus, city, dong, legalDong, admDong, latitude, longitude, candidateId, parentId, issueId, createdAt")
     .neq("status", "deleted")
     .order("createdAt", { ascending: false })
     .limit(limit);
 
   if (postType === "민원" || postType === "제안") q = q.eq("postType", postType);
+  if (cityFilter) q = q.eq("city", cityFilter);
+  if (dongFilter) q = q.or(`legalDong.eq.${dongFilter},admDong.eq.${dongFilter},dong.eq.${dongFilter}`);
+  if (issueFilter) q = q.eq("issueId", issueFilter);
+
   if (user.role === "candidate") {
-    // Candidate sees only posts that mention their district OR are tagged to their candidateId
     q = q.or(`candidateId.eq.${user.id},candidateId.is.null`);
   } else if (candidateFilter) {
     q = q.eq("candidateId", candidateFilter);
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   const postIds = (posts ?? []).map((p) => p.id);
 
-  // Responses
+  // Responses (multi-stage, ordered)
   let responses: Array<{ proposalId: string; candidateName: string; status: string; content: string; officialResponse: string | null; pledgeId: string | null; createdAt: string }> = [];
   if (postIds.length > 0) {
     const { data: respData } = await supabaseAdmin
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
     responses = respData ?? [];
   }
 
-  // Linked pledges (via PledgeToMinwon)
+  // Linked pledges (정식 공약 ↔ 민원/제안)
   let minwonLinks: Array<{ minwonId: string; pledgeId: string; pledge: { id: string; title: string } | null }> = [];
   if (postIds.length > 0) {
     const { data: linkData } = await supabaseAdmin
@@ -72,35 +77,46 @@ export async function GET(request: NextRequest) {
     }));
   }
 
-  // Reverse-geocode each unique lat/lng (cached)
-  const uniqueCoords = new Map<string, { lat: number; lng: number }>();
-  for (const p of posts ?? []) {
-    if (typeof p.latitude === "number" && typeof p.longitude === "number") {
-      uniqueCoords.set(`${p.latitude},${p.longitude}`, { lat: p.latitude, lng: p.longitude });
-    }
+  // Issues
+  const issueIds = Array.from(new Set((posts ?? []).map((p) => p.issueId).filter(Boolean))) as string[];
+  const issueMap = new Map<string, { id: string; title: string; category: string | null; emoji: string | null }>();
+  if (issueIds.length > 0) {
+    const { data: issues } = await supabaseAdmin
+      .from("Issue")
+      .select("id, title, category, emoji")
+      .in("id", issueIds);
+    for (const i of issues ?? []) issueMap.set(i.id as string, i as { id: string; title: string; category: string | null; emoji: string | null });
   }
-  const dongMap = new Map<string, string>();
-  await Promise.all(
-    Array.from(uniqueCoords.entries()).map(async ([k, { lat, lng }]) => {
-      const r = await reverseGeocodeDong(lat, lng);
-      if (r.formatted) dongMap.set(k, r.formatted);
-    })
-  );
 
   // Compose
   const enriched = (posts ?? []).map((p) => {
-    const coordKey = p.latitude != null && p.longitude != null ? `${p.latitude},${p.longitude}` : null;
-    const geocodedDong = coordKey ? dongMap.get(coordKey) : undefined;
-    const dongLabel = geocodedDong || p.dong || null;
+    const adm = (p as { admDong?: string | null }).admDong ?? null;
+    const legal = (p as { legalDong?: string | null }).legalDong ?? null;
+    const dongLabel = adm && legal
+      ? (adm === legal ? adm : `${adm} (${legal})`)
+      : (adm ?? legal ?? p.dong ?? null);
     const myResponses = responses.filter((r) => r.proposalId === p.id);
     const myLinks = minwonLinks.filter((l) => l.minwonId === p.id);
+    const issue = p.issueId ? (issueMap.get(p.issueId as string) ?? null) : null;
     return {
       ...p,
-      dongLabel,           // "봉명1동 (봉명동)" 또는 "봉명동" 또는 raw dong
+      dongLabel,
+      issue,                     // {id, title, category, emoji} | null
       responses: myResponses,
       linkedPledges: myLinks.map((l) => l.pledge).filter((x): x is { id: string; title: string } => !!x),
     };
   });
 
-  return NextResponse.json({ success: true, data: enriched });
+  // Distinct facets (cities, dongs, issues) for filter UI population
+  const facets = {
+    cities: Array.from(new Set((posts ?? []).map((p) => p.city).filter(Boolean))) as string[],
+    dongs: Array.from(new Set((posts ?? []).flatMap((p) => [
+      (p as { admDong?: string | null }).admDong,
+      (p as { legalDong?: string | null }).legalDong,
+      p.dong,
+    ]).filter(Boolean))) as string[],
+    issues: Array.from(issueMap.values()),
+  };
+
+  return NextResponse.json({ success: true, data: enriched, facets });
 }

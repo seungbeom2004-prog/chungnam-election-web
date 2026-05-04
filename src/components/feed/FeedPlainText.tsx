@@ -13,10 +13,14 @@ interface FeedPost {
   city: string | null;
   dong: string | null;
   dongLabel: string | null;
+  legalDong: string | null;
+  admDong: string | null;
   latitude: number | null;
   longitude: number | null;
   candidateId: string | null;
   parentId: string | null;
+  issueId: string | null;
+  issue: { id: string; title: string; category: string | null; emoji: string | null } | null;
   createdAt: string;
   responses: Array<{
     candidateName: string;
@@ -27,6 +31,12 @@ interface FeedPost {
     createdAt: string;
   }>;
   linkedPledges: Array<{ id: string; title: string }>;
+}
+
+interface Facets {
+  cities: string[];
+  dongs: string[];
+  issues: Array<{ id: string; title: string; category: string | null; emoji: string | null }>;
 }
 
 // ─── Client-side reverse geocoding via Naver Maps SDK ─────────────────────
@@ -115,28 +125,39 @@ type Filter = "all" | "민원" | "제안";
  */
 export default function FeedPlainText({ adminMode = false }: { adminMode?: boolean }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [facets, setFacets] = useState<Facets>({ cities: [], dongs: [], issues: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [cityFilter, setCityFilter] = useState<string>("");
+  const [dongFilter, setDongFilter] = useState<string>("");
+  const [issueFilter, setIssueFilter] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [enrichingDongs, setEnrichingDongs] = useState(false);
   const dongCacheRef = useRef<Map<string, string | null>>(new Map());
 
   useEffect(() => {
-    const url = filter === "all" ? "/api/feed?limit=200" : `/api/feed?limit=200&postType=${encodeURIComponent(filter)}`;
+    const params = new URLSearchParams({ limit: "200" });
+    if (filter !== "all") params.set("postType", filter);
+    if (cityFilter) params.set("city", cityFilter);
+    if (dongFilter) params.set("dong", dongFilter);
+    if (issueFilter) params.set("issueId", issueFilter);
     setLoading(true);
-    fetch(url)
+    fetch(`/api/feed?${params}`)
       .then((r) => r.json())
       .then((j) => {
-        if (j.success) setPosts(j.data ?? []);
-        else setError(j.error ?? "불러오기에 실패했습니다");
+        if (j.success) {
+          setPosts(j.data ?? []);
+          if (j.facets) setFacets(j.facets);
+        } else {
+          setError(j.error ?? "불러오기에 실패했습니다");
+        }
       })
       .catch(() => setError("네트워크 오류"))
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, cityFilter, dongFilter, issueFilter]);
 
-  // Client-side reverse-geocode enrichment: fill in dongLabel for every post that
-  // has lat/lng but no server-supplied dongLabel.
+  // Fallback client-side enrichment for posts that still don't have a dong (very old posts pre-backfill).
   useEffect(() => {
     if (posts.length === 0) return;
     let cancelled = false;
@@ -148,19 +169,16 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
       );
       if (targets.length === 0) return;
       setEnrichingDongs(true);
-      // Dedup unique coords
       const uniq = new Map<string, { lat: number; lng: number }>();
       for (const p of targets) {
         const key = `${p.latitude!.toFixed(5)},${p.longitude!.toFixed(5)}`;
         if (!uniq.has(key)) uniq.set(key, { lat: p.latitude!, lng: p.longitude! });
       }
-      // Process serially with small delays to avoid Naver SDK rate limits
       for (const [key, { lat, lng }] of uniq) {
         if (cancelled) break;
         if (dongCacheRef.current.has(key)) continue;
         const label = await clientReverseGeocode(lat, lng);
         dongCacheRef.current.set(key, label);
-        // Apply incrementally so the UI updates as we go
         setPosts((prev) => prev.map((p) => {
           if (p.dongLabel) return p;
           if (p.latitude == null || p.longitude == null) return p;
@@ -213,6 +231,41 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
               </button>
             ))}
           </div>
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
+            aria-label="시군구 필터"
+          >
+            <option value="">시군구 전체</option>
+            {facets.cities.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            value={dongFilter}
+            onChange={(e) => setDongFilter(e.target.value)}
+            className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
+            aria-label="읍면동 필터"
+          >
+            <option value="">읍면동 전체</option>
+            {facets.dongs.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select
+            value={issueFilter}
+            onChange={(e) => setIssueFilter(e.target.value)}
+            className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
+            aria-label="이슈 필터"
+          >
+            <option value="">이슈 전체</option>
+            {facets.issues.map((i) => <option key={i.id} value={i.id}>{i.emoji ? i.emoji + " " : ""}{i.title}</option>)}
+          </select>
+          {(cityFilter || dongFilter || issueFilter) && (
+            <button
+              onClick={() => { setCityFilter(""); setDongFilter(""); setIssueFilter(""); }}
+              className="text-[10px] text-muted hover:text-foreground border border-border px-2 py-1 rounded"
+            >
+              필터 해제
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
@@ -280,6 +333,12 @@ function formatPost(p: FeedPost, n: number): string {
     `게시글 상태: ${statusLabel}`,
   ];
   if (adminStatusLabel) lines.push(`처리단계: ${adminStatusLabel}`);
+  if (p.issue) {
+    const cat = p.issue.category ? ` / ${p.issue.category}` : "";
+    lines.push(`소속 이슈: ${p.issue.emoji ? p.issue.emoji + " " : ""}${p.issue.title}${cat} (id: ${p.issue.id})`);
+  } else {
+    lines.push(`소속 이슈: 없음`);
+  }
   if (p.parentId) lines.push(`연결된 부모 게시글: ${p.parentId}`);
   if (p.latitude != null && p.longitude != null) {
     lines.push(`좌표: ${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}`);

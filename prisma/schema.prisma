@@ -154,6 +154,10 @@ model ProposalPost {
   authorName   String
   passwordHash String?
   city         String?
+  /// 법정동 이름 (예: 봉명동) — 좌표→reverse geocode 결과 저장
+  legalDong    String?
+  /// 행정동 이름 (예: 봉명1동)
+  admDong      String?
   candidateId  String?
   ipHash       String
   status       String   @default("pending")

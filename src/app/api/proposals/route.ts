@@ -303,12 +303,26 @@ export async function POST(request: NextRequest) {
       if (cand?.district) baseInsert.city = cand.district;
     }
 
-    // Try full insert with v10 columns
+    // Reverse-geocode coords → legalDong/admDong (best-effort, fail-safe)
+    let geocodedLegalDong: string | null = null;
+    let geocodedAdmDong:   string | null = null;
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      try {
+        const { reverseGeocodeDong } = await import("@/lib/reverse-geocode");
+        const r = await reverseGeocodeDong(latitude, longitude);
+        geocodedLegalDong = r.legalDong;
+        geocodedAdmDong   = r.admDong;
+      } catch { /* ignore — 신규 dong 컬럼 없으면 backfill로 채움 */ }
+    }
+
+    // Try full insert with v10 columns + dong columns (006 migration)
     const fullInsert = {
       ...baseInsert,
       title,
       latitude: latitude ?? null,
       longitude: longitude ?? null,
+      legalDong: geocodedLegalDong,
+      admDong:   geocodedAdmDong,
       postType: postType ?? "제안",
       ipHash,
       status: "pending",

@@ -128,6 +128,7 @@ export default function ProposalBoardClient({ candidates }: Props) {
         <span className="font-black text-primary text-sm">📋 이슈</span>
         <span className="text-xs text-muted bg-background border border-border rounded-full px-2 py-0.5">{issueStats.totalIssues}개</span>
         <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline ml-auto">현황판 →</Link>
+        <Link href="/proposals/keywords" className="text-[10px] text-emerald-600 font-semibold hover:underline">데이터 분석 →</Link>
       </div>
 
       {/* City tabs */}
@@ -264,6 +265,9 @@ export default function ProposalBoardClient({ candidates }: Props) {
             )}
             <Link href="/issues/stats" className="text-[10px] text-primary font-semibold hover:underline">
               📊 현황판 →
+            </Link>
+            <Link href="/proposals/keywords" className="text-[10px] text-emerald-600 font-semibold hover:underline">
+              📈 데이터 분석 →
             </Link>
             <Link href="/proposals/responses" className="text-[10px] text-green-600 font-semibold hover:underline">
               💬 후보자 답변 모아보기 →
