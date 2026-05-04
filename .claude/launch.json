@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "nextjs",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/opt/homebrew/Cellar/node/23.7.0/bin/node",
+      "runtimeArgs": ["/Volumes/피난처/개혁신당/충남도당 홈페이지/node_modules/.bin/next", "dev"],
       "port": 3000
     }
   ]

@@ -35,9 +35,13 @@ interface FeedPost {
 
 interface Facets {
   cities: string[];
-  dongs: string[];
+  admDongs: string[];
+  legalDongs: string[];
+  rawDongs: string[];
   issues: Array<{ id: string; title: string; category: string | null; emoji: string | null }>;
 }
+
+type DongType = "adm" | "legal";
 
 // ─── Client-side reverse geocoding via Naver Maps SDK ─────────────────────
 // SDK is loaded in app/layout.tsx with submodules=geocoder.
@@ -125,22 +129,36 @@ type Filter = "all" | "민원" | "제안";
  */
 export default function FeedPlainText({ adminMode = false }: { adminMode?: boolean }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [facets, setFacets] = useState<Facets>({ cities: [], dongs: [], issues: [] });
+  const [facets, setFacets] = useState<Facets>({ cities: [], admDongs: [], legalDongs: [], rawDongs: [], issues: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [cityFilter, setCityFilter] = useState<string>("");
-  const [dongFilter, setDongFilter] = useState<string>("");
+  const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
+  const [selectedDongs, setSelectedDongs] = useState<Set<string>>(new Set());
+  const [dongType, setDongType] = useState<DongType>("adm");
   const [issueFilter, setIssueFilter] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [enrichingDongs, setEnrichingDongs] = useState(false);
   const dongCacheRef = useRef<Map<string, string | null>>(new Map());
 
+  // When the user toggles between 행정동/법정동, clear current dong selections that don't apply.
+  useEffect(() => {
+    setSelectedDongs((s) => {
+      const allowed = new Set(dongType === "adm" ? facets.admDongs : facets.legalDongs);
+      const next = new Set<string>();
+      for (const d of s) if (allowed.has(d)) next.add(d);
+      return next;
+    });
+  }, [dongType, facets.admDongs, facets.legalDongs]);
+
   useEffect(() => {
     const params = new URLSearchParams({ limit: "200" });
     if (filter !== "all") params.set("postType", filter);
-    if (cityFilter) params.set("city", cityFilter);
-    if (dongFilter) params.set("dong", dongFilter);
+    if (selectedCities.size > 0) params.set("city", Array.from(selectedCities).join(","));
+    if (selectedDongs.size > 0) {
+      params.set("dong", Array.from(selectedDongs).join(","));
+      params.set("dongType", dongType);
+    }
     if (issueFilter) params.set("issueId", issueFilter);
     setLoading(true);
     fetch(`/api/feed?${params}`)
@@ -155,7 +173,14 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
       })
       .catch(() => setError("네트워크 오류"))
       .finally(() => setLoading(false));
-  }, [filter, cityFilter, dongFilter, issueFilter]);
+  }, [filter, selectedCities, selectedDongs, dongType, issueFilter]);
+
+  const toggleCity  = (c: string) => setSelectedCities((s) => { const n = new Set(s); n.has(c) ? n.delete(c) : n.add(c); return n; });
+  const toggleDong  = (d: string) => setSelectedDongs((s)  => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
+  const clearAll = () => { setSelectedCities(new Set()); setSelectedDongs(new Set()); setIssueFilter(""); };
+
+  const dongOptions = dongType === "adm" ? facets.admDongs : facets.legalDongs;
+  const hasAnyFilter = selectedCities.size > 0 || selectedDongs.size > 0 || !!issueFilter;
 
   // Fallback client-side enrichment for posts that still don't have a dong (very old posts pre-backfill).
   useEffect(() => {
@@ -232,24 +257,6 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
             ))}
           </div>
           <select
-            value={cityFilter}
-            onChange={(e) => setCityFilter(e.target.value)}
-            className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
-            aria-label="시군구 필터"
-          >
-            <option value="">시군구 전체</option>
-            {facets.cities.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select
-            value={dongFilter}
-            onChange={(e) => setDongFilter(e.target.value)}
-            className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
-            aria-label="읍면동 필터"
-          >
-            <option value="">읍면동 전체</option>
-            {facets.dongs.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <select
             value={issueFilter}
             onChange={(e) => setIssueFilter(e.target.value)}
             className="px-2 py-1.5 text-xs border border-border rounded-lg bg-surface text-foreground"
@@ -258,12 +265,9 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
             <option value="">이슈 전체</option>
             {facets.issues.map((i) => <option key={i.id} value={i.id}>{i.emoji ? i.emoji + " " : ""}{i.title}</option>)}
           </select>
-          {(cityFilter || dongFilter || issueFilter) && (
-            <button
-              onClick={() => { setCityFilter(""); setDongFilter(""); setIssueFilter(""); }}
-              className="text-[10px] text-muted hover:text-foreground border border-border px-2 py-1 rounded"
-            >
-              필터 해제
+          {hasAnyFilter && (
+            <button onClick={clearAll} className="text-[10px] text-muted hover:text-foreground border border-border px-2 py-1 rounded">
+              필터 전체 해제
             </button>
           )}
           <button
@@ -272,6 +276,84 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
           >
             {copied ? "✓ 복사됨" : "📋 전체 텍스트 복사"}
           </button>
+        </div>
+      </div>
+
+      {/* ── 위치 필터 패널: 시군구 + 행정동/법정동 토글 + 다중선택 chip ─── */}
+      <div className="bg-surface border border-border rounded-xl p-4 mb-4 space-y-3">
+        {/* 시군구 (다중선택) */}
+        {facets.cities.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold text-muted mb-1.5">📍 시군구 ({selectedCities.size}/{facets.cities.length})</p>
+            <div className="flex flex-wrap gap-1">
+              {facets.cities.map((c) => {
+                const sel = selectedCities.has(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => toggleCity(c)}
+                    className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
+                      sel ? "bg-primary text-white border-primary" : "bg-background text-muted border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {sel ? "✓ " : ""}{c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 동 토글 + 다중선택 chip */}
+        <div>
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <p className="text-[11px] font-semibold text-muted">읍·면·동 ({selectedDongs.size}/{dongOptions.length})</p>
+            <div className="flex gap-0.5 bg-background border border-border rounded p-0.5">
+              <button
+                onClick={() => setDongType("adm")}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  dongType === "adm" ? "bg-primary text-white" : "text-muted hover:text-foreground"
+                }`}
+                title="행정동 — 주민센터 단위 (예: 봉명1동, 봉명2동)"
+              >
+                🏛️ 행정동
+              </button>
+              <button
+                onClick={() => setDongType("legal")}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  dongType === "legal" ? "bg-primary text-white" : "text-muted hover:text-foreground"
+                }`}
+                title="법정동 — 법적 주소 단위 (예: 봉명동)"
+              >
+                📜 법정동
+              </button>
+            </div>
+            {selectedDongs.size > 0 && (
+              <button onClick={() => setSelectedDongs(new Set())} className="text-[10px] text-muted hover:text-foreground underline">
+                선택 해제
+              </button>
+            )}
+          </div>
+          {dongOptions.length === 0 ? (
+            <p className="text-[10px] text-muted">{dongType === "adm" ? "행정동" : "법정동"} 데이터가 아직 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1">
+              {dongOptions.map((d) => {
+                const sel = selectedDongs.has(d);
+                return (
+                  <button
+                    key={d}
+                    onClick={() => toggleDong(d)}
+                    className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
+                      sel ? "bg-emerald-600 text-white border-emerald-600" : "bg-background text-muted border-border hover:border-emerald-400"
+                    }`}
+                  >
+                    {sel ? "✓ " : ""}{d}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

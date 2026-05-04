@@ -13,6 +13,7 @@ interface KeywordsData {
   analyzedPostCount: number;
   totalPostCount: number;
   bannedWordCount: number;
+  placeNameCount: number;
   topKeywords: KeywordRow[];
 }
 
@@ -96,11 +97,12 @@ export default function KeywordAnalyticsClient() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
             <SummaryCard label="분석 기간" value={RANGE_LABEL[data.range]} />
             <SummaryCard label="대상 게시글" value={`${data.analyzedPostCount.toLocaleString()}건`} />
             <SummaryCard label="추출 키워드" value={`${data.topKeywords.length}개`} highlight />
             <SummaryCard label="제외된 금지어" value={`${data.bannedWordCount}개`} />
+            <SummaryCard label="제외된 지명" value={`${data.placeNameCount}개`} />
           </div>
 
           {/* Keyword Cloud — sized & colored by frequency */}
@@ -156,7 +158,7 @@ export default function KeywordAnalyticsClient() {
           </div>
 
           <p className="mt-4 text-[10px] text-muted text-center">
-            한국어 stopword(이/가/는/은 등)는 분석에서 자동 제외 · 2자 이상 단어만 집계
+            한국어 stopword(이/가/는/은 등)·조사·지명(시군구·행정동·법정동)·금지어는 자동 제외 · 2자 이상 단어만 집계
           </p>
         </>
       )}

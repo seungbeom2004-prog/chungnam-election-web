@@ -95,6 +95,40 @@ export async function GET(request: NextRequest) {
   } catch { /* fall back to empty list */ }
   const bannedSet = new Set(bannedWords);
 
+  // ─── 지명(시군구·행정동·법정동) 자동 제외 ──────────────────────────────
+  // "천안", "천안시", "불당동", "봉명1동" 같은 지명은 키워드 분석에서 의미가 없음.
+  const placeNames = new Set<string>();
+  try {
+    const { data: places } = await supabaseAdmin
+      .from("ProposalPost")
+      .select("city, admDong, legalDong")
+      .limit(10000);
+    for (const r of places ?? []) {
+      const c   = (r as { city?: string | null }).city;
+      const adm = (r as { admDong?: string | null }).admDong;
+      const leg = (r as { legalDong?: string | null }).legalDong;
+      if (c) {
+        placeNames.add(c);
+        // "천안시" → "천안" 도 같이 추가 (조사 strip 후 매칭되도록)
+        const stripped = c.replace(/(특별시|광역시|특별자치시|특별자치도|시|군|구|도|읍|면|동)$/u, "");
+        if (stripped && stripped !== c) placeNames.add(stripped);
+      }
+      if (adm) {
+        placeNames.add(adm);
+        // "봉명1동" → "봉명" 도 추가
+        const stripped = adm.replace(/(\d+가|\d+동|동|읍|면)$/u, "");
+        if (stripped && stripped !== adm) placeNames.add(stripped);
+      }
+      if (leg) {
+        placeNames.add(leg);
+        const stripped = leg.replace(/(\d+가|\d+동|동|읍|면)$/u, "");
+        if (stripped && stripped !== leg) placeNames.add(stripped);
+      }
+    }
+    // 충남 광역 — 항상 포함 (게시글에 지역 직접 언급 다수)
+    ["충남", "충청남도", "충청"].forEach((p) => placeNames.add(p));
+  } catch { /* no big deal — falls back to no place exclusion */ }
+
   // Fetch posts (text only — no joins). Exclude hidden/deleted.
   let q = supabase
     .from("ProposalPost")
@@ -121,6 +155,7 @@ export async function GET(request: NextRequest) {
       const lower = tok.toLowerCase();
       if (KOREAN_STOPWORDS.has(tok) || KOREAN_STOPWORDS.has(lower)) continue;
       if (bannedSet.has(lower)) continue;
+      if (placeNames.has(tok)) continue; // 지명 제외
       // crude: skip pure-number tokens
       if (/^\d+$/.test(tok)) continue;
       counter.set(tok, (counter.get(tok) ?? 0) + 1);
@@ -140,6 +175,7 @@ export async function GET(request: NextRequest) {
       analyzedPostCount: data?.length ?? 0,
       totalPostCount: count ?? data?.length ?? 0,
       bannedWordCount: bannedWords.length,
+      placeNameCount: placeNames.size,
       topKeywords: top,
     },
   });

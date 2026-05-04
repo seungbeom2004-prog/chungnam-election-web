@@ -24,8 +24,11 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "200", 10), 500);
   const postType = searchParams.get("postType");      // "민원" | "제안" | null
   const candidateFilter = searchParams.get("candidateId"); // admin only
-  const cityFilter = searchParams.get("city");         // 시군구
-  const dongFilter = searchParams.get("dong");         // 읍면동 (legal or adm 매칭)
+  // Multi-select: comma-separated values
+  const cityList  = (searchParams.get("city") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const dongList  = (searchParams.get("dong") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  // dongType: "adm" | "legal" — null이면 둘 다 매칭
+  const dongType  = searchParams.get("dongType");
   const issueFilter = searchParams.get("issueId");
 
   // Posts query — exclude deleted, include hidden (dashboards can audit them)
@@ -37,8 +40,20 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (postType === "민원" || postType === "제안") q = q.eq("postType", postType);
-  if (cityFilter) q = q.eq("city", cityFilter);
-  if (dongFilter) q = q.or(`legalDong.eq.${dongFilter},admDong.eq.${dongFilter},dong.eq.${dongFilter}`);
+  if (cityList.length === 1) q = q.eq("city", cityList[0]);
+  else if (cityList.length > 1) q = q.in("city", cityList);
+
+  if (dongList.length > 0) {
+    if (dongType === "adm") {
+      q = dongList.length === 1 ? q.eq("admDong", dongList[0]) : q.in("admDong", dongList);
+    } else if (dongType === "legal") {
+      q = dongList.length === 1 ? q.eq("legalDong", dongList[0]) : q.in("legalDong", dongList);
+    } else {
+      // either column matches — use Supabase 'or' with quoted .in.()
+      const quoted = dongList.map((d) => `"${d.replace(/"/g, '\\"')}"`).join(",");
+      q = q.or(`admDong.in.(${quoted}),legalDong.in.(${quoted}),dong.in.(${quoted})`);
+    }
+  }
   if (issueFilter) q = q.eq("issueId", issueFilter);
 
   if (user.role === "candidate") {
@@ -107,14 +122,35 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  // Distinct facets (cities, dongs, issues) for filter UI population
+  // Distinct facets — fetched separately so the lists don't shrink as filters are applied.
+  // For candidates, we restrict facet space to their accessible posts; for admin, full DB.
+  let facetsQuery = supabaseAdmin
+    .from("ProposalPost")
+    .select("city, admDong, legalDong, dong")
+    .neq("status", "deleted");
+  if (user.role === "candidate") {
+    facetsQuery = facetsQuery.or(`candidateId.eq.${user.id},candidateId.is.null`);
+  }
+  const { data: facetRows } = await facetsQuery.limit(5000);
+
+  const facetCities    = new Set<string>();
+  const facetAdmDongs  = new Set<string>();
+  const facetLegalDongs= new Set<string>();
+  const facetRawDongs  = new Set<string>();
+  for (const r of facetRows ?? []) {
+    if (r.city)      facetCities.add(r.city as string);
+    if (r.admDong)   facetAdmDongs.add(r.admDong as string);
+    if (r.legalDong) facetLegalDongs.add(r.legalDong as string);
+    if (r.dong && !(r as { admDong?: string }).admDong && !(r as { legalDong?: string }).legalDong) {
+      facetRawDongs.add(r.dong as string);
+    }
+  }
+
   const facets = {
-    cities: Array.from(new Set((posts ?? []).map((p) => p.city).filter(Boolean))) as string[],
-    dongs: Array.from(new Set((posts ?? []).flatMap((p) => [
-      (p as { admDong?: string | null }).admDong,
-      (p as { legalDong?: string | null }).legalDong,
-      p.dong,
-    ]).filter(Boolean))) as string[],
+    cities: Array.from(facetCities).sort((a, b) => a.localeCompare(b, "ko")),
+    admDongs: Array.from(facetAdmDongs).sort((a, b) => a.localeCompare(b, "ko")),
+    legalDongs: Array.from(facetLegalDongs).sort((a, b) => a.localeCompare(b, "ko")),
+    rawDongs: Array.from(facetRawDongs).sort((a, b) => a.localeCompare(b, "ko")),
     issues: Array.from(issueMap.values()),
   };
 
