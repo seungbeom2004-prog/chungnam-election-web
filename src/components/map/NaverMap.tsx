@@ -20,6 +20,8 @@ export interface ProposalMapItem {
   adminStatus?: string | null;
   candidateId?: string | null;
   candidateName?: string | null;
+  /** 후보자 답변 여부 판별용 — candidateId가 채워진 응답이 1개 이상이면 답변 완료 */
+  responses?: Array<{ candidateId?: string | null }>;
 }
 
 interface NaverMapProps {
@@ -378,17 +380,21 @@ function isAtCityCenter(lat: number, lng: number): string | null {
 }
 
 /** Citizen proposal/민원 pin — simple dot at low zoom, icon+title at high zoom */
-function buildProposalDotHTML(postType?: string, opacity = 1): string {
+function buildProposalDotHTML(postType?: string, opacity = 1, hasResponse = false): string {
   const color = postType === "민원" ? "#EF4444" : "#FACC15";
   const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
+  // 답변된 핀은 초록 외곽 ring으로 작은 dot에서도 구분 가능
+  const ringStyle = hasResponse
+    ? "border:2px solid #16A34A;box-shadow:0 0 0 1px white,0 1px 3px rgba(0,0,0,0.25);"
+    : "border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);";
   return (
     `<div style="${opacityStyle}width:20px;height:20px;border-radius:50%;background:${color};` +
-    `border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);cursor:pointer;` +
+    `${ringStyle}cursor:pointer;` +
     `animation:markerFadeIn 0.15s ease-out both;"></div>`
   );
 }
 
-function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null, opacity = 1): string {
+function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null, opacity = 1, hasResponse = false): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
   const textColor = isMinwon ? "white" : "#111";
@@ -399,14 +405,21 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     ? `<div style="margin-top:2px;background:#3B82F6;color:white;font-size:8px;font-weight:700;` +
       `padding:1px 5px;border-radius:4px;white-space:nowrap;">후보자 작성</div>`
     : "";
+  // 답변 완료된 게시글: 제목 라벨 아래에 초록색 "답변 완료" 칸
+  const responseBadge = hasResponse
+    ? `<div style="margin-top:2px;background:#16A34A;color:white;font-size:8px;font-weight:700;` +
+      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 2px rgba(22,163,74,0.4);">✓ 답변 완료</div>`
+    : "";
   const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
+  // 답변된 핀은 초록 외곽 ring 추가
+  const responseRing = hasResponse ? "box-shadow:0 0 0 2px #16A34A,0 2px 8px " + shadowColor + ";" : "box-shadow:0 2px 8px " + shadowColor + ";";
   return (
     `<div style="${opacityStyle}display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
     `animation:markerFadeIn 0.2s ease-out both;">` +
     `<div style="position:relative;width:36px;height:36px;background:${color};border-radius:50%;` +
     `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `box-shadow:0 2px 8px ${shadowColor};">` +
+    `${responseRing}">` +
     `<span style="font-size:14px;line-height:1;color:white;font-weight:700;">${isMinwon ? "📢" : "💡"}</span>` +
     (likeCount > 0
       ? `<div style="position:absolute;top:-7px;right:-7px;background:#EF4444;color:white;` +
@@ -418,13 +431,14 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     `<div style="margin-top:3px;background:${color};color:${textColor};font-size:9px;font-weight:700;` +
     `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);">` +
     `${escapeHtml(truncated)}${likeStr}</div>` +
+    responseBadge +
     candidateBadge +
     `</div>`
   );
 }
 
 /** Proposal cluster pin — groups nearby 불편제보 + 공약제안 */
-function buildProposalClusterHTML(totalCount: number, minwonCount: number, proposalCount: number): string {
+function buildProposalClusterHTML(totalCount: number, minwonCount: number, proposalCount: number, respondedCount = 0): string {
   const hasMinwon = minwonCount > 0;
   const hasProposal = proposalCount > 0;
   const bg = hasMinwon && hasProposal
@@ -432,14 +446,25 @@ function buildProposalClusterHTML(totalCount: number, minwonCount: number, propo
     : hasMinwon ? "#EF4444" : "#FACC15";
   const textColor = hasMinwon && !hasProposal ? "white" : "#111";
   const size = totalCount >= 10 ? 44 : 38;
+  // cluster 안에 답변 완료된 게시글이 1개 이상이면 초록 외곽 ring + 아래 라벨
+  const hasResponded = respondedCount > 0;
+  const ringStyle = hasResponded
+    ? `border:2.5px solid white;box-shadow:0 0 0 2px #16A34A,0 2px 8px rgba(0,0,0,0.3);`
+    : `border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
+  // "답변 완료" / "답변 완료외 N" 라벨 (답변 완료가 1개면 그냥 "답변 완료", 2개 이상이면 "답변 완료외 N")
+  const respondedBadge = hasResponded
+    ? `<div style="margin-top:3px;background:#16A34A;color:white;font-size:9px;font-weight:700;` +
+      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(22,163,74,0.4);">` +
+      `✓ 답변 완료${respondedCount > 1 ? `외 ${respondedCount - 1}` : ""}</div>`
+    : "";
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `animation:markerFadeIn 0.15s ease-out both;">` +
     `<div style="width:${size}px;height:${size}px;background:${bg};border-radius:50%;` +
-    `border:2.5px solid white;display:flex;align-items:center;justify-content:center;` +
-    `box-shadow:0 2px 8px rgba(0,0,0,0.3);">` +
+    `display:flex;align-items:center;justify-content:center;${ringStyle}">` +
     `<span style="font-size:${totalCount >= 10 ? 14 : 13}px;font-weight:800;color:${textColor};">${totalCount}</span>` +
     `</div>` +
+    respondedBadge +
     `</div>`
   );
 }
@@ -1108,7 +1133,13 @@ export default function NaverMap({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const minwonCount = leaves.filter((l: any) => l.properties?.proposal?.postType === "민원").length;
           const proposalCount = leaves.length - minwonCount;
-          const clusterHtml = buildProposalClusterHTML(leaves.length, minwonCount, proposalCount);
+          // 후보자 답변이 달린 게시글 수 (responses 배열에 candidateId가 있는 응답이 1개 이상)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const respondedCount = leaves.filter((l: any) => {
+            const resps = l.properties?.proposal?.responses;
+            return Array.isArray(resps) && resps.some((r: { candidateId?: string | null }) => !!r.candidateId);
+          }).length;
+          const clusterHtml = buildProposalClusterHTML(leaves.length, minwonCount, proposalCount, respondedCount);
           const marker = new naver.maps.Marker({
             map,
             position,
@@ -1135,9 +1166,13 @@ export default function NaverMap({
             return Math.max(0.35, 1 - daysOld * (0.65 / 90));
           })();
 
+          // 후보자가 답변을 단 게시글인지 (responses 배열에 candidateId가 있는 응답이 1개 이상)
+          const hasResponse = Array.isArray(proposal.responses) &&
+            proposal.responses.some((r: { candidateId?: string | null }) => !!r.candidateId);
+
           const markerHtml = (showLabel || isSelected)
-            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId, ageOpacity)
-            : buildProposalDotHTML(proposal.postType, ageOpacity);
+            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId, ageOpacity, hasResponse)
+            : buildProposalDotHTML(proposal.postType, ageOpacity, hasResponse);
           const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
           const marker = new naver.maps.Marker({
             map,
