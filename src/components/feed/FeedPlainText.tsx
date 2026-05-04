@@ -13,6 +13,8 @@ interface FeedPost {
   city: string | null;
   dong: string | null;
   dongLabel: string | null;
+  locationLabel: string | null;
+  isCityCenterOnly: boolean;
   legalDong: string | null;
   admDong: string | null;
   latitude: number | null;
@@ -38,6 +40,8 @@ interface Facets {
   admDongs: string[];
   legalDongs: string[];
   rawDongs: string[];
+  admDongsByCity: Record<string, string[]>;
+  legalDongsByCity: Record<string, string[]>;
   issues: Array<{ id: string; title: string; category: string | null; emoji: string | null }>;
 }
 
@@ -129,41 +133,64 @@ type Filter = "all" | "민원" | "제안";
  */
 export default function FeedPlainText({ adminMode = false }: { adminMode?: boolean }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [facets, setFacets] = useState<Facets>({ cities: [], admDongs: [], legalDongs: [], rawDongs: [], issues: [] });
+  const [facets, setFacets] = useState<Facets>({
+    cities: [], admDongs: [], legalDongs: [], rawDongs: [],
+    admDongsByCity: {}, legalDongsByCity: {}, issues: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
-  const [selectedDongs, setSelectedDongs] = useState<Set<string>>(new Set());
+  // Set 대신 string[] 사용 — useEffect deps의 reference equality 무한 루프 방지
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedDongs, setSelectedDongs] = useState<string[]>([]);
   const [dongType, setDongType] = useState<DongType>("adm");
   const [issueFilter, setIssueFilter] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [enrichingDongs, setEnrichingDongs] = useState(false);
   const dongCacheRef = useRef<Map<string, string | null>>(new Map());
 
-  // When the user toggles between 행정동/법정동, clear current dong selections that don't apply.
+  // 정렬된 join key — useEffect deps를 string으로 안정화 (Set/array reference 변화로 인한 무한 루프 방지)
+  const citiesKey = useMemo(() => selectedCities.slice().sort().join("|"), [selectedCities]);
+  const dongsKey  = useMemo(() => selectedDongs.slice().sort().join("|"),  [selectedDongs]);
+
+  // 행정동/법정동 선택 가능한 후보 — 시군구 미선택 시 빈 배열 (선택 강제)
+  const dongOptions = useMemo(() => {
+    if (selectedCities.length === 0) return [] as string[];
+    const map = dongType === "adm" ? facets.admDongsByCity : facets.legalDongsByCity;
+    const out = new Set<string>();
+    for (const c of selectedCities) {
+      for (const d of map[c] ?? []) out.add(d);
+    }
+    return Array.from(out).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [selectedCities, dongType, facets.admDongsByCity, facets.legalDongsByCity]);
+
+  // 토글이나 시군구 변경으로 더 이상 유효하지 않은 동 선택 정리
   useEffect(() => {
-    setSelectedDongs((s) => {
-      const allowed = new Set(dongType === "adm" ? facets.admDongs : facets.legalDongs);
-      const next = new Set<string>();
-      for (const d of s) if (allowed.has(d)) next.add(d);
+    setSelectedDongs((prev) => {
+      if (prev.length === 0) return prev;
+      const allowed = new Set(dongOptions);
+      const next = prev.filter((d) => allowed.has(d));
+      // content 동일하면 prev 그대로 — 새 reference 만들지 않아 fetch loop 방지
+      if (next.length === prev.length) return prev;
       return next;
     });
-  }, [dongType, facets.admDongs, facets.legalDongs]);
+  }, [dongOptions]);
 
   useEffect(() => {
     const params = new URLSearchParams({ limit: "200" });
     if (filter !== "all") params.set("postType", filter);
-    if (selectedCities.size > 0) params.set("city", Array.from(selectedCities).join(","));
-    if (selectedDongs.size > 0) {
-      params.set("dong", Array.from(selectedDongs).join(","));
+    if (selectedCities.length > 0) params.set("city", selectedCities.join(","));
+    if (selectedDongs.length > 0) {
+      params.set("dong", selectedDongs.join(","));
       params.set("dongType", dongType);
     }
     if (issueFilter) params.set("issueId", issueFilter);
+    let cancelled = false;
     setLoading(true);
     fetch(`/api/feed?${params}`)
       .then((r) => r.json())
       .then((j) => {
+        if (cancelled) return;
         if (j.success) {
           setPosts(j.data ?? []);
           if (j.facets) setFacets(j.facets);
@@ -171,16 +198,17 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
           setError(j.error ?? "불러오기에 실패했습니다");
         }
       })
-      .catch(() => setError("네트워크 오류"))
-      .finally(() => setLoading(false));
-  }, [filter, selectedCities, selectedDongs, dongType, issueFilter]);
+      .catch(() => { if (!cancelled) setError("네트워크 오류"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+    // string deps만 사용 — array reference 변화로 인한 무한 루프 차단
+  }, [filter, citiesKey, dongsKey, dongType, issueFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleCity  = (c: string) => setSelectedCities((s) => { const n = new Set(s); n.has(c) ? n.delete(c) : n.add(c); return n; });
-  const toggleDong  = (d: string) => setSelectedDongs((s)  => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
-  const clearAll = () => { setSelectedCities(new Set()); setSelectedDongs(new Set()); setIssueFilter(""); };
+  const toggleCity = (c: string) => setSelectedCities((s) => s.includes(c) ? s.filter((x) => x !== c) : [...s, c]);
+  const toggleDong = (d: string) => setSelectedDongs((s)  => s.includes(d) ? s.filter((x) => x !== d) : [...s, d]);
+  const clearAll = () => { setSelectedCities([]); setSelectedDongs([]); setIssueFilter(""); };
 
-  const dongOptions = dongType === "adm" ? facets.admDongs : facets.legalDongs;
-  const hasAnyFilter = selectedCities.size > 0 || selectedDongs.size > 0 || !!issueFilter;
+  const hasAnyFilter = selectedCities.length > 0 || selectedDongs.length > 0 || !!issueFilter;
 
   // Fallback client-side enrichment for posts that still don't have a dong (very old posts pre-backfill).
   useEffect(() => {
@@ -284,10 +312,10 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
         {/* 시군구 (다중선택) */}
         {facets.cities.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold text-muted mb-1.5">📍 시군구 ({selectedCities.size}/{facets.cities.length})</p>
+            <p className="text-[11px] font-semibold text-muted mb-1.5">📍 시군구 ({selectedCities.length}/{facets.cities.length})</p>
             <div className="flex flex-wrap gap-1">
               {facets.cities.map((c) => {
-                const sel = selectedCities.has(c);
+                const sel = selectedCities.includes(c);
                 return (
                   <button
                     key={c}
@@ -304,10 +332,10 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
           </div>
         )}
 
-        {/* 동 토글 + 다중선택 chip */}
+        {/* 동 토글 + 다중선택 chip — 시군구 선택 후에만 표시 */}
         <div>
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <p className="text-[11px] font-semibold text-muted">읍·면·동 ({selectedDongs.size}/{dongOptions.length})</p>
+            <p className="text-[11px] font-semibold text-muted">읍·면·동 ({selectedDongs.length}/{dongOptions.length})</p>
             <div className="flex gap-0.5 bg-background border border-border rounded p-0.5">
               <button
                 onClick={() => setDongType("adm")}
@@ -328,18 +356,22 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
                 📜 법정동
               </button>
             </div>
-            {selectedDongs.size > 0 && (
-              <button onClick={() => setSelectedDongs(new Set())} className="text-[10px] text-muted hover:text-foreground underline">
+            {selectedDongs.length > 0 && (
+              <button onClick={() => setSelectedDongs([])} className="text-[10px] text-muted hover:text-foreground underline">
                 선택 해제
               </button>
             )}
           </div>
-          {dongOptions.length === 0 ? (
-            <p className="text-[10px] text-muted">{dongType === "adm" ? "행정동" : "법정동"} 데이터가 아직 없습니다.</p>
+          {selectedCities.length === 0 ? (
+            <p className="text-[11px] text-muted bg-background/60 border border-dashed border-border rounded-lg px-3 py-2">
+              👆 위에서 시군구를 먼저 선택하면 해당 지역의 {dongType === "adm" ? "행정동" : "법정동"}만 표시됩니다.
+            </p>
+          ) : dongOptions.length === 0 ? (
+            <p className="text-[10px] text-muted">선택한 시군구에 등록된 {dongType === "adm" ? "행정동" : "법정동"} 데이터가 없습니다.</p>
           ) : (
-            <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1">
+            <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto pr-1">
               {dongOptions.map((d) => {
-                const sel = selectedDongs.has(d);
+                const sel = selectedDongs.includes(d);
                 return (
                   <button
                     key={d}
@@ -401,8 +433,11 @@ function buildPlainText(posts: FeedPost[]): string {
 
 function formatPost(p: FeedPost, n: number): string {
   const type = p.postType === "민원" ? "불편제보" : p.postType === "제안" ? "공약제안" : "기타";
-  const dong = p.dongLabel || p.dong || null;
-  const location = [p.city, dong].filter(Boolean).join(" ") || "(위치 미지정)";
+  // 시군구청 좌표만 찍힌 경우 "OO시 전체"로, 그 외엔 city + dong
+  const location = p.locationLabel
+    ?? (p.isCityCenterOnly && p.city ? `${p.city} 전체` : null)
+    ?? [p.city, p.dongLabel || p.dong].filter(Boolean).join(" ")
+    ?? "(위치 미지정)";
   const statusLabel = humanStatus(p.status);
   const adminStatusLabel = humanAdminStatus(p.adminStatus);
   const date = formatDate(p.createdAt);

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiError } from "@/lib/api-utils";
+import { isCityCenterOnly, makeLocationLabel } from "@/lib/city-coordinates";
 
 /**
  * GET /api/feed?postType=&candidateId=&city=&dong=&issueId=&limit=
@@ -107,15 +108,28 @@ export async function GET(request: NextRequest) {
   const enriched = (posts ?? []).map((p) => {
     const adm = (p as { admDong?: string | null }).admDong ?? null;
     const legal = (p as { legalDong?: string | null }).legalDong ?? null;
-    const dongLabel = adm && legal
-      ? (adm === legal ? adm : `${adm} (${legal})`)
-      : (adm ?? legal ?? p.dong ?? null);
+    const cityCenter = isCityCenterOnly(p.city, p.latitude, p.longitude);
+    const dongLabel = cityCenter
+      ? `${p.city} 전체`
+      : (adm && legal
+          ? (adm === legal ? adm : `${adm} (${legal})`)
+          : (adm ?? legal ?? p.dong ?? null));
+    const locationLabel = makeLocationLabel({
+      city: p.city,
+      admDong: adm,
+      legalDong: legal,
+      fallbackDong: p.dong,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    });
     const myResponses = responses.filter((r) => r.proposalId === p.id);
     const myLinks = minwonLinks.filter((l) => l.minwonId === p.id);
     const issue = p.issueId ? (issueMap.get(p.issueId as string) ?? null) : null;
     return {
       ...p,
       dongLabel,
+      locationLabel,             // 시군구청 좌표면 "OO시 전체", 아니면 "city + dong"
+      isCityCenterOnly: cityCenter,
       issue,                     // {id, title, category, emoji} | null
       responses: myResponses,
       linkedPledges: myLinks.map((l) => l.pledge).filter((x): x is { id: string; title: string } => !!x),
@@ -126,7 +140,7 @@ export async function GET(request: NextRequest) {
   // For candidates, we restrict facet space to their accessible posts; for admin, full DB.
   let facetsQuery = supabaseAdmin
     .from("ProposalPost")
-    .select("city, admDong, legalDong, dong")
+    .select("city, admDong, legalDong, dong, latitude, longitude")
     .neq("status", "deleted");
   if (user.role === "candidate") {
     facetsQuery = facetsQuery.or(`candidateId.eq.${user.id},candidateId.is.null`);
@@ -137,12 +151,31 @@ export async function GET(request: NextRequest) {
   const facetAdmDongs  = new Set<string>();
   const facetLegalDongs= new Set<string>();
   const facetRawDongs  = new Set<string>();
+  // city → 그 시군구에 속한 동들 (행정동/법정동 분리)
+  const admDongsByCity:   Record<string, Set<string>> = {};
+  const legalDongsByCity: Record<string, Set<string>> = {};
+
   for (const r of facetRows ?? []) {
-    if (r.city)      facetCities.add(r.city as string);
-    if (r.admDong)   facetAdmDongs.add(r.admDong as string);
-    if (r.legalDong) facetLegalDongs.add(r.legalDong as string);
-    if (r.dong && !(r as { admDong?: string }).admDong && !(r as { legalDong?: string }).legalDong) {
-      facetRawDongs.add(r.dong as string);
+    const c   = r.city as string | null;
+    const adm = (r as { admDong?: string | null }).admDong;
+    const leg = (r as { legalDong?: string | null }).legalDong;
+    const lat = (r as { latitude?: number | null }).latitude;
+    const lng = (r as { longitude?: number | null }).longitude;
+    // 시군구청 기본 좌표만 찍힌 게시글의 동은 facet에서 제외 (사용자가 따로 위치 안 잡은 거)
+    const cityCenter = isCityCenterOnly(c, lat, lng);
+    if (c) facetCities.add(c);
+    if (!cityCenter) {
+      if (adm)  facetAdmDongs.add(adm);
+      if (leg)  facetLegalDongs.add(leg);
+      if (r.dong && !adm && !leg) facetRawDongs.add(r.dong as string);
+      if (c && adm) {
+        if (!admDongsByCity[c]) admDongsByCity[c] = new Set();
+        admDongsByCity[c].add(adm);
+      }
+      if (c && leg) {
+        if (!legalDongsByCity[c]) legalDongsByCity[c] = new Set();
+        legalDongsByCity[c].add(leg);
+      }
     }
   }
 
@@ -151,6 +184,12 @@ export async function GET(request: NextRequest) {
     admDongs: Array.from(facetAdmDongs).sort((a, b) => a.localeCompare(b, "ko")),
     legalDongs: Array.from(facetLegalDongs).sort((a, b) => a.localeCompare(b, "ko")),
     rawDongs: Array.from(facetRawDongs).sort((a, b) => a.localeCompare(b, "ko")),
+    admDongsByCity: Object.fromEntries(
+      Object.entries(admDongsByCity).map(([k, s]) => [k, Array.from(s).sort((a, b) => a.localeCompare(b, "ko"))])
+    ),
+    legalDongsByCity: Object.fromEntries(
+      Object.entries(legalDongsByCity).map(([k, s]) => [k, Array.from(s).sort((a, b) => a.localeCompare(b, "ko"))])
+    ),
     issues: Array.from(issueMap.values()),
   };
 
