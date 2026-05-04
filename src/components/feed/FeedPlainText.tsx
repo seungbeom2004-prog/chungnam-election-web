@@ -32,39 +32,45 @@ interface FeedPost {
 // ─── Client-side reverse geocoding via Naver Maps SDK ─────────────────────
 // SDK is loaded in app/layout.tsx with submodules=geocoder.
 // Returns "행정동 (법정동)" formatted label, or just one name if they match.
-declare global {
-  interface Window {
-    naver?: {
-      maps: {
-        LatLng: new (lat: number, lng: number) => unknown;
-        Service: {
-          reverseGeocode: (req: { coords: unknown; orders: string }, cb: (status: unknown, response: unknown) => void) => void;
-          OrderType: { LEGAL_CODE: string; ADM_CODE: string; ADDR: string; ROAD_ADDR: string };
-          Status: { OK: unknown };
-        };
-      };
+//
+// We avoid declaring a global `naver` type here because other files already do
+// (LocationPickerMap.tsx etc.) — instead we cast the window inline.
+
+interface NaverGeocoderShape {
+  maps: {
+    LatLng: new (lat: number, lng: number) => unknown;
+    Service?: {
+      reverseGeocode: (req: { coords: unknown; orders: string }, cb: (status: unknown, response: unknown) => void) => void;
+      OrderType: { LEGAL_CODE: string; ADM_CODE: string };
+      Status: { OK: unknown };
     };
-  }
+  };
+}
+
+function getNaver(): NaverGeocoderShape | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { naver?: NaverGeocoderShape };
+  return w.naver ?? null;
 }
 
 function clientReverseGeocode(lat: number, lng: number): Promise<string | null> {
   return new Promise((resolve) => {
-    const w = window;
-    if (!w.naver?.maps?.Service) {
+    const naver = getNaver();
+    if (!naver?.maps?.Service) {
       resolve(null);
       return;
     }
-    const latlng = new w.naver.maps.LatLng(lat, lng);
-    const orders = `${w.naver.maps.Service.OrderType.LEGAL_CODE},${w.naver.maps.Service.OrderType.ADM_CODE}`;
+    const latlng = new naver.maps.LatLng(lat, lng);
+    const orders = `${naver.maps.Service.OrderType.LEGAL_CODE},${naver.maps.Service.OrderType.ADM_CODE}`;
     let done = false;
     const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 6000);
     try {
-      w.naver.maps.Service.reverseGeocode({ coords: latlng, orders }, (status, response) => {
+      naver.maps.Service.reverseGeocode({ coords: latlng, orders }, (status, response) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
         try {
-          if (status !== w.naver!.maps.Service.Status.OK) { resolve(null); return; }
+          if (status !== naver.maps.Service!.Status.OK) { resolve(null); return; }
           type Region = { area3?: { name?: string } };
           type Result = { name?: string; region?: Region };
           const r = response as { v2?: { results?: Result[] } };
@@ -89,7 +95,8 @@ function clientReverseGeocode(lat: number, lng: number): Promise<string | null> 
 async function waitForNaverSdk(maxMs = 8000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
-    if (typeof window !== "undefined" && window.naver?.maps?.Service) return true;
+    const naver = getNaver();
+    if (naver?.maps?.Service) return true;
     await new Promise((r) => setTimeout(r, 200));
   }
   return false;
