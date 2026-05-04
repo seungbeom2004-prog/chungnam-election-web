@@ -80,7 +80,7 @@ export default function RootLayout({
             (Naver CDN doesn't send CORS headers → crossOrigin="anonymous" causes
             Chrome incognito to block the script entirely). */}
         <Script
-          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}`}
+          src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID}&submodules=geocoder`}
           strategy="beforeInteractive"
         />
         {/* Kakao SDK preload: 브라우저가 HTML 파싱 즉시 다운로드 시작.

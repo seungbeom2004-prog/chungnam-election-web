@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 
 interface FeedPost {
   id: string;
@@ -29,6 +29,72 @@ interface FeedPost {
   linkedPledges: Array<{ id: string; title: string }>;
 }
 
+// ─── Client-side reverse geocoding via Naver Maps SDK ─────────────────────
+// SDK is loaded in app/layout.tsx with submodules=geocoder.
+// Returns "행정동 (법정동)" formatted label, or just one name if they match.
+declare global {
+  interface Window {
+    naver?: {
+      maps: {
+        LatLng: new (lat: number, lng: number) => unknown;
+        Service: {
+          reverseGeocode: (req: { coords: unknown; orders: string }, cb: (status: unknown, response: unknown) => void) => void;
+          OrderType: { LEGAL_CODE: string; ADM_CODE: string; ADDR: string; ROAD_ADDR: string };
+          Status: { OK: unknown };
+        };
+      };
+    };
+  }
+}
+
+function clientReverseGeocode(lat: number, lng: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    const w = window;
+    if (!w.naver?.maps?.Service) {
+      resolve(null);
+      return;
+    }
+    const latlng = new w.naver.maps.LatLng(lat, lng);
+    const orders = `${w.naver.maps.Service.OrderType.LEGAL_CODE},${w.naver.maps.Service.OrderType.ADM_CODE}`;
+    let done = false;
+    const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 6000);
+    try {
+      w.naver.maps.Service.reverseGeocode({ coords: latlng, orders }, (status, response) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try {
+          if (status !== w.naver!.maps.Service.Status.OK) { resolve(null); return; }
+          type Region = { area3?: { name?: string } };
+          type Result = { name?: string; region?: Region };
+          const r = response as { v2?: { results?: Result[] } };
+          const results = r?.v2?.results ?? [];
+          const legal = results.find((x) => x.name === "legalcode")?.region?.area3?.name?.trim() || null;
+          const adm   = results.find((x) => x.name === "admcode")?.region?.area3?.name?.trim()   || null;
+          if (!legal && !adm) { resolve(null); return; }
+          if (adm && legal) resolve(adm === legal ? adm : `${adm} (${legal})`);
+          else resolve(adm ?? legal);
+        } catch {
+          resolve(null);
+        }
+      });
+    } catch {
+      done = true;
+      clearTimeout(timer);
+      resolve(null);
+    }
+  });
+}
+
+async function waitForNaverSdk(maxMs = 8000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (typeof window !== "undefined" && window.naver?.maps?.Service) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
 type Filter = "all" | "민원" | "제안";
 
 /**
@@ -46,6 +112,8 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [copied, setCopied] = useState(false);
+  const [enrichingDongs, setEnrichingDongs] = useState(false);
+  const dongCacheRef = useRef<Map<string, string | null>>(new Map());
 
   useEffect(() => {
     const url = filter === "all" ? "/api/feed?limit=200" : `/api/feed?limit=200&postType=${encodeURIComponent(filter)}`;
@@ -59,6 +127,46 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
       .catch(() => setError("네트워크 오류"))
       .finally(() => setLoading(false));
   }, [filter]);
+
+  // Client-side reverse-geocode enrichment: fill in dongLabel for every post that
+  // has lat/lng but no server-supplied dongLabel.
+  useEffect(() => {
+    if (posts.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const sdkReady = await waitForNaverSdk();
+      if (!sdkReady || cancelled) return;
+      const targets = posts.filter((p) =>
+        !p.dongLabel && p.latitude != null && p.longitude != null
+      );
+      if (targets.length === 0) return;
+      setEnrichingDongs(true);
+      // Dedup unique coords
+      const uniq = new Map<string, { lat: number; lng: number }>();
+      for (const p of targets) {
+        const key = `${p.latitude!.toFixed(5)},${p.longitude!.toFixed(5)}`;
+        if (!uniq.has(key)) uniq.set(key, { lat: p.latitude!, lng: p.longitude! });
+      }
+      // Process serially with small delays to avoid Naver SDK rate limits
+      for (const [key, { lat, lng }] of uniq) {
+        if (cancelled) break;
+        if (dongCacheRef.current.has(key)) continue;
+        const label = await clientReverseGeocode(lat, lng);
+        dongCacheRef.current.set(key, label);
+        // Apply incrementally so the UI updates as we go
+        setPosts((prev) => prev.map((p) => {
+          if (p.dongLabel) return p;
+          if (p.latitude == null || p.longitude == null) return p;
+          const k = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
+          if (k === key && label) return { ...p, dongLabel: label };
+          return p;
+        }));
+        await new Promise((r) => setTimeout(r, 80));
+      }
+      if (!cancelled) setEnrichingDongs(false);
+    })();
+    return () => { cancelled = true; };
+  }, [posts.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const plainText = useMemo(() => buildPlainText(posts), [posts]);
 
@@ -126,7 +234,7 @@ export default function FeedPlainText({ adminMode = false }: { adminMode?: boole
       )}
 
       <p className="mt-3 text-[10px] text-muted">
-        총 {posts.length}건 — AI 에이전트는 이 페이지의 <code>article[data-ai-feed=&quot;true&quot;]</code> 안의 텍스트를 그대로 읽으면 됩니다.
+        총 {posts.length}건 {enrichingDongs && <span className="text-primary">· 행정동/법정동 정보 채우는 중…</span>} — AI 에이전트는 <code>article[data-ai-feed=&quot;true&quot;]</code> 안의 텍스트를 읽으면 됩니다.
       </p>
     </div>
   );
