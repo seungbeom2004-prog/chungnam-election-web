@@ -41,7 +41,8 @@ export async function reverseGeocodeDong(lat: number, lng: number): Promise<{
   }
 
   try {
-    const url = `https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=${lng},${lat}&orders=legalcode,admcode&output=json`;
+    // 신 endpoint (maps.apigw.ntruss.com) — 구 endpoint(naveropenapi)는 별도 구독 필요해서 Permission Denied.
+    const url = `https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=${lng},${lat}&orders=legalcode,admcode&output=json`;
     const res = await fetch(url, {
       headers: {
         "x-ncp-apigw-api-key-id": clientId,
