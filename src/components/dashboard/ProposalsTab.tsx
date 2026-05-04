@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { ProposalPost, ProposalResponse, Pledge } from "@/types";
+import LocationFilters, { buildFacetsFromPosts, applyLocationFilter, type DongType } from "@/components/feed/LocationFilters";
+import { isCityCenterOnly } from "@/lib/city-coordinates";
 
 const relativeTime = (date: string) => {
   const diff = (Date.now() - new Date(date).getTime()) / 1000;
@@ -1175,7 +1177,29 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
     await Promise.all(validIds.map(id => submitRow(id)));
   };
 
-  const minwons          = proposals.filter((p) => p.postType === "민원");
+  // ── 위치 필터 (시군구/행정동/법정동) ──────────────────────────────────────
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedDongs, setSelectedDongs] = useState<string[]>([]);
+  const [dongType, setDongType] = useState<DongType>("adm");
+
+  const locationFacets = useMemo(
+    () => buildFacetsFromPosts(proposals.filter((p) => p.postType === "민원"), isCityCenterOnly),
+    [proposals]
+  );
+  // 시군구 변경 시 더 이상 유효하지 않은 동 선택 정리
+  useEffect(() => {
+    setSelectedDongs((prev) => {
+      if (prev.length === 0) return prev;
+      const map = dongType === "adm" ? locationFacets.admDongsByCity : locationFacets.legalDongsByCity;
+      const allowed = new Set<string>();
+      for (const c of selectedCities) for (const d of map[c] ?? []) allowed.add(d);
+      const next = prev.filter((d) => allowed.has(d));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [selectedCities, dongType, locationFacets]);
+
+  const minwonsRaw       = proposals.filter((p) => p.postType === "민원");
+  const minwons          = applyLocationFilter(minwonsRaw, selectedCities, selectedDongs, dongType);
   const generalProposals = proposals.filter((p) => p.postType !== "민원");
   const unansweredMinwons = minwons.filter(p => !p.responses?.some(r => r.candidateId === candidateId));
   const displayedMinwons = showOnlyUnanswered ? unansweredMinwons : minwons;
@@ -1240,6 +1264,21 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
       {/* ── 민원 탭 ─────────────────────────────────────────────────────── */}
       {activeTab === "minwon" && (
         <section>
+          {/* 위치 필터 (시군구 → 행정동/법정동) */}
+          {locationFacets.cities.length > 0 && (
+            <div className="mb-3">
+              <LocationFilters
+                facets={locationFacets}
+                selectedCities={selectedCities}
+                selectedDongs={selectedDongs}
+                dongType={dongType}
+                onCitiesChange={setSelectedCities}
+                onDongsChange={setSelectedDongs}
+                onDongTypeChange={setDongType}
+              />
+            </div>
+          )}
+
           {/* 필터 바 */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <button

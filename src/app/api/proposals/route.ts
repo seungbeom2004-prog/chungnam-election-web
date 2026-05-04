@@ -56,15 +56,17 @@ const V10_SELECT = "title, latitude, longitude, acceptedAt, parentId, dong, admi
 const V11_SELECT = "postType";
 /** Columns added in migration v13 (viewCount) */
 const V13_SELECT = "viewCount";
+/** Columns added in migration v14 (006: legalDong/admDong) */
+const V14_SELECT = "legalDong, admDong";
 /** ProposalResponse join (migration v12) */
 const RESPONSE_JOIN = "responses:ProposalResponse(id, candidateId, candidateName, candidateProfileImage, status, content, pledgeId, createdAt)";
 /** Full select with viewCount + ProposalLike join + responses (latest) */
-const FULL_SELECT_V13 = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT}, ${V13_SELECT},
+const FULL_SELECT_V13 = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT}, ${V13_SELECT}, ${V14_SELECT},
   candidate:Candidate!candidateId(id, name, district, profileImage, role),
   likes:ProposalLike(count),
   ${RESPONSE_JOIN}`;
 /** Full select with ProposalLike join + responses */
-const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT},
+const FULL_SELECT = `${SAFE_SELECT}, ${V10_SELECT}, ${V11_SELECT}, ${V14_SELECT},
   candidate:Candidate!candidateId(id, name, district, profileImage, role),
   likes:ProposalLike(count),
   ${RESPONSE_JOIN}`;

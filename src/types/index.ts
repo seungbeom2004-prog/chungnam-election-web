@@ -199,6 +199,8 @@ export interface ProposalPost {
   hashtags?: PostHashtag[];
   parentId?: string | null;
   dong?: string | null;
+  legalDong?: string | null;
+  admDong?: string | null;
   adminStatus?: string | null;
   issueId?: string | null;
   issue?: Issue | null;
