@@ -31,6 +31,28 @@ const KOREAN_STOPWORDS = new Set([
   "하나","둘","셋","첫","둘째","셋째","처음","마지막","지난",
 ]);
 
+// 한국어 조사 — 단어 끝에 붙어있으면 떼어내서 동일 명사로 합침
+// (사전 기반 형태소 분석은 너무 무거움 → 간단 휴리스틱)
+const KOREAN_PARTICLES = [
+  "으로서", "으로써", "에서는", "에서도", "에게서", "한테서",
+  "에서", "에게", "한테", "께서", "으로", "에는", "에도", "라고", "이라",
+  "이가", "이는", "이를", "이의", "이를", "처럼", "같이", "마다", "보다", "부터",
+  "까지", "조차", "마저", "라도", "이라", "이며", "이고",
+  "은", "는", "이", "가", "을", "를", "의", "에", "도", "와", "과", "로", "야", "여",
+];
+const PARTICLES_SORTED = KOREAN_PARTICLES.slice().sort((a, b) => b.length - a.length);
+
+function stripParticle(word: string): string {
+  // 한글로만 끝나는 경우에만 적용 (영어/숫자 단어는 그대로)
+  if (!/[가-힯]$/.test(word)) return word;
+  for (const p of PARTICLES_SORTED) {
+    if (word.length > p.length + 1 && word.endsWith(p)) {
+      return word.slice(0, -p.length);
+    }
+  }
+  return word;
+}
+
 function tokenize(text: string): string[] {
   // Strip URLs and non-Korean/English/digit characters
   const cleaned = text
@@ -38,7 +60,7 @@ function tokenize(text: string): string[] {
     .replace(/[^가-힯ㄱ-ㆎa-zA-Z0-9 ]/g, " ");
   return cleaned
     .split(/\s+/)
-    .map((s) => s.trim())
+    .map((s) => stripParticle(s.trim()))
     .filter((s) => s.length >= 2 && s.length <= 20);
 }
 
