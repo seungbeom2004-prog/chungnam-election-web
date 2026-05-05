@@ -71,7 +71,7 @@ function MapCtaBox({
   variant?: "default" | "wide" | "compact" | "footer";
   caption?: string;
 }) {
-  const text = caption ?? "공약 지도에서 다른 집앞 공약 확인하기";
+  const text = caption ?? "공약 지도에서 우리 집앞 공약 확인하기";
   if (variant === "compact") {
     return (
       <Link
