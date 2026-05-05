@@ -60,6 +60,67 @@ interface CandidateContentProps {
   };
 }
 
+/**
+ * 메인 공약 지도로 유도하는 재사용 CTA 박스.
+ * variant에 따라 디자인 차이.
+ */
+function MapCtaBox({
+  variant = "default",
+  caption,
+}: {
+  variant?: "default" | "wide" | "compact" | "footer";
+  caption?: string;
+}) {
+  const text = caption ?? "공약 지도에서 다른 집앞 공약 확인하기";
+  if (variant === "compact") {
+    return (
+      <Link
+        href="/"
+        className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-emerald-300 text-emerald-700 text-[11px] font-semibold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors"
+      >
+        🗺️ {text}
+      </Link>
+    );
+  }
+  if (variant === "wide") {
+    return (
+      <Link
+        href="/"
+        className="block w-full p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 hover:from-emerald-100 hover:to-teal-100 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-bold text-emerald-800 text-sm mb-0.5">🗺️ {text}</p>
+            <p className="text-xs text-emerald-700/80">지도를 살펴보며 우리 동네 다른 후보자들의 공약도 비교해보세요.</p>
+          </div>
+          <span className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl whitespace-nowrap">
+            지도 보기 →
+          </span>
+        </div>
+      </Link>
+    );
+  }
+  if (variant === "footer") {
+    return (
+      <Link
+        href="/"
+        className="mt-6 mx-auto flex items-center justify-center gap-2 max-w-md px-5 py-3 bg-emerald-50 border border-emerald-300 text-emerald-700 text-sm font-bold rounded-xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors"
+      >
+        🗺️ {text}
+      </Link>
+    );
+  }
+  // default
+  return (
+    <Link
+      href="/"
+      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap"
+    >
+      🗺️ {text}
+    </Link>
+  );
+}
+
 /** Renders a category icon the same way the map marker does. */
 function PledgeIcon({ category }: { category?: PledgeCategory | null }) {
   const color = category?.color || "#FF5A00";
@@ -125,16 +186,26 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
             {candidate.bio}
           </p>
-          {candidate.donationUrl && (
-            <a
-              href={candidate.donationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              💝 후원하기
-            </a>
-          )}
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            {candidate.donationUrl && (
+              <a
+                href={candidate.donationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                💝 후원하기
+              </a>
+            )}
+            <MapCtaBox variant="default" />
+          </div>
+        </div>
+      )}
+
+      {/* Bio가 없을 때도 페이지 상단에 지도 CTA 1개 노출 */}
+      {!candidate.bio && (
+        <div className="mb-6">
+          <MapCtaBox variant="wide" />
         </div>
       )}
 
@@ -370,20 +441,35 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               💡 불편 제보 / 공약 제안하러 가기
             </Link>
           </div>
+
+          {/* 지도 CTA — 위 불편제보 박스 바로 밑 */}
+          <div className="mt-3">
+            <MapCtaBox variant="wide" />
+          </div>
         </div>
       ) : activeView === "map" ? (
-        <div className="h-[500px] rounded-xl overflow-hidden border border-border">
-          <CandidateMiniMap
-            pledges={candidate.pledges}
-            district={candidate.district}
-            pinLat={candidate.pinLat ?? null}
-            pinLng={candidate.pinLng ?? null}
-            profileImage={candidate.profileImage ?? null}
-            candidateName={candidate.name}
-          />
-        </div>
+        <>
+          <div className="h-[500px] rounded-xl overflow-hidden border border-border">
+            <CandidateMiniMap
+              pledges={candidate.pledges}
+              district={candidate.district}
+              pinLat={candidate.pinLat ?? null}
+              pinLng={candidate.pinLng ?? null}
+              profileImage={candidate.profileImage ?? null}
+              candidateName={candidate.name}
+            />
+          </div>
+          <div className="mt-4">
+            <MapCtaBox variant="wide" caption="전체 공약 지도에서 다른 동네 공약도 보기" />
+          </div>
+        </>
       ) : activeView === "proposals" ? (
-        <ProposalList candidateId={candidate.id} showForm={true} />
+        <>
+          <ProposalList candidateId={candidate.id} showForm={true} />
+          <div className="mt-6">
+            <MapCtaBox variant="wide" />
+          </div>
+        </>
       ) : activeView === "contact" ? (
         <div className="p-6 bg-surface rounded-xl border border-border max-w-md">
           <h2 className="text-base font-bold text-foreground mb-4">📬 연락처</h2>
@@ -411,20 +497,31 @@ export default function CandidateContent({ candidate }: CandidateContentProps) {
               </div>
             )}
           </div>
+          <div className="mt-4">
+            <MapCtaBox variant="default" />
+          </div>
         </div>
       ) : (
-        <SnsTab
-          youtube={candidate.youtube}
-          instagram={candidate.instagram}
-          twitter={candidate.twitter}
-          facebook={candidate.facebook}
-          tiktok={candidate.tiktok}
-          kakao={candidate.kakao}
-          naverBlog={candidate.naverBlog}
-          articleUrl={candidate.articleUrl}
-          articleTitle={candidate.articleTitle}
-        />
+        <>
+          <SnsTab
+            youtube={candidate.youtube}
+            instagram={candidate.instagram}
+            twitter={candidate.twitter}
+            facebook={candidate.facebook}
+            tiktok={candidate.tiktok}
+            kakao={candidate.kakao}
+            naverBlog={candidate.naverBlog}
+            articleUrl={candidate.articleUrl}
+            articleTitle={candidate.articleTitle}
+          />
+          <div className="mt-6">
+            <MapCtaBox variant="wide" caption="공약 지도에서 다른 후보자 공약도 비교해보기" />
+          </div>
+        </>
       )}
+
+      {/* ── 페이지 맨 아래 footer CTA — 어떤 탭이든 공통으로 노출 ── */}
+      <MapCtaBox variant="footer" />
     </div>
   );
 }

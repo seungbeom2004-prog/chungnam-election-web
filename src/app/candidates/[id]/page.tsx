@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import CandidateHero from "@/components/candidate/CandidateHero";
 import CandidateContent from "@/components/candidate/CandidateContent";
 
@@ -149,11 +148,6 @@ export default async function CandidateProfilePage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="sticky top-14 z-10 bg-white/80 backdrop-blur-sm">
-        <Link href="/" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-4 py-2">
-          ← 지도로 돌아가기
-        </Link>
-      </div>
       <CandidateHero candidate={candidateData} />
       <CandidateContent candidate={candidateData} />
     </div>

@@ -238,7 +238,8 @@ function DownloadQRButton({ url, filename }: { url: string; filename: string }) 
   return (
     <>
       <div ref={ref} className="hidden">
-        <QRCodeCanvas value={url} size={512} level="H" includeMargin={true} />
+        {/* bgColor를 투명으로 설정 — 다운로드되는 PNG는 알파채널이 살아있어 어떤 배경 위에도 자연스럽게 합성 */}
+        <QRCodeCanvas value={url} size={512} level="H" includeMargin={true} bgColor="rgba(0,0,0,0)" />
       </div>
       <button
         onClick={handleDownload}
