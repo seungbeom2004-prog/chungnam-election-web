@@ -313,11 +313,6 @@ function MinwonCard({
                 ✏️ 내가 쓴 글
               </span>
             )}
-            {proposal.status === "accepted" && (
-              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">
-                ✅ 채택됨
-              </span>
-            )}
             {myResponse && <StatusBadge status={myResponse.status} />}
           </div>
           {proposal.title && (
@@ -340,15 +335,6 @@ function MinwonCard({
         </div>
 
         <div className="flex gap-2 shrink-0 flex-col">
-          {proposal.status !== "accepted" && (
-            <button
-              onClick={() => onAction(proposal.id, "accept")}
-              disabled={isPending}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
-            >
-              채택
-            </button>
-          )}
           <button
             onClick={() => setShowResponsePanel(v => !v)}
             disabled={isPending}
@@ -507,10 +493,6 @@ function MinwonRow({
 
             {/* Row-level action buttons */}
             <div className="flex gap-2 flex-wrap mb-3">
-              {proposal.status !== "accepted" && (
-                <button onClick={() => onAction(proposal.id, "accept")} disabled={isPending}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60">채택</button>
-              )}
               {onReply && (
                 <button onClick={() => onReply(proposal)} disabled={isPending}
                   className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-60">💡 공약 제안</button>
@@ -691,11 +673,6 @@ function PledgeProposalCard({
                 ✏️ 내가 쓴 글
               </span>
             )}
-            {item.status === "accepted" && (
-              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">
-                ✅ 채택됨
-              </span>
-            )}
           </div>
           <h4 className="text-sm font-bold text-foreground mb-0.5">{item.title}</h4>
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap line-clamp-4">
@@ -793,15 +770,6 @@ function PledgeProposalCard({
 
         {(isMine || isAdmin || item.authorType === "visitor") && (
           <div className="flex gap-2 shrink-0 flex-col">
-            {item.status !== "accepted" && (
-              <button
-                onClick={() => onAction(item.id, "accept")}
-                disabled={isPending}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
-              >
-                채택
-              </button>
-            )}
             {/* 머지 버튼 (후보자 본인 또는 관리자, pending 상태일 때만) */}
             {(isCandidate || isAdmin) && item.status === "pending" && (
               <button
@@ -1122,6 +1090,42 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
   };
 
   // ── 드래프트 관리 ────────────────────────────────────────────────────────────
+  // localStorage 키 (후보자별로 분리)
+  const draftStorageKey = `proposalsTab-drafts-${candidateId}`;
+  const draftHydratedRef = useRef(false);
+
+  // 페이지 진입 시 localStorage에서 임시저장 복구
+  useEffect(() => {
+    if (typeof window === "undefined" || draftHydratedRef.current) return;
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, DraftData>;
+        const entries = Object.entries(parsed).filter(
+          ([, v]) => v && typeof v === "object" && typeof v.content === "string"
+        );
+        if (entries.length > 0) {
+          setRowDrafts(new Map(entries));
+        }
+      }
+    } catch { /* corrupted JSON — ignore */ }
+    draftHydratedRef.current = true;
+  }, [draftStorageKey]);
+
+  // rowDrafts 변경 시 자동 저장 (페이지 이동 / 새로고침해도 보존)
+  useEffect(() => {
+    if (typeof window === "undefined" || !draftHydratedRef.current) return;
+    try {
+      if (rowDrafts.size === 0) {
+        window.localStorage.removeItem(draftStorageKey);
+      } else {
+        const obj: Record<string, DraftData> = {};
+        for (const [k, v] of rowDrafts) obj[k] = v;
+        window.localStorage.setItem(draftStorageKey, JSON.stringify(obj));
+      }
+    } catch { /* quota or serialization error — ignore */ }
+  }, [rowDrafts, draftStorageKey]);
+
   const setDraft = useCallback((id: string, data: DraftData) => {
     setRowDrafts(prev => new Map(prev).set(id, data));
   }, []);
@@ -1302,6 +1306,11 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
               미답변 {unansweredMinwons.length}
             </button>
             <div className="ml-auto flex items-center gap-2">
+              {rowDrafts.size > 0 && (
+                <span className="text-[10px] text-muted bg-gray-100 border border-border rounded-full px-2 py-0.5">
+                  💾 임시저장 {rowDrafts.size}건
+                </span>
+              )}
               {submittableDraftsCount > 0 && (
                 <button
                   onClick={submitAllDrafts}
@@ -1385,9 +1394,6 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="text-sm font-medium text-foreground">{p.authorName}</span>
                           <time className="text-xs text-muted">{relativeTime(p.createdAt)}</time>
-                          {p.status === "accepted" && (
-                            <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">✅ 채택됨</span>
-                          )}
                           {p.responses?.find(r => r.candidateId === candidateId) && (
                             <StatusBadge status={p.responses.find(r => r.candidateId === candidateId)!.status} />
                           )}
@@ -1400,13 +1406,6 @@ export default function ProposalsTab({ candidateId, candidateName, pinLat, pinLn
                         )}
                       </div>
                       <div className="flex gap-2 shrink-0 flex-col">
-                        {p.status !== "accepted" && (
-                          <button
-                            onClick={() => handleProposalAction(p.id, "accept")}
-                            disabled={actionPending.has(p.id)}
-                            className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-60"
-                          >채택</button>
-                        )}
                         <button
                           onClick={() => handleProposalAction(p.id, "delete")}
                           disabled={actionPending.has(p.id)}

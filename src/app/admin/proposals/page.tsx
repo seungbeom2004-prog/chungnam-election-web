@@ -43,7 +43,7 @@ const ADMIN_STATUS_STEPS = [
 export default function AdminProposalsPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "pending" | "accepted" | "hidden">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "hidden">("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [typeLoading, setTypeLoading] = useState<string | null>(null);
@@ -392,7 +392,7 @@ export default function AdminProposalsPage() {
   const statusLabel = (status: string) => {
     switch (status) {
       case "pending": return <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full">검토 중</span>;
-      case "accepted": return <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">채택됨</span>;
+      case "accepted": return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">검토 중</span>;
       case "hidden": return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">숨김</span>;
       case "deleted": return <span className="px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">삭제됨</span>;
       default: return <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">{status}</span>;
@@ -481,7 +481,7 @@ export default function AdminProposalsPage() {
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {(["all", "pending", "accepted", "hidden"] as const).map((s) => (
+        {(["all", "pending", "hidden"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -491,7 +491,7 @@ export default function AdminProposalsPage() {
                 : "border-border text-muted hover:text-foreground"
             }`}
           >
-            {s === "all" ? "전체" : s === "pending" ? "검토 중" : s === "accepted" ? "채택됨" : "숨김"}
+            {s === "all" ? "전체" : s === "pending" ? "검토 중" : "숨김"}
           </button>
         ))}
       </div>
@@ -633,9 +633,6 @@ export default function AdminProposalsPage() {
                       <button onClick={() => updateStatus(selectedProposal.id, "pending")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 flex-1 text-center">복원</button>
                     ) : (
                       <button onClick={() => updateStatus(selectedProposal.id, "hidden")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 flex-1 text-center">숨김</button>
-                    )}
-                    {selectedProposal.status === "pending" && !(selectedProposal.postType === "제안" && selectedProposal.candidateId) && (
-                      <button onClick={() => updateStatus(selectedProposal.id, "accepted")} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 flex-1 text-center">채택</button>
                     )}
                     <button onClick={() => { if (confirm("정말 삭제하시겠습니까?")) updateStatus(selectedProposal.id, "deleted"); }} disabled={actionLoading === selectedProposal.id} className="px-3 py-2 text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 flex-1 text-center">삭제</button>
                   </div>

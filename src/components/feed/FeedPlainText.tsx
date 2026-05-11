@@ -499,7 +499,7 @@ function formatPost(p: FeedPost, n: number): string {
 function humanStatus(s: string): string {
   switch (s) {
     case "pending":  return "검토 중";
-    case "accepted": return "채택됨";
+    case "accepted": return "검토 중"; // deprecated — accepted 상태는 제거됨, 표시는 검토 중으로
     case "hidden":   return "숨김 (게시판 비표시 / 카운트 포함)";
     case "deleted":  return "삭제됨";
     default:         return s;

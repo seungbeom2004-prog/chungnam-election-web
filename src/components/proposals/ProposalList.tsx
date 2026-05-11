@@ -322,11 +322,6 @@ export default function ProposalList({ candidateId, city, postType, showForm, on
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                          {proposal.status === "accepted" && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                              ✅ 채택됨
-                            </span>
-                          )}
                           {/* 후보자 답변 뱃지 */}
                           {proposal.responses && proposal.responses.length > 0 && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">

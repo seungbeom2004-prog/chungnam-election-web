@@ -217,11 +217,6 @@ export default function ProposalDetailClient({ post }: Props) {
           >
             {typeEmoji} {typeLabel}
           </span>
-          {post.status === "accepted" && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-              ✅ 채택됨
-            </span>
-          )}
           {post.latitude && post.longitude && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
               📍 위치 첨부됨

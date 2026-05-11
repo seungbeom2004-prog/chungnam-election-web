@@ -59,13 +59,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ success: true });
   }
 
-  const allowed = ["pending", "accepted", "hidden", "deleted"];
+  // "accepted"는 deprecated — 사이트에서 '채택' 상태 제거됨. 들어오면 거부.
+  const allowed = ["pending", "hidden", "deleted"];
   if (!allowed.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
   const updateData: Record<string, unknown> = { status };
-  if (status === "accepted") updateData.acceptedAt = new Date().toISOString();
   if (status === "deleted") updateData.deletedAt = new Date().toISOString();
 
   const { error } = await supabaseAdmin

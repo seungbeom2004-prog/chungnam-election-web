@@ -59,15 +59,13 @@ export async function PATCH(
     const body = await request.json();
     const action: string = body.action;
 
-    if (action !== "accept" && action !== "delete") {
-      return apiError("올바른 action을 지정해주세요 (accept 또는 delete)", 400);
+    // "accept" 액션은 deprecated — 사이트 전반에서 '채택' 상태 제거됨
+    if (action !== "delete") {
+      return apiError("올바른 action을 지정해주세요 (delete)", 400);
     }
 
     const now = new Date().toISOString();
-    const updatePayload =
-      action === "accept"
-        ? { status: "accepted", acceptedAt: now }
-        : { status: "deleted", deletedAt: now };
+    const updatePayload = { status: "deleted", deletedAt: now };
 
     const { data: updated, error } = await supabaseAdmin
       .from("ProposalPost")
