@@ -20,8 +20,8 @@ export interface ProposalMapItem {
   adminStatus?: string | null;
   candidateId?: string | null;
   candidateName?: string | null;
-  /** 후보자 답변 여부 판별용 — candidateId가 채워진 응답이 1개 이상이면 답변 완료 */
-  responses?: Array<{ candidateId?: string | null }>;
+  /** 후보자 답변 여부 판별용 — candidateId가 채워진 응답이 1개 이상이면 답변 완료, pledgeId가 채워졌으면 정식 공약 반영 */
+  responses?: Array<{ candidateId?: string | null; pledgeId?: string | null }>;
 }
 
 interface NaverMapProps {
@@ -380,13 +380,18 @@ function isAtCityCenter(lat: number, lng: number): string | null {
 }
 
 /** Citizen proposal/민원 pin — simple dot at low zoom, icon+title at high zoom */
-function buildProposalDotHTML(postType?: string, opacity = 1, hasResponse = false): string {
+function buildProposalDotHTML(postType?: string, opacity = 1, hasResponse = false, hasAdoptedPledge = false): string {
   const color = postType === "민원" ? "#EF4444" : "#FACC15";
   const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
-  // 답변된 핀은 초록 외곽 ring으로 작은 dot에서도 구분 가능
-  const ringStyle = hasResponse
-    ? "border:2px solid #16A34A;box-shadow:0 0 0 1px white,0 1px 3px rgba(0,0,0,0.25);"
-    : "border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);";
+  // 정식 공약 반영 완료 > 답변 완료 > 일반 — 외곽 ring 색으로 구분
+  let ringStyle: string;
+  if (hasAdoptedPledge) {
+    ringStyle = "border:2px solid #7C3AED;box-shadow:0 0 0 1px white,0 1px 3px rgba(124,58,237,0.45);";
+  } else if (hasResponse) {
+    ringStyle = "border:2px solid #16A34A;box-shadow:0 0 0 1px white,0 1px 3px rgba(0,0,0,0.25);";
+  } else {
+    ringStyle = "border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.25);";
+  }
   return (
     `<div style="${opacityStyle}width:20px;height:20px;border-radius:50%;background:${color};` +
     `${ringStyle}cursor:pointer;` +
@@ -394,7 +399,7 @@ function buildProposalDotHTML(postType?: string, opacity = 1, hasResponse = fals
   );
 }
 
-function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null, opacity = 1, hasResponse = false): string {
+function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: boolean, postType?: string, candidateId?: string | null, opacity = 1, hasResponse = false, hasAdoptedPledge = false): string {
   const isMinwon = postType === "민원";
   const color = isMinwon ? "#EF4444" : "#FACC15";
   const textColor = isMinwon ? "white" : "#111";
@@ -405,14 +410,21 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     ? `<div style="margin-top:2px;background:#3B82F6;color:white;font-size:8px;font-weight:700;` +
       `padding:1px 5px;border-radius:4px;white-space:nowrap;">후보자 작성</div>`
     : "";
-  // 답변 완료된 게시글: 제목 라벨 아래에 초록색 "답변 완료" 칸
-  const responseBadge = hasResponse
-    ? `<div style="margin-top:2px;background:#16A34A;color:white;font-size:8px;font-weight:700;` +
-      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 2px rgba(22,163,74,0.4);">✓ 답변 완료</div>`
-    : "";
+  // 우선순위: 정식 공약 반영 완료 > 단순 답변 완료. 라벨 하나만 표시.
+  let statusBadge = "";
+  if (hasAdoptedPledge) {
+    statusBadge = `<div style="margin-top:2px;background:#7C3AED;color:white;font-size:8px;font-weight:700;` +
+      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 2px rgba(124,58,237,0.4);">🏛️ 정식 공약 반영 완료</div>`;
+  } else if (hasResponse) {
+    statusBadge = `<div style="margin-top:2px;background:#16A34A;color:white;font-size:8px;font-weight:700;` +
+      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 2px rgba(22,163,74,0.4);">✓ 답변 완료</div>`;
+  }
   const opacityStyle = opacity < 0.999 ? `opacity:${opacity.toFixed(2)};` : "";
-  // 답변된 핀은 초록 외곽 ring 추가
-  const responseRing = hasResponse ? "box-shadow:0 0 0 2px #16A34A,0 2px 8px " + shadowColor + ";" : "box-shadow:0 2px 8px " + shadowColor + ";";
+  // 외곽 ring 색도 우선순위에 따라
+  const ringColor = hasAdoptedPledge ? "#7C3AED" : (hasResponse ? "#16A34A" : null);
+  const responseRing = ringColor
+    ? `box-shadow:0 0 0 2px ${ringColor},0 2px 8px ${shadowColor};`
+    : `box-shadow:0 2px 8px ${shadowColor};`;
   return (
     `<div style="${opacityStyle}display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `will-change:transform,opacity;transform:translateZ(0);` +
@@ -431,14 +443,14 @@ function buildProposalMarkerHTML(title: string, likeCount: number, _isCute: bool
     `<div style="margin-top:3px;background:${color};color:${textColor};font-size:9px;font-weight:700;` +
     `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);">` +
     `${escapeHtml(truncated)}${likeStr}</div>` +
-    responseBadge +
+    statusBadge +
     candidateBadge +
     `</div>`
   );
 }
 
 /** Proposal cluster pin — groups nearby 불편제보 + 공약제안 */
-function buildProposalClusterHTML(totalCount: number, minwonCount: number, proposalCount: number, respondedCount = 0): string {
+function buildProposalClusterHTML(totalCount: number, minwonCount: number, proposalCount: number, respondedCount = 0, adoptedCount = 0): string {
   const hasMinwon = minwonCount > 0;
   const hasProposal = proposalCount > 0;
   const bg = hasMinwon && hasProposal
@@ -446,17 +458,32 @@ function buildProposalClusterHTML(totalCount: number, minwonCount: number, propo
     : hasMinwon ? "#EF4444" : "#FACC15";
   const textColor = hasMinwon && !hasProposal ? "white" : "#111";
   const size = totalCount >= 10 ? 44 : 38;
-  // cluster 안에 답변 완료된 게시글이 1개 이상이면 초록 외곽 ring + 아래 라벨
+  // 우선순위: 정식 공약 반영 > 단순 답변 완료. 외곽 ring 색·라벨 결정.
+  const hasAdopted = adoptedCount > 0;
   const hasResponded = respondedCount > 0;
-  const ringStyle = hasResponded
-    ? `border:2.5px solid white;box-shadow:0 0 0 2px #16A34A,0 2px 8px rgba(0,0,0,0.3);`
-    : `border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
-  // "답변 완료" / "답변 완료외 N" 라벨 (답변 완료가 1개면 그냥 "답변 완료", 2개 이상이면 "답변 완료외 N")
-  const respondedBadge = hasResponded
-    ? `<div style="margin-top:3px;background:#16A34A;color:white;font-size:9px;font-weight:700;` +
+  let ringStyle: string;
+  if (hasAdopted) {
+    ringStyle = `border:2.5px solid white;box-shadow:0 0 0 2px #7C3AED,0 2px 8px rgba(124,58,237,0.45);`;
+  } else if (hasResponded) {
+    ringStyle = `border:2.5px solid white;box-shadow:0 0 0 2px #16A34A,0 2px 8px rgba(0,0,0,0.3);`;
+  } else {
+    ringStyle = `border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
+  }
+  // 라벨: 반영 우선 표기. 둘 다 있으면 두 줄.
+  let statusBadge = "";
+  if (hasAdopted) {
+    statusBadge += `<div style="margin-top:3px;background:#7C3AED;color:white;font-size:9px;font-weight:700;` +
+      `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(124,58,237,0.45);">` +
+      `🏛️ 정식 공약 반영 완료${adoptedCount > 1 ? `외 ${adoptedCount - 1}` : ""}</div>`;
+  }
+  // 단순 답변만 있는 게시글이 따로 있으면 추가 라벨
+  const responseOnly = Math.max(0, respondedCount - adoptedCount);
+  if (responseOnly > 0) {
+    statusBadge += `<div style="margin-top:2px;background:#16A34A;color:white;font-size:9px;font-weight:700;` +
       `padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(22,163,74,0.4);">` +
-      `✓ 답변 완료${respondedCount > 1 ? `외 ${respondedCount - 1}` : ""}</div>`
-    : "";
+      `✓ 답변 완료${responseOnly > 1 ? `외 ${responseOnly - 1}` : ""}</div>`;
+  }
+  const respondedBadge = statusBadge;
   return (
     `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;` +
     `animation:markerFadeIn 0.15s ease-out both;">` +
@@ -1139,7 +1166,16 @@ export default function NaverMap({
             const resps = l.properties?.proposal?.responses;
             return Array.isArray(resps) && resps.some((r: { candidateId?: string | null }) => !!r.candidateId);
           }).length;
-          const clusterHtml = buildProposalClusterHTML(leaves.length, minwonCount, proposalCount, respondedCount);
+          // 정식 공약에 반영된 게시글 수: adminStatus === 'adopted' 또는 응답 중 pledgeId가 있는 응답이 있음
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const adoptedCount = leaves.filter((l: any) => {
+            const p = l.properties?.proposal;
+            if (!p) return false;
+            if (p.adminStatus === "adopted") return true;
+            const resps = p.responses;
+            return Array.isArray(resps) && resps.some((r: { pledgeId?: string | null }) => !!r.pledgeId);
+          }).length;
+          const clusterHtml = buildProposalClusterHTML(leaves.length, minwonCount, proposalCount, respondedCount, adoptedCount);
           const marker = new naver.maps.Marker({
             map,
             position,
@@ -1169,10 +1205,13 @@ export default function NaverMap({
           // 후보자가 답변을 단 게시글인지 (responses 배열에 candidateId가 있는 응답이 1개 이상)
           const hasResponse = Array.isArray(proposal.responses) &&
             proposal.responses.some((r: { candidateId?: string | null }) => !!r.candidateId);
+          // 정식 공약에 반영된 글: adminStatus === 'adopted' 또는 응답 중 pledgeId가 채워진 응답이 있음
+          const hasAdoptedPledge = proposal.adminStatus === "adopted" ||
+            (Array.isArray(proposal.responses) && proposal.responses.some((r: { pledgeId?: string | null }) => !!r.pledgeId));
 
           const markerHtml = (showLabel || isSelected)
-            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId, ageOpacity, hasResponse)
-            : buildProposalDotHTML(proposal.postType, ageOpacity, hasResponse);
+            ? buildProposalMarkerHTML(proposal.title, proposal.likeCount ?? 0, isCute, proposal.postType, proposal.candidateId, ageOpacity, hasResponse, hasAdoptedPledge)
+            : buildProposalDotHTML(proposal.postType, ageOpacity, hasResponse, hasAdoptedPledge);
           const anchor = (showLabel || isSelected) ? new naver.maps.Point(20, 52) : new naver.maps.Point(10, 10);
           const marker = new naver.maps.Marker({
             map,

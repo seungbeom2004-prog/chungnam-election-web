@@ -505,7 +505,7 @@ export default function MapPageContent() {
     fetch("/api/proposals?limit=200&hasLocation=true")
       .then((r) => r.json())
       .then((json) => {
-        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string; createdAt?: string; adminStatus?: string | null; candidateId?: string | null; candidate?: { id: string; name: string } | null; responses?: Array<{ candidateId?: string | null }> }> = json.data ?? json ?? [];
+        const data: Array<{ id: string; title?: string; content: string; authorName: string; latitude: number | null; longitude: number | null; likeCount?: number; postType?: string; createdAt?: string; adminStatus?: string | null; candidateId?: string | null; candidate?: { id: string; name: string } | null; responses?: Array<{ candidateId?: string | null; pledgeId?: string | null }> }> = json.data ?? json ?? [];
         const items: ProposalMapItem[] = data
           .filter((p) => p.latitude != null && p.longitude != null)
           .map((p) => ({ id: p.id, title: p.title ?? p.content.slice(0, 30), content: p.content, authorName: p.authorName, latitude: p.latitude as number, longitude: p.longitude as number, likeCount: p.likeCount ?? 0, postType: p.postType, createdAt: p.createdAt, adminStatus: p.adminStatus ?? null, candidateId: p.candidateId ?? null, candidateName: p.candidate?.name ?? null, responses: p.responses ?? [] }));
@@ -1623,12 +1623,28 @@ export default function MapPageContent() {
                         후보자 작성
                       </span>
                     )}
-                    {/* 후보자가 답변을 단 게시글이면 초록 배지 표시 */}
-                    {Array.isArray(selectedProposal.responses) && selectedProposal.responses.some((r) => !!r.candidateId) && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-300">
-                        ✅ 후보자 답변 완료
-                      </span>
-                    )}
+                    {/* 정식 공약 반영 vs 단순 답변 완료 — 우선순위 반영이 더 큰 진척이라 그것만 표시 */}
+                    {(() => {
+                      const responses = selectedProposal.responses;
+                      const hasAdopted = selectedProposal.adminStatus === "adopted" ||
+                        (Array.isArray(responses) && responses.some((r) => !!r.pledgeId));
+                      const hasResponse = Array.isArray(responses) && responses.some((r) => !!r.candidateId);
+                      if (hasAdopted) {
+                        return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-300">
+                            🏛️ 정식 공약 반영 완료
+                          </span>
+                        );
+                      }
+                      if (hasResponse) {
+                        return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-300">
+                            ✅ 후보자 답변 완료
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <p className="text-sm font-bold text-foreground truncate leading-snug mt-0.5">{selectedProposal.title}</p>
                   <p className="text-[11px] text-muted mt-0.5">
@@ -1696,15 +1712,28 @@ export default function MapPageContent() {
                   aria-label="닫기"
                 >×</button>
               </div>
-              {/* Group header summary: 답변 완료 N건 */}
+              {/* Group header summary: 정식 공약 반영 / 답변 완료 카운트 */}
               {(() => {
-                const respondedCount = selectedProposalGroup.filter((p) => Array.isArray(p.responses) && p.responses.some((r) => !!r.candidateId)).length;
-                if (respondedCount === 0) return null;
+                const isAdopted = (p: typeof selectedProposalGroup[number]) =>
+                  p.adminStatus === "adopted" ||
+                  (Array.isArray(p.responses) && p.responses.some((r) => !!r.pledgeId));
+                const isResponded = (p: typeof selectedProposalGroup[number]) =>
+                  Array.isArray(p.responses) && p.responses.some((r) => !!r.candidateId);
+                const adoptedCount = selectedProposalGroup.filter(isAdopted).length;
+                const respondedOnly = selectedProposalGroup.filter((p) => !isAdopted(p) && isResponded(p)).length;
+                if (adoptedCount === 0 && respondedOnly === 0) return null;
                 return (
-                  <div className="px-4 py-2 bg-green-50 border-b border-green-200">
-                    <p className="text-xs font-bold text-green-700">
-                      ✅ 후보자 답변 완료 {respondedCount}건 / 총 {selectedProposalGroup.length}건
-                    </p>
+                  <div className="px-4 py-2 border-b border-border bg-gradient-to-r from-violet-50 to-green-50 space-y-0.5">
+                    {adoptedCount > 0 && (
+                      <p className="text-xs font-bold text-violet-700">
+                        🏛️ 정식 공약 반영 완료 {adoptedCount}건 / 총 {selectedProposalGroup.length}건
+                      </p>
+                    )}
+                    {respondedOnly > 0 && (
+                      <p className="text-xs font-bold text-green-700">
+                        ✅ 후보자 답변 완료 {respondedOnly}건
+                      </p>
+                    )}
                   </div>
                 );
               })()}
@@ -1712,6 +1741,8 @@ export default function MapPageContent() {
               <div className="max-h-60 overflow-y-auto divide-y divide-border/50">
                 {selectedProposalGroup.map((item) => {
                   const responded = Array.isArray(item.responses) && item.responses.some((r) => !!r.candidateId);
+                  const adopted = item.adminStatus === "adopted" ||
+                    (Array.isArray(item.responses) && item.responses.some((r) => !!r.pledgeId));
                   return (
                     <a
                       key={item.id}
@@ -1726,11 +1757,15 @@ export default function MapPageContent() {
                           {item.postType === "민원" ? "불편" : "제안"}
                         </span>
                         <span className="flex-1 text-sm font-medium text-foreground truncate">{item.title}</span>
-                        {responded && (
+                        {adopted ? (
+                          <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-300">
+                            🏛️
+                          </span>
+                        ) : responded ? (
                           <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-green-100 text-green-700 border border-green-300">
                             ✅
                           </span>
-                        )}
+                        ) : null}
                         <span className="shrink-0 text-xs text-muted">♥{item.likeCount}</span>
                       </div>
                       <p className="text-xs text-muted mt-0.5 truncate">{item.authorName}</p>
