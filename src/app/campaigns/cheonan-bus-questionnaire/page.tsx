@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import PdfSection from "@/components/campaigns/PdfSection";
 
@@ -8,6 +9,15 @@ const PDF_URL = "/campaigns/cheonan-bus-questionnaire.pdf";
 const SEND_DATE = "2026년 5월 14일 (목)";
 const REPLY_DEADLINE = "2026년 5월 21일 (목) 18:00";
 const DISCLOSURE_DATE = "2026년 5월 24일 (D-10)";
+
+// 발신자 — 손승범 천안시의원 후보
+const AUTHOR = {
+  id: "ead747f9-dc7a-4553-a03a-bbb11102f671",
+  name: "손승범",
+  district: "개혁신당 천안시다선거구 시의원 후보",
+  profileImage:
+    "https://res.cloudinary.com/dk6hgmcsn/image/upload/v1772492332/reform-chungnam/yoprtyfdzslwii6cxwkk.png",
+};
 
 // YouTube Shorts
 const SHORT_D20    = "fQYUZSiQw9E"; // 공개 질의 선언 (D-20)
@@ -114,7 +124,25 @@ export default function CheonanBusQuestionnairePage() {
           주실 것을 믿고 본 공개질의서를 보냅니다.
         </p>
         <div className="inline-flex flex-wrap items-center justify-center gap-2 text-[11px] md:text-xs text-muted">
-          <span className="px-3 py-1 rounded-full bg-white border border-orange-200">📬 발신: 손승범 (개혁신당 천안시다선거구 시의원 후보)</span>
+          <Link
+            href={`/candidates/${AUTHOR.id}`}
+            className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white border border-orange-200 hover:border-orange-400 hover:bg-orange-50 transition-colors group"
+          >
+            <span className="w-6 h-6 rounded-full overflow-hidden ring-1 ring-orange-200 shrink-0 bg-orange-100">
+              <Image
+                src={AUTHOR.profileImage}
+                alt={`${AUTHOR.name} 후보 프로필`}
+                width={48}
+                height={48}
+                className="w-full h-full object-cover"
+              />
+            </span>
+            <span>
+              📬 발신: <strong className="text-foreground group-hover:text-primary">{AUTHOR.name}</strong>{" "}
+              <span className="text-muted">({AUTHOR.district})</span>
+              <span className="text-primary ml-0.5 opacity-70 group-hover:opacity-100">→</span>
+            </span>
+          </Link>
           <span className="px-3 py-1 rounded-full bg-white border border-orange-200">📨 수신: 민주 · 국힘 · 개혁신당 천안시장 후보</span>
         </div>
       </section>
