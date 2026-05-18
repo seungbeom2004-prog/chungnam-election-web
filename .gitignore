@@ -45,3 +45,5 @@ credential.txt
 # personal docs that shouldn't be in repo
 *.docx
 *.pdf
+# 캠페인 페이지의 정적 PDF는 사이트 자산이므로 트래킹
+!/public/campaigns/*.pdf
