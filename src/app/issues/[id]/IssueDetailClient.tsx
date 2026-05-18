@@ -442,6 +442,31 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
         </Card>
       )}
 
+      {/* ── 천안 버스 이슈에만 노출되는 특별 캠페인 배너 ─────────────── */}
+      {issue.id === "c3583196-0fcc-46ff-ae73-648baa260a2a" && (
+        <Link
+          href="/campaigns/cheonan-bus-questionnaire"
+          className="block mb-5 rounded-2xl p-5 md:p-6 bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest opacity-90 mb-1">
+                📢 공개질의서 · 손승범 천안시의원 후보
+              </p>
+              <p className="text-lg md:text-2xl font-black leading-tight mb-1">
+                천안 버스 정상화 공동 약속 공개질의서
+              </p>
+              <p className="text-xs md:text-sm opacity-95 leading-snug">
+                각 당 천안시장 후보들에게 보낸 4대 핵심 과제 — 인포그래픽·영상·원본 PDF 보기
+              </p>
+            </div>
+            <span className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-white text-orange-600 text-sm font-bold rounded-xl whitespace-nowrap">
+              보러가기 →
+            </span>
+          </div>
+        </Link>
+      )}
+
       {/* Post breakdown pills */}
       <Card className="p-4 mb-5">
         <div className="flex gap-2 flex-wrap">
