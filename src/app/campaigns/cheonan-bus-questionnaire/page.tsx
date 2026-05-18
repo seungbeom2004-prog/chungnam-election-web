@@ -126,18 +126,20 @@ export default function CheonanBusQuestionnairePage() {
         <div className="inline-flex flex-wrap items-center justify-center gap-2 text-[11px] md:text-xs text-muted">
           <Link
             href={`/candidates/${AUTHOR.id}`}
-            className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white border border-orange-200 hover:border-orange-400 hover:bg-orange-50 transition-colors group"
+            className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white border border-orange-200 hover:border-orange-400 hover:bg-orange-50 transition-colors group cursor-pointer select-none"
+            aria-label={`${AUTHOR.name} 후보 프로필로 이동`}
           >
-            <span className="w-6 h-6 rounded-full overflow-hidden ring-1 ring-orange-200 shrink-0 bg-orange-100">
+            {/* 자식 모두 pointer-events-none — 어디를 누르든 클릭은 Link 전체로 전달 */}
+            <span className="pointer-events-none w-6 h-6 rounded-full overflow-hidden ring-1 ring-orange-200 shrink-0 bg-orange-100">
               <Image
                 src={AUTHOR.profileImage}
                 alt={`${AUTHOR.name} 후보 프로필`}
                 width={48}
                 height={48}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover pointer-events-none"
               />
             </span>
-            <span>
+            <span className="pointer-events-none">
               📬 발신: <strong className="text-foreground group-hover:text-primary">{AUTHOR.name}</strong>{" "}
               <span className="text-muted">({AUTHOR.district})</span>
               <span className="text-primary ml-0.5 opacity-70 group-hover:opacity-100">→</span>
