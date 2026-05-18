@@ -5,9 +5,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// PDF.js worker — jsdelivr CDN으로 버전 일치
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// PDF.js worker — public/에서 self-host (사이트 CSP가 외부 CDN script 차단함)
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 interface Props {
   /** PDF 정적 파일 경로 (예: /campaigns/foo.pdf) */
