@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 export const dynamic = "force-static";
 
 const PDF_URL = "/campaigns/cheonan-bus-questionnaire.pdf";
+const PDF_PAGE_IMAGES = [
+  "/campaigns/cheonan-bus-questionnaire-page-1.png",
+  "/campaigns/cheonan-bus-questionnaire-page-2.png",
+];
 const SEND_DATE = "2026년 5월 14일 (목)";
 const REPLY_DEADLINE = "2026년 5월 21일 (목) 18:00";
 const DISCLOSURE_DATE = "2026년 5월 24일 (D-10)";
@@ -192,13 +197,13 @@ export default function CheonanBusQuestionnairePage() {
         <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-center">
           <ShortsEmbed id={SHORT_LJSEOK} title="이준석 대표 — 천안시장 후보 직격 답변 촉구" />
           <div className="md:order-first">
-            <p className="text-xs font-bold text-primary tracking-widest uppercase mb-2">개혁신당 당대표 직격</p>
+            <p className="text-xs font-bold text-primary tracking-widest uppercase mb-2">이준석 대표의 천안시장 직격</p>
             <h2 className="text-2xl md:text-3xl font-black text-foreground mb-3 leading-tight">
               이준석 대표,<br /> 천안시장 후보들에게 답변 촉구
             </h2>
             <p className="text-sm md:text-base text-muted leading-relaxed mb-4">
               개혁신당 이준석 당대표가 직접 천안을 찾아 각 당 천안시장 후보들에게 본 공개질의서에 대한
-              답변을 강력하게 요청합니다. 이 사안은 정당과 무관한, 천안시민의 안전에 직결된 문제입니다.
+              답변을 강력하게 요청했습니다. 이 사안은 정당과 무관한, 천안시민의 안전에 직결된 문제입니다.
             </p>
             <a
               href={`https://youtube.com/shorts/${SHORT_LJSEOK}`}
@@ -230,7 +235,7 @@ export default function CheonanBusQuestionnairePage() {
         </div>
       </section>
 
-      {/* ── PDF download / preview ─────────────────────────────── */}
+      {/* ── PDF preview (PNG 변환 — 모든 환경에서 작동) ──────── */}
       <section className="max-w-screen-lg mx-auto px-4 pb-16">
         <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border bg-gray-50">
@@ -256,14 +261,23 @@ export default function CheonanBusQuestionnairePage() {
               </a>
             </div>
           </div>
-          <object data={PDF_URL} type="application/pdf" className="w-full" style={{ height: "70vh", minHeight: 480 }}>
-            <div className="p-6 text-center text-sm text-muted">
-              PDF 미리보기를 지원하지 않는 환경입니다.{" "}
-              <a href={PDF_URL} target="_blank" rel="noopener noreferrer" className="text-primary font-semibold hover:underline">
-                새 창에서 PDF 열기 →
-              </a>
-            </div>
-          </object>
+          {/* PDF의 각 페이지를 PNG로 변환해 직접 표시 — iframe/object 미지원 환경에서도 작동 */}
+          <div className="bg-gray-100 p-4 md:p-6 space-y-4">
+            {PDF_PAGE_IMAGES.map((src, idx) => (
+              <div key={src} className="mx-auto max-w-2xl shadow-md rounded-md overflow-hidden bg-white">
+                <Image
+                  src={src}
+                  alt={`공개질의서 ${idx + 1}페이지`}
+                  width={1240}
+                  height={1754}
+                  sizes="(max-width: 768px) 100vw, 672px"
+                  className="w-full h-auto"
+                  priority={idx === 0}
+                />
+              </div>
+            ))}
+            <p className="text-center text-[11px] text-muted">총 {PDF_PAGE_IMAGES.length}페이지 · 원본 PDF는 위 버튼으로 다운로드 가능합니다.</p>
+          </div>
         </div>
       </section>
 
