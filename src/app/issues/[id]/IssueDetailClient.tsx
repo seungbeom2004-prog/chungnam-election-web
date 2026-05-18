@@ -454,7 +454,7 @@ export default function IssueDetailClient({ issueId }: { issueId: string }) {
                 📢 공개질의서 · 손승범 천안시의원 후보
               </p>
               <p className="text-lg md:text-2xl font-black leading-tight mb-1">
-                천안 버스 정상화 공동 약속 공개질의서
+                천안버스 정상화 공동 약속을 촉구하는 공개질의서
               </p>
               <p className="text-xs md:text-sm opacity-95 leading-snug">
                 각 당 천안시장 후보들에게 보낸 4대 핵심 과제 — 인포그래픽·영상·원본 PDF 보기

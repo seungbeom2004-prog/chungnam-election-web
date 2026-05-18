@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import PdfSection from "@/components/campaigns/PdfSection";
 
 export const dynamic = "force-static";
 
 const PDF_URL = "/campaigns/cheonan-bus-questionnaire.pdf";
-const PDF_PAGE_IMAGES = [
-  "/campaigns/cheonan-bus-questionnaire-page-1.png",
-  "/campaigns/cheonan-bus-questionnaire-page-2.png",
-];
 const SEND_DATE = "2026년 5월 14일 (목)";
 const REPLY_DEADLINE = "2026년 5월 21일 (목) 18:00";
 const DISCLOSURE_DATE = "2026년 5월 24일 (D-10)";
@@ -18,13 +14,13 @@ const SHORT_D20    = "fQYUZSiQw9E"; // 공개 질의 선언 (D-20)
 const SHORT_LJSEOK = "YAdQv-pxOjU"; // 이준석 대표 답변 촉구
 
 export const metadata: Metadata = {
-  title: "천안 버스 정상화 공동 약속 공개질의서 | 개혁 충남",
+  title: "천안버스 정상화 공동 약속을 촉구하는 공개질의서 | 개혁 충남",
   description:
     "개혁신당 손승범 천안시의원 후보가 더불어민주당·국민의힘·개혁신당 천안시장 후보에게 천안 버스 정상화 공동 약속을 촉구한 공개질의서. 노선 결정권 시민 환원·표준운송원가·토목예산 조정·임기 내 성과 4대 과제.",
   alternates: { canonical: "https://www.reform-chungnam.kr/campaigns/cheonan-bus-questionnaire" },
   openGraph: {
     url: "https://www.reform-chungnam.kr/campaigns/cheonan-bus-questionnaire",
-    title: "천안 버스 정상화 공동 약속 공개질의서",
+    title: "천안버스 정상화 공동 약속을 촉구하는 공개질의서",
     description:
       "전국에서 악명 높은 천안 버스. 손승범 천안시의원 후보가 각 당 천안시장 후보들에게 공동 약속을 촉구합니다.",
     type: "article",
@@ -110,7 +106,7 @@ export default function CheonanBusQuestionnairePage() {
           📢 공개질의서 · {SEND_DATE}
         </p>
         <h1 className="text-3xl md:text-5xl font-black text-foreground leading-tight tracking-tight mb-4">
-          천안 버스 정상화,<br className="md:hidden" /> 공동 약속하라
+          천안버스 정상화 공동 약속을<br className="md:hidden" /> 촉구하는 공개질의서
         </h1>
         <p className="text-sm md:text-base text-muted leading-relaxed max-w-2xl mx-auto mb-6">
           전국에서 악명 높은 천안 버스 — 정당은 다르더라도, 더불어민주당·국민의힘·개혁신당의 모든 천안시장
@@ -261,23 +257,8 @@ export default function CheonanBusQuestionnairePage() {
               </a>
             </div>
           </div>
-          {/* PDF의 각 페이지를 PNG로 변환해 직접 표시 — iframe/object 미지원 환경에서도 작동 */}
-          <div className="bg-gray-100 p-4 md:p-6 space-y-4">
-            {PDF_PAGE_IMAGES.map((src, idx) => (
-              <div key={src} className="mx-auto max-w-2xl shadow-md rounded-md overflow-hidden bg-white">
-                <Image
-                  src={src}
-                  alt={`공개질의서 ${idx + 1}페이지`}
-                  width={1240}
-                  height={1754}
-                  sizes="(max-width: 768px) 100vw, 672px"
-                  className="w-full h-auto"
-                  priority={idx === 0}
-                />
-              </div>
-            ))}
-            <p className="text-center text-[11px] text-muted">총 {PDF_PAGE_IMAGES.length}페이지 · 원본 PDF는 위 버튼으로 다운로드 가능합니다.</p>
-          </div>
+          {/* react-pdf (PDF.js) — 어떤 브라우저에서도 동일하게 렌더링 */}
+          <PdfSection file={PDF_URL} downloadName="공개질의서_천안버스_정상화.pdf" />
         </div>
       </section>
 
